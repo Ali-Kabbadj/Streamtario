@@ -1,38 +1,76 @@
+import uuid
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from core.pydantic.auth.user.account import Account, Profile
-from fastapi_factory.exceptions import NotFoundException
-from typing import Optional
-from app.repositories.auth.account import AccountRepository
+from core.utils.logging import log_info, log_error
+from validation_factory.validators import run_validators, ValidatorException, IValidator
+from typing import Optional, Sequence
+
+from app.repositories.auth.account import AccountRepository, ProfileOrm, AccountOrm
 from app.services.services import IAccountService
+from app.validators.auth.account import PasswordStrengthValidator, UniqueEmailValidator
+from security_factory.services.passwordservice import IPasswordHasher
 
 
 class PostgresAccountService(IAccountService):
-    """
-    A concrete implementation of IAccountService that uses a PostgreSQL
-    database via a repository for data storage.
-    """
-
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        password_hasher: IPasswordHasher,
+    ):
         self.session_factory = session_factory
-        # TODO: A real implementation would have a password hashing utility injected.
+        self.password_hasher = password_hasher
 
     async def create_account(self, email: str, password: str) -> Account:
         async with self.session_factory() as session:
-            repo = AccountRepository(session)
+            try:
+                password_validators: Sequence[IValidator] = [
+                    PasswordStrengthValidator()
+                ]
+                email_validators: Sequence[IValidator] = [UniqueEmailValidator()]
+                await run_validators(password, password_validators)
+                await run_validators(email, email_validators, session=session)
+            except ValidatorException as e:
+                log_error(
+                    f"Account creation validation failed for {email}: {e.message}",
+                    data=e.details,
+                )
+                raise e
 
-            # Dummy hashing
-            hashed_password = f"hashed_{password}"
+            # 1. CREATE THE CLEAN Pydantic DTO
+            hashed_password_str = self.password_hasher.hash(password)
+            default_profile_dto = Profile(name="Default")
 
-            # Business logic: Create account and a default profile
-            new_account_orm = await repo.create(email, hashed_password)
-            default_profile = Profile(name="Default")
+            # --- THE FIX ---
+            # Construct the Account DTO using the now-correct camelCase attribute name
+            account_dto = Account(
+                email=email,
+                hashedPassword=hashed_password_str,
+                profiles=[default_profile_dto],
+            )
 
-            # The ORM model from the DB is converted to a Pydantic schema for the response
-            account_schema = Account.model_validate(new_account_orm)
-            account_schema.profiles.append(default_profile)
+            # 2. MAP THE DTO TO ORM OBJECTS
+            # Note: The ORM attribute is still 'hashed_password'
+            new_account_orm = AccountOrm(
+                id=account_dto.id,
+                email=account_dto.email,
+                hashed_password=account_dto.hashedPassword,
+            )
+            new_profile_orm = ProfileOrm(
+                id=default_profile_dto.id,
+                name=default_profile_dto.name,
+                avatar=default_profile_dto.avatar,
+                account_id=new_account_orm.id,
+            )
 
+            # 3. COMMIT
+            session.add(new_account_orm)
+            session.add(new_profile_orm)
             await session.commit()
-            return account_schema
+
+            log_info(f"Successfully created account {account_dto.id} for {email}")
+
+            # 4. RETURN THE DTO
+            return account_dto
 
     async def get_account_by_id(self, account_id: str) -> Optional[Account]:
         async with self.session_factory() as session:
@@ -53,6 +91,4 @@ class PostgresAccountService(IAccountService):
     async def add_profile_to_account(
         self, account_id: str, profile_name: str
     ) -> Profile:
-        # Implementation for this would follow the same pattern:
-        # create session, create repo, get account, add profile, commit.
         raise NotImplementedError

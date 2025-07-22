@@ -17,3 +17,6 @@ alembic
 
 # Cache
 redis[hiredis]
+
+# Encode
+bcrypt

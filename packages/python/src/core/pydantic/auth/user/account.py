@@ -1,29 +1,33 @@
 import uuid
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class InstalledAddon(BaseModel):
-    """Represents an add-on that has been installed by a user."""
-
     manifest_url: str = Field(..., alias="manifestUrl")
     manifest_id: str = Field(..., alias="manifestId")
     installed_at: str = Field(..., alias="installedAt")
 
 
 class Profile(BaseModel):
-    """A user profile with its own configuration and state."""
-
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     avatar: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Account(BaseModel):
-    """The main user account model."""
-
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: str
-    hashed_password: str = Field(..., alias="hashedPassword")
-    profiles: List[Profile] = []
-    installed_addons: List[InstalledAddon] = Field([], alias="installedAddons")
+
+    # --- THE FIX ---
+    # The Python attribute name will now be camelCase, just like the JSON alias.
+    # This removes all ambiguity when constructing the model.
+    hashedPassword: str
+
+    profiles: List[Profile] = Field(default_factory=list)
+    installedAddons: List[InstalledAddon] = Field(default_factory=list)
+
+    # We still need from_attributes to read from ORM models in GET requests
+    # and we need populate_by_name to read the 'hashed_password' from the ORM
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
