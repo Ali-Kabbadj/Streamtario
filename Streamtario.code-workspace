@@ -1,6 +1,20 @@
 {
   "folders": [
-    { "name": "addon-controller", "path": "apps/addon-controller" },
+    {
+      "name": "addon-controller",
+      "path": "apps/addon-controller",
+      "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
+      }
+    },
+    {
+      "name": "python-libs",
+      "path": "packages/python",
+      "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
+      }
+    },
+    { "name": "typescript-lib", "path": "packages/typescript" },
     { "name": "api-gateway", "path": "apps/api-gateway" },
     { "name": "auth-service", "path": "apps/auth-service" },
     { "name": "frontend", "path": "apps/frontend" },
@@ -8,17 +22,139 @@
     { "name": "user-profile-service", "path": "apps/user-profile-service" },
     { "name": "webview2-host", "path": "apps/webview2-host" },
     { "name": "build", "path": "build" },
-    { "name": "core", "path": "packages/core" }
+    { "name": "local_dev_deps", "path": "local_dev_deps" }
   ],
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Install Streamtario Python lib",
+        "type": "shell",
+        "command": "${command:python.interpreterPath}",
+        "args": [
+          "-m",
+          "pip",
+          "install",
+          "-e",
+          "../../packages/python",
+          "-r",
+          "../../requirements.txt"
+        ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "presentation": {
+          "echo": false,
+          "reveal": "never",
+          "focus": false,
+          "panel": "shared",
+          "clear": true,
+          "close": true
+        },
+        "problemMatcher": []
+      }
+    ]
+  },
+
+  "launch": {
+    "version": "0.2.0",
+    "inputs": [
+      {
+        "id": "migrationMessage",
+        "type": "promptString",
+        "description": "Enter the message for the new migration",
+        "default": "New migration"
+      }
+    ],
+    "configurations": [
+      {
+        "name": "DB CLI: Create Database",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "args": ["create"],
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "DB CLI: Apply All Migrations",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "args": ["upgrade", "head"],
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "DB CLI: Generate New Migration",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "args": ["generate", "-m", "${input:migrationMessage}"],
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "DB CLI: DANGER - Drop Database",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "args": ["drop"],
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "Debug: Addon Controller",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/debug_runner.py",
+        "args": ["app.settings:settings"],
+        "cwd": "${workspaceFolder:addon-controller}",
+        "justMyCode": false,
+        "preLaunchTask": "Install Streamtario Python lib",
+        "console": "internalConsole",
+        "subProcess": false
+      },
+      {
+        "name": "Debug: User Profile Service",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/debug_runner.py",
+        "args": ["app.settings:settings"],
+        "cwd": "${workspaceFolder:user-profile-service}",
+        "justMyCode": false,
+        "preLaunchTask": "Install Streamtario Python lib",
+        "console": "internalConsole",
+        "subProcess": false
+      }
+    ],
+    "compounds": [
+      {
+        "name": "Debug: All Services",
+        "configurations": [
+          "Debug: Addon Controller",
+          "Debug: User Profile Service"
+        ]
+      }
+    ]
+  },
   "settings": {
-   "workbench.editor.enablePreview": false,
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.extraPaths": ["./packages/python/src"],
+    "terminal.integrated.env.windows": {
+      "PYTHONPATH": "${workspaceFolder}\\packages\\python\\src"
+    },
+    "terminal.integrated.env.linux": {
+      "PYTHONPATH": "${workspaceFolder}/packages/python/src"
+    },
+    "terminal.integrated.env.osx": {
+      "PYTHONPATH": "${workspaceFolder}/packages/python/src"
+    },
+    "workbench.editor.enablePreview": false,
     "files.autoSave": "onFocusChange",
     "git.openRepositoryInParentFolders": "always",
     "files.exclude": {
       "**/.git": true,
       "**/node_modules": true,
       "**/.DS_Store": true,
- 	"**/__pycache__": true,
+      "**/__pycache__": true,
       "**/.pytest_cache": true,
       "**/.venv": true,
       "**/media": true,
@@ -30,5 +166,5 @@
       "**/__init__.py": true
     },
     "editor.formatOnSave": true
-  },
+  }
 }

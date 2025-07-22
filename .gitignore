@@ -1,2 +1,7 @@
 build/dist/**
 build/deps/**
+streamtario_packages.egg-info
+__pycache__
+versions
+certs
+TREE.md
