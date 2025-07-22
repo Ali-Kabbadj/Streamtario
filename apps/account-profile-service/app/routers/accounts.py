@@ -3,9 +3,12 @@ from fastapi import APIRouter, Depends, Body
 from fastapi_factory.responses import create_success_response, SuccessResponse
 
 from app.containers import Container
-from app.schemas.requests import CreateAccountRequest, InstallAddonRequest
 from app.services.services import IAccountService, IProfileService
-from core.pydantic.auth.user.account import Account
+from core.pydantic.auth.user.account import (
+    Account,
+    CreateAccountRequest,
+    InstallAddonRequest,
+)
 
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])

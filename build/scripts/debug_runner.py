@@ -3,7 +3,6 @@ import os
 import uvicorn
 import importlib
 
-# Add the current working directory to the Python path.
 sys.path.insert(0, os.getcwd())
 
 

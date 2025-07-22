@@ -11,6 +11,9 @@ class SuccessResponse(BaseModel, Generic[T]):
     status_code: int
     data: T
 
+    def model_dump(self, **kwargs):
+        return super().model_dump(**kwargs)
+
 
 class ErrorResponse(BaseModel):
     """Standard model for a failed API call."""
@@ -19,3 +22,6 @@ class ErrorResponse(BaseModel):
     status_code: int
     error_message: str
     details: Any | None = None
+
+    def model_dump(self, **kwargs):
+        return super().model_dump(**kwargs)

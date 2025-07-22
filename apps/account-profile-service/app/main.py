@@ -9,11 +9,9 @@ app: Application = create_app(settings)
 container = Container(settings=settings)
 app.container = container
 
-# --- Wire the container to the new router locations ---
 container.wire(
     modules=[sys.modules[__name__], ".routers.accounts", ".routers.profiles"]
 )
 
-# --- Include the new routers in the app ---
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(profiles.router, prefix="/api/v1")

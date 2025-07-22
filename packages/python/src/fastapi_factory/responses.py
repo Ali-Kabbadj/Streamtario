@@ -3,12 +3,12 @@ from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
+from https_factory.models import SuccessResponse as BaseSuccessResponse
+
 T = TypeVar("T")
 
 
-class SuccessResponse(BaseModel, Generic[T]):
-    ok: bool = Field(True, frozen=True)
-    data: T
+SuccessResponse = BaseSuccessResponse[T]
 
 
 def create_success_response(
@@ -19,10 +19,7 @@ def create_success_response(
     Creates a standardized JSONResponse for a successful API call.
     It wraps the payload in the SuccessResponse model.
     """
-    # FIX: Explicitly pass ok=True to satisfy Pylance.
-    payload = SuccessResponse(ok=True, data=data)
-
-    # We still need by_alias=True to ensure JSON uses camelCase.
+    # Now we provide the status_code to the model, which fixes the validation error.
+    payload = SuccessResponse(data=data, status_code=status_code)
     content = jsonable_encoder(payload.model_dump(by_alias=True))
-
     return JSONResponse(status_code=status_code, content=content)

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from core.pydantic.addons.manifest import AddonManifest
+from core.pydantic.catalog.catalog import CatalogResponse
+from core.pydantic.meta.meta import MetaResponse
 
 
 class IAddonService(ABC):
@@ -7,5 +9,17 @@ class IAddonService(ABC):
 
     @abstractmethod
     async def get_manifest(self, url: str) -> AddonManifest:
+        """Fetches an addon manifest from a URL and validates it."""
+        pass
+
+    @abstractmethod
+    async def get_catalog(
+        self, manifest_url: str, catalog_type: str, catalog_id: str, extra_props: dict
+    ) -> CatalogResponse:
+        """Fetches an addon manifest from a URL and validates it."""
+        pass
+
+    @abstractmethod
+    async def get_meta(self, manifest_url: str, item_id: str) -> MetaResponse:
         """Fetches an addon manifest from a URL and validates it."""
         pass

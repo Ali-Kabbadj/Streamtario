@@ -28,3 +28,12 @@ class Account(BaseModel):
     hashedPassword: str = Field(validation_alias="hashed_password")
     profiles: List[Profile] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class CreateAccountRequest(BaseModel):
+    email: str
+    password: str
+
+
+class InstallAddonRequest(BaseModel):
+    manifest_url: str = Field(..., alias="manifestUrl")
