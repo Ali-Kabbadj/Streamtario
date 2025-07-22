@@ -6,16 +6,11 @@ from https_factory.client import ApiClient
 
 # Import Interfaces
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
-from app.domain.repositories.i_account_repository import IAccountRepository
-from app.domain.repositories.i_profile_repository import IProfileRepository
 from app.domain.providers.i_addon_provider import IAddonProvider
 from security_factory.services.passwordservice import IPasswordHasher
 
 # Import Concrete Implementations
 from app.infrastructure.sqlalchemy_uow.session_manager import SqlAlchemyUnitOfWork
-from app.repositories.account_repository import AccountRepository
-from app.repositories.profile_repository import ProfileRepository
-from app.providers.addon_provider import AddonProvider
 
 # Import All Use Cases
 from app.use_cases.account.create_account import CreateAccountUseCase
@@ -31,9 +26,9 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
 from app.use_cases.profile.get_addon_catalog import GetAddonCatalogUseCase
 from app.use_cases.profile.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.profile.get_item_meta import GetItemMetaUseCase
-from app.use_cases.profile.search_addons import SearchAllAddonsUseCase
-from app.use_cases.profile.stream_search_addons import StreamSearchAllAddonsUseCase
-from app.providers.addon_provider import AddonProvider
+from app.use_cases.profile.search_catalog import SearchCatalogUseCase
+from app.use_cases.profile.stream_search_catalog import StreamSearchCatalogCase
+from app.adapters.addon_provider import AddonProvider
 
 
 class Container(containers.DeclarativeContainer):
@@ -72,6 +67,20 @@ class Container(containers.DeclarativeContainer):
     get_account_use_case: providers.Factory[GetAccountUseCase] = providers.Factory(
         GetAccountUseCase, uow_factory=uow.provider
     )
+    get_addon_catalog_use_case: providers.Factory[GetAddonCatalogUseCase] = (
+        providers.Factory(
+            GetAddonCatalogUseCase,
+            uow_factory=uow.provider,
+            addon_provider=addon_provider,
+        )
+    )
+    discover_catalogs_use_case: providers.Factory[DiscoverCatalogsUseCase] = (
+        providers.Factory(
+            DiscoverCatalogsUseCase,
+            uow_factory=uow.provider,
+            addon_provider=addon_provider,
+        )
+    )
     install_addon_use_case: providers.Factory[InstallAddonUseCase] = providers.Factory(
         InstallAddonUseCase, uow_factory=uow.provider, addon_provider=addon_provider
     )
@@ -90,34 +99,20 @@ class Container(containers.DeclarativeContainer):
     ] = providers.Factory(
         UninstallAddonFromAllProfilesUseCase, uow_factory=uow.provider
     )
-    get_addon_catalog_use_case: providers.Factory[GetAddonCatalogUseCase] = (
-        providers.Factory(
-            GetAddonCatalogUseCase,
-            uow_factory=uow.provider,
-            addon_provider=addon_provider,
-        )
-    )
-    discover_catalogs_use_case: providers.Factory[DiscoverCatalogsUseCase] = (
-        providers.Factory(
-            DiscoverCatalogsUseCase,
-            uow_factory=uow.provider,
-            addon_provider=addon_provider,
-        )
-    )
     get_item_meta_use_case: providers.Factory[GetItemMetaUseCase] = providers.Factory(
         GetItemMetaUseCase, uow_factory=uow.provider, addon_provider=addon_provider
     )
-    search_all_addons_use_case: providers.Factory[SearchAllAddonsUseCase] = (
+    search_all_addons_use_case: providers.Factory[SearchCatalogUseCase] = (
         providers.Factory(
-            SearchAllAddonsUseCase,
+            SearchCatalogUseCase,
             discover_catalogs_use_case=discover_catalogs_use_case,
             get_addon_catalog_use_case=get_addon_catalog_use_case,
         )
     )
-    stream_search_all_addons_use_case: providers.Factory[
-        StreamSearchAllAddonsUseCase
-    ] = providers.Factory(
-        StreamSearchAllAddonsUseCase,
-        discover_catalogs_use_case=discover_catalogs_use_case,
-        get_addon_catalog_use_case=get_addon_catalog_use_case,
+    stream_search_all_addons_use_case: providers.Factory[StreamSearchCatalogCase] = (
+        providers.Factory(
+            StreamSearchCatalogCase,
+            discover_catalogs_use_case=discover_catalogs_use_case,
+            get_addon_catalog_use_case=get_addon_catalog_use_case,
+        )
     )

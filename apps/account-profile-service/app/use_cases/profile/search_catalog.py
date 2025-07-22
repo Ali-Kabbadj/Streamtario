@@ -1,13 +1,12 @@
 import asyncio
-import json
-from typing import AsyncGenerator
+from typing import Dict
 from .discover_catalogs import DiscoverCatalogsUseCase
 from .get_addon_catalog import GetAddonCatalogUseCase
-from core.pydantic.catalog.catalog import AddonSearchResult
+from core.pydantic.catalog.catalog import AddonSearchResult, DiscoveredCatalog
 from core.utils.logging import log_error
 
 
-class StreamSearchAllAddonsUseCase:
+class SearchCatalogUseCase:
     def __init__(
         self,
         discover_catalogs_use_case: DiscoverCatalogsUseCase,
@@ -16,7 +15,9 @@ class StreamSearchAllAddonsUseCase:
         self.discover_catalogs_use_case = discover_catalogs_use_case
         self.get_addon_catalog_use_case = get_addon_catalog_use_case
 
-    async def execute(self, profile_id: str, query: str) -> AsyncGenerator[str, None]:
+    async def execute(
+        self, profile_id: str, query: str
+    ) -> Dict[str, AddonSearchResult]:
         all_catalogs = await self.discover_catalogs_use_case.execute(profile_id)
         search_enabled_catalogs = [
             cat
@@ -24,7 +25,7 @@ class StreamSearchAllAddonsUseCase:
             if any(prop.get("name") == "search" for prop in cat.extra_props)
         ]
 
-        async def _fetch_and_format(catalog):
+        async def _fetch_search_results(catalog: DiscoveredCatalog):
             try:
                 catalog_data = await self.get_addon_catalog_use_case.execute(
                     profile_id=profile_id,
@@ -33,13 +34,12 @@ class StreamSearchAllAddonsUseCase:
                     catalog_id=catalog.catalog_id,
                     extra_props={"search": query},
                 )
-                single_group = {
-                    catalog.manifest_id: AddonSearchResult(
-                        addonName=catalog.addon_name,
-                        resultsByType={catalog.catalog_type: catalog_data.items},
-                    )
-                }
-                return single_group
+                return (
+                    catalog.manifest_id,
+                    catalog.addon_name,
+                    catalog.catalog_type,
+                    catalog_data.items,
+                )
             except Exception as e:
                 log_error(
                     f"Search failed for addon '{catalog.manifest_id}'",
@@ -47,13 +47,16 @@ class StreamSearchAllAddonsUseCase:
                 )
                 return None
 
-        tasks = [_fetch_and_format(cat) for cat in search_enabled_catalogs]
-        for completed_task in asyncio.as_completed(tasks):
-            result_group = await completed_task
-            if result_group:
-                manifest_id, addon_result_model = next(iter(result_group.items()))
-                final_json_obj = {
-                    manifest_id: addon_result_model.model_dump(by_alias=True)
-                }
-                json_data = json.dumps(final_json_obj)
-                yield f"event: search_result\\ndata: {json_data}\\n\\n"
+        tasks = [_fetch_search_results(cat) for cat in search_enabled_catalogs]
+        results = await asyncio.gather(*tasks)
+
+        grouped_results: Dict[str, AddonSearchResult] = {}
+        for res in filter(None, results):
+            manifest_id, addon_name, catalog_type, items = res
+            if manifest_id not in grouped_results:
+                grouped_results[manifest_id] = AddonSearchResult(
+                    addonName=addon_name, resultsByType={}
+                )
+            grouped_results[manifest_id].results_by_type[catalog_type] = items
+
+        return grouped_results

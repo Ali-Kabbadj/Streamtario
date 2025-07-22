@@ -15,8 +15,8 @@ from app.use_cases.profile.uninstall_addon import UninstallAddonUseCase
 from app.use_cases.profile.get_addon_catalog import GetAddonCatalogUseCase
 from app.use_cases.profile.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.profile.get_item_meta import GetItemMetaUseCase
-from app.use_cases.profile.search_addons import SearchAllAddonsUseCase
-from app.use_cases.profile.stream_search_addons import StreamSearchAllAddonsUseCase
+from app.use_cases.profile.search_catalog import SearchCatalogUseCase
+from app.use_cases.profile.stream_search_catalog import StreamSearchCatalogCase
 
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
@@ -92,7 +92,7 @@ async def discover_profile_catalogs(
 async def search_profile_addons(
     profile_id: str,
     query: str,
-    use_case: SearchAllAddonsUseCase = Depends(
+    use_case: SearchCatalogUseCase = Depends(
         Provide[Container.search_all_addons_use_case]
     ),
 ):
@@ -105,7 +105,7 @@ async def search_profile_addons(
 async def stream_search_profile_addons(
     profile_id: str,
     query: str,
-    use_case: StreamSearchAllAddonsUseCase = Depends(
+    use_case: StreamSearchCatalogCase = Depends(
         Provide[Container.stream_search_all_addons_use_case]
     ),
 ):
