@@ -1,0 +1,19 @@
+# FastAPI & Uvicorn
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+debugpy
+
+# HTTP Client
+httpx
+dependency-injector
+
+# Database (PostgreSQL) & ORM
+sqlalchemy[asyncio]
+asyncpg
+alembic
+
+# Cache
+redis[hiredis]
