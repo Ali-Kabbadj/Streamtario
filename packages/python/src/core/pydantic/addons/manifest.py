@@ -1,5 +1,11 @@
-from typing import List, Optional, Union
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
+from typing import List, Optional, Any
+
+
+class BehaviorHints(BaseModel):
+    configurable: bool = False
+    configuration_required: bool = Field(False, alias="configurationRequired")
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ExtraOption(BaseModel):
@@ -7,6 +13,7 @@ class ExtraOption(BaseModel):
     is_required: bool = Field(False, alias="isRequired")
     options: Optional[List[str]] = None
     options_limit: Optional[int] = Field(None, alias="optionsLimit")
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Catalog(BaseModel):
@@ -14,6 +21,9 @@ class Catalog(BaseModel):
     type: str
     name: str
     extra: Optional[List[ExtraOption]] = None
+    genres: Optional[List[str]] = None
+    page_size: Optional[int] = Field(None, alias="pageSize")
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class Resource(BaseModel):
@@ -27,30 +37,33 @@ class AddonManifest(BaseModel):
     version: str
     name: str
     description: str
-    resources: List[Resource]
+    resources: List[Any]  # Start with a generic list
     types: List[str]
-
     logo: Optional[str] = None
     background: Optional[str] = None
     catalogs: List[Catalog] = []
     id_prefixes: Optional[List[str]] = Field(None, alias="idPrefixes")
+    behavior_hints: Optional[BehaviorHints] = Field(None, alias="behaviorHints")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
-    @model_validator(mode="before")
-    @classmethod
-    def pre_process_resources(cls, values):
-        """
-        This validator runs before the main validation and transforms
-        any string resource into a Resource object.
-        """
-        if "resources" in values and isinstance(values["resources"], list):
-            processed_resources = []
-            for res in values["resources"]:
-                if isinstance(res, str):
-                    processed_resources.append({"name": res})
-                else:
-                    processed_resources.append(res)
-            values["resources"] = processed_resources
-        return values
+    @model_validator(mode="after")
+    def process_resources_after_validation(self) -> "AddonManifest":
+        processed_resources = []
+        for res in self.resources:
+            if isinstance(res, str):
+                processed_resources.append(Resource(name=res))
+            elif isinstance(res, dict):
+                resource_data = {
+                    "name": res.get("name"),
+                    "types": res.get("types"),
+                    "id_prefixes": res.get(
+                        "idPrefixes"
+                    ),  # Manually get from the camelCase key
+                }
+                processed_resources.append(Resource(**resource_data))
+            elif isinstance(res, Resource):
+                processed_resources.append(res)
+
+        self.resources = processed_resources
+        return self

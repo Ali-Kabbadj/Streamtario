@@ -1,8 +1,7 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from .exceptions import ApiException
-import json
 
 
 async def api_exception_handler(request: Request, exc: ApiException):

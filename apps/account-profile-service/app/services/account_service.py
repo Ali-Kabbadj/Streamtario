@@ -39,7 +39,6 @@ class AccountService(IAccountService):
                 email=email, hashed_password=hashed_password_str
             )
 
-            # The default profile is now an implementation detail of account creation
             from core.database.models.auth.account import ProfileOrm
 
             default_profile = ProfileOrm(name="Default", account_id=new_account_orm.id)
@@ -47,7 +46,6 @@ class AccountService(IAccountService):
 
             await session.commit()
 
-            # Re-fetch to get the full object with the new profile
             created_account_orm = await repo.get_by_id(new_account_orm.id)
             if not created_account_orm:
                 error_msg = (

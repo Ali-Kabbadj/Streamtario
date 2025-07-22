@@ -9,9 +9,7 @@ class ValidatorException(ApiException):
     Automatically generates a user-friendly message and details.
     """
 
-    # --- THE NEW, SMARTER IMPLEMENTATION ---
     def __init__(self, field_name: str, invalid_value: Any, reason: str):
-        # We need to be careful that invalid_value is serializable for the JSON response
         try:
             serializable_value = str(invalid_value)
         except Exception:
@@ -23,7 +21,6 @@ class ValidatorException(ApiException):
             "invalid_value": serializable_value,
             "reason": reason,
         }
-        # Call the parent constructor with a 422 status code
         super().__init__(message=message, status_code=422, details=details)
 
 

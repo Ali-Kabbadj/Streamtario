@@ -3,7 +3,7 @@ import sys
 import subprocess
 import argparse
 from dotenv import load_dotenv
-import shutil  # Import for file operations
+import shutil
 
 
 def _clear_migrations_folder(versions_path: str):
@@ -102,14 +102,12 @@ def main():
             run_psql_command([f"DROP DATABASE {os.environ['DB_NAME']} WITH (FORCE)"])
             print("Database dropped successfully.")
 
-            # --- THE FIX: Also delete old migration files ---
             _clear_migrations_folder(versions_path)
             print("Development migration history has been cleared.")
 
         elif args.command == "generate":
             alembic_cmd = ["alembic", "revision", "--autogenerate", "-m", args.message]
             print(f"Generating new migration with message: '{args.message}'...")
-            # --- THE FIX: Run the command from the migrations path ---
             subprocess.run(
                 alembic_cmd,
                 cwd=migrations_path,
@@ -122,11 +120,9 @@ def main():
         elif args.command == "upgrade":
             alembic_cmd = ["alembic", "upgrade", args.revision]
             print(f"Applying migrations to '{args.revision}'...")
-            # --- THE FIX: Run the command from the migrations path ---
             subprocess.run(alembic_cmd, cwd=migrations_path, check=True)
             print("Migrations applied successfully.")
 
-    # --- THE FIX: Provide rich, detailed error handling ---
     except subprocess.CalledProcessError as e:
         print("\n" + "=" * 80)
         print(" FATAL: A command failed to execute ".center(80, "="))

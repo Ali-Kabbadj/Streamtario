@@ -30,7 +30,6 @@ def create_db_session_factory(engine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-# This is a dependency that our API routes will use to get a database session.
 async def get_db_session(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncGenerator[AsyncSession, None]:

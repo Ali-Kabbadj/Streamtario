@@ -30,7 +30,6 @@ class NotFoundException(ApiException):
     It automatically generates a descriptive message.
     """
 
-    # --- THE NEW, SMARTER IMPLEMENTATION ---
     def __init__(self, entity_name: str, identifier: Any):
         message = f"{entity_name} with ID '{identifier}' not found."
         details = {
@@ -49,7 +48,6 @@ class ValidationException(ApiException):
     message = "Validation failed."
 
 
-# --- ADD THE NEW EXCEPTION ---
 class ConflictException(ApiException):
     """
     An exception raised when an action cannot be completed because the
@@ -64,4 +62,22 @@ class ConflictException(ApiException):
 
         super().__init__(
             message=message, status_code=status.HTTP_409_CONFLICT, details=base_details
+        )
+
+
+class AddonProviderException(ApiException):
+    """
+    A specific exception for when a suitable addon provider cannot be found
+    for a given task (e.g., providing metadata for a specific ID prefix).
+    """
+
+    def __init__(self, looking_for: str, attempted_lookups: dict):
+        message = f"Could not find an installed addon to provide the requested resource: {looking_for}"
+        details = {
+            "error_type": "ProviderNotFound",
+            "resource_required": looking_for,
+            "debug_info": attempted_lookups,
+        }
+        super().__init__(
+            message=message, status_code=status.HTTP_404_NOT_FOUND, details=details
         )
