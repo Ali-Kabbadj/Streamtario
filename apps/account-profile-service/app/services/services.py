@@ -77,7 +77,9 @@ class IProfileService(ABC):
         pass
 
     @abstractmethod
-    async def get_meta(self, profile_id: str, item_id: str) -> MetaResponse:
+    async def get_meta(
+        self, profile_id: str, item_type: str, item_id: str
+    ) -> MetaResponse:  # ADD item_type
         """
         Gets detailed metadata for a given item ID by finding the correct
         installed addon and proxying the request to the addon-controller.

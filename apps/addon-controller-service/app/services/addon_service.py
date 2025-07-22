@@ -1,6 +1,7 @@
+from typing import Optional
 from https_factory.client import ApiClient
 from core.pydantic.addons.manifest import AddonManifest
-from core.utils.logging import log_http, log_error, log_info
+from core.utils.logging import log_http, log_error, log_info, log_warn
 from fastapi_factory.exceptions import NotFoundException, ValidationException
 from https_factory.models import ErrorResponse
 from validation_factory.validators import run_validators
@@ -10,6 +11,7 @@ from .services import IAddonService
 from ..validators.manifest import ManifestUrlValidator
 from https_factory.models import SuccessResponse
 import asyncio
+from urllib.parse import quote
 
 
 class HttpsAddonService(IAddonService):
@@ -83,13 +85,45 @@ class HttpsAddonService(IAddonService):
 
         return catalog_response.data
 
-    async def get_meta(self, manifest_url: str, item_id: str) -> MetaResponse:
+    async def get_meta(
+        self, manifest_url: str, item_id: str, item_type: Optional[str]
+    ) -> MetaResponse:  # ADD item_type
         log_info(
-            f"--- META REQUEST RECEIVED for manifest: '{manifest_url}', item_id: '{item_id}' ---"
+            f"--- META REQUEST RECEIVED for manifest: '{manifest_url}', item_id: '{item_id}', type: '{item_type}' ---"
         )
         manifest = await self.get_manifest(manifest_url)
         base_url = manifest_url.rsplit("/", 1)[0]
+        encoded_item_id = quote(item_id)  # Encode the ID once
 
+        # --- START OF REFACTORED LOGIC ---
+
+        # If the item type is provided, we use it directly. No guesswork.
+        if item_type:
+            log_info(f"Item type '{item_type}' was provided. Attempting direct fetch.")
+            url = f"{base_url}/meta/{item_type}/{encoded_item_id}.json"
+            log_info(f"  - [DIRECT ATTEMPT] Fetching from external URL: {url}")
+
+            public_api_client = ApiClient()
+            result = await public_api_client.get(url, response_model=MetaResponse)
+            await public_api_client.close()
+
+            if isinstance(result, SuccessResponse):
+                log_info(f"SUCCESS: Found metadata for '{item_id}' with provided type.")
+                return result.data
+            else:
+                log_error(
+                    f"FAILURE: Direct fetch for type '{item_type}' failed for item '{item_id}'.",
+                    data=result.model_dump(),
+                )
+                raise NotFoundException(
+                    "Metadata in external addon with specified type",
+                    f"{item_type}/{item_id}",
+                )
+
+        # Fallback to old behavior if no type is provided
+        log_warn(
+            f"No item type provided for '{item_id}'. Falling back to manifest iteration."
+        )
         meta_resource = next(
             (res for res in manifest.resources if res.name == "meta"), None
         )
@@ -111,12 +145,12 @@ class HttpsAddonService(IAddonService):
 
         public_api_client = ApiClient()
 
-        async def _try_fetch(item_type: str):
-            url = f"{base_url}/meta/{item_type}/{item_id}.json"
-            log_info(f"  - [ATTEMPT] Fetching from external URL: {url}")
+        async def _try_fetch(t: str):
+            url = f"{base_url}/meta/{t}/{encoded_item_id}.json"
+            log_info(f"  - [FALLBACK ATTEMPT] Fetching from external URL: {url}")
             return await public_api_client.get(url, response_model=MetaResponse)
 
-        tasks = [_try_fetch(item_type) for item_type in types_to_check]
+        tasks = [_try_fetch(t) for t in types_to_check]
         all_results = await asyncio.gather(*tasks)
         await public_api_client.close()
 
@@ -125,11 +159,11 @@ class HttpsAddonService(IAddonService):
         )
 
         if successful_response:
-            log_info(f"SUCCESS: Found metadata for '{item_id}'")
+            log_info(f"SUCCESS: Found metadata for '{item_id}' via fallback.")
             return successful_response.data
         else:
             log_error(
                 f"FAILURE: Could not fetch metadata for '{item_id}' from any attempted URL.",
-                data={"all_results": all_results},
+                data={"all_results": [r.model_dump() for r in all_results if r]},
             )
             raise NotFoundException("Metadata for item ID in external addon", item_id)

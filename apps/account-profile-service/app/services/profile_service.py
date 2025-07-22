@@ -346,8 +346,12 @@ class ProfileService(IProfileService):
                 json_data = json.dumps(final_json_obj)
                 yield f"event: search_result\ndata: {json_data}\n\n"
 
-    async def get_meta(self, profile_id: str, item_id: str) -> MetaResponse:
-        log_info(f"--- META REQUEST STARTED for item_id: '{item_id}' ---")
+    async def get_meta(
+        self, profile_id: str, item_type: str, item_id: str
+    ) -> MetaResponse:  # ADD item_type
+        log_info(
+            f"--- META REQUEST STARTED for item_id: '{item_id}' type: '{item_type}' ---"
+        )  # Log the type
         async with self.session_factory() as session:
             repo = ProfileRepository(session)
             profile_orm = await repo.get_by_id(profile_id)
@@ -429,9 +433,13 @@ class ProfileService(IProfileService):
             log_info(
                 f"Proxying meta request to addon-controller for manifest: {responsible_addon_orm.manifest_url}"
             )
+            request_body = {
+                "manifestUrl": responsible_addon_orm.manifest_url,
+                "itemType": item_type,
+            }
             meta_response = await self.api_client.post(
                 url=f"{self.addon_controller_url}/api/v1/meta/{item_id}",
-                json={"manifestUrl": responsible_addon_orm.manifest_url},
+                json=request_body,
                 response_model=MetaResponse,
             )
 
