@@ -1,11 +1,10 @@
 import re
 from validation_factory.validators import IValidator, ValidatorException
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.repositories.account_repository import AccountRepository
+from app.domain.repositories.i_account_repository import IAccountRepository
 
 
 class PasswordStrengthValidator(IValidator):
+    # ... (no changes here)
     async def validate(self, value: str, **kwargs) -> None:
         if not isinstance(value, str):
             raise ValidatorException(
@@ -40,17 +39,15 @@ class PasswordStrengthValidator(IValidator):
 
 
 class UniqueEmailValidator(IValidator):
+    # --- FIX: The validator now depends on the repository interface ---
     async def validate(self, value: str, **kwargs) -> None:
-        session = kwargs.get("session")
-
-        if not isinstance(session, AsyncSession):
+        repo: IAccountRepository | None = kwargs.get("account_repository")
+        if not repo:
             raise ValueError(
-                "A valid AsyncSession was not provided to UniqueEmailValidator."
+                "IAccountRepository must be provided to UniqueEmailValidator."
             )
 
-        repo = AccountRepository(session)
         existing_account = await repo.get_by_email(value)
-
         if existing_account:
             raise ValidatorException(
                 field_name="email",
