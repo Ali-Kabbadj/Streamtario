@@ -8,6 +8,7 @@ debugpy
 
 # HTTP Client
 httpx
+httpx[http2]
 dependency-injector
 
 # Database (PostgreSQL) & ORM

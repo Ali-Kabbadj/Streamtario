@@ -5,12 +5,12 @@ import sys
 from dotenv import load_dotenv
 from sqlalchemy import NullPool, engine_from_config
 from sqlalchemy import pool
-from alembic import context
+from alembic import context  # type: ignore
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 # Import our models' base class
 from core.database.models.base import Base
-from core.database.models.auth import account
+from core.database.models.auth import account, addon
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -29,7 +29,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Load environment variables from the root .env file
-# The path is relative from where 'alembic' is run (user-profile-service dir)
+# The path is relative from where 'alembic' is run (account-profile-service dir)
 dotenv_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")
 load_dotenv(dotenv_path)
 

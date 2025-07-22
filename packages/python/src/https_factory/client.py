@@ -2,12 +2,17 @@ from typing import Type, Union
 import httpx
 from pydantic import BaseModel, ValidationError
 from .models import SuccessResponse, ErrorResponse
+import ssl
 
 
 class ApiClient:
-    def __init__(self, client: httpx.AsyncClient | None = None):
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        verify_ssl: Union[str, bool] = True,
+    ):
         self._client = client or httpx.AsyncClient(
-            http2=True, follow_redirects=True, timeout=15.0
+            http2=True, follow_redirects=True, timeout=15.0, verify=verify_ssl
         )
 
     async def get[T: BaseModel](
@@ -18,9 +23,13 @@ class ApiClient:
             response = await self._client.get(url)
             response.raise_for_status()
 
-            # Now we have two points of failure: JSON decoding and Pydantic validation
             raw_data = response.json()
-            validated_data = response_model.model_validate(raw_data)
+            if isinstance(raw_data, dict) and "data" in raw_data:
+                payload_to_validate = raw_data["data"]
+            else:
+                payload_to_validate = raw_data
+
+            validated_data = response_model.model_validate(payload_to_validate)
 
             return SuccessResponse[T](
                 status_code=response.status_code, data=validated_data
@@ -40,6 +49,7 @@ class ApiClient:
             return ErrorResponse(
                 status_code=422,
                 error_message="Response validation failed",
+                # Provide the rich error details from Pydantic
                 details=e.errors(),
             )
         except Exception as e:
