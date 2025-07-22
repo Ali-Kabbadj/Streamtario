@@ -25,10 +25,43 @@ class ApiException(Exception):
 
 
 class NotFoundException(ApiException):
-    status_code = status.HTTP_404_NOT_FOUND
-    message = "Resource not found."
+    """
+    An exception raised when a specific resource is not found.
+    It automatically generates a descriptive message.
+    """
+
+    # --- THE NEW, SMARTER IMPLEMENTATION ---
+    def __init__(self, entity_name: str, identifier: Any):
+        message = f"{entity_name} with ID '{identifier}' not found."
+        details = {
+            "entity": entity_name,
+            "identifier": identifier,
+            "reason": f"The provided identifier does not match any existing {entity_name.lower()}.",
+        }
+        # Call the parent constructor with the generated message and details
+        super().__init__(
+            message=message, status_code=status.HTTP_404_NOT_FOUND, details=details
+        )
 
 
 class ValidationException(ApiException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     message = "Validation failed."
+
+
+# --- ADD THE NEW EXCEPTION ---
+class ConflictException(ApiException):
+    """
+    An exception raised when an action cannot be completed because the
+    resource already exists. (HTTP 409)
+    """
+
+    def __init__(self, entity_name: str, identifier: Any, details: dict | None = None):
+        message = f"A {entity_name.lower()} with the identifier '{identifier}' already exists."
+        base_details = {"entity": entity_name, "identifier": identifier}
+        if details:
+            base_details.update(details)
+
+        super().__init__(
+            message=message, status_code=status.HTTP_409_CONFLICT, details=base_details
+        )

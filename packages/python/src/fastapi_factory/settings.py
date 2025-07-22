@@ -26,6 +26,10 @@ class BaseAppSettings(BaseSettings):
     REDIS_HOST: Optional[str] = None
     REDIS_PORT: Optional[int] = None
 
+    # --- NEW: Service-to-Service Communication ---
+    ADDON_CONTROLLER_URL: Optional[str] = None
+    ACCOUNT_PROFILE_SERVICE: Optional[str] = None
+
     class Config:
         env_file = find_dotenv()
         env_file_encoding = "utf-8"

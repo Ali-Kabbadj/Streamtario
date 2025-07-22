@@ -1,11 +1,29 @@
 from abc import ABC, abstractmethod
-
-from typing import Any, List, Optional, Sequence
-from fastapi_factory.exceptions import ValidationException as ApiException
+from typing import Any, Sequence
+from fastapi_factory.exceptions import ApiException
 
 
 class ValidatorException(ApiException):
-    def __init__(self, message: str, details: Optional[Any] = None):
+    """
+    A structured exception for validation failures.
+    Automatically generates a user-friendly message and details.
+    """
+
+    # --- THE NEW, SMARTER IMPLEMENTATION ---
+    def __init__(self, field_name: str, invalid_value: Any, reason: str):
+        # We need to be careful that invalid_value is serializable for the JSON response
+        try:
+            serializable_value = str(invalid_value)
+        except Exception:
+            serializable_value = "Unserializable Value"
+
+        message = f"Validation failed for field '{field_name}': {reason}"
+        details = {
+            "field": field_name,
+            "invalid_value": serializable_value,
+            "reason": reason,
+        }
+        # Call the parent constructor with a 422 status code
         super().__init__(message=message, status_code=422, details=details)
 
 

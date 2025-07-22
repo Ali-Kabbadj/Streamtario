@@ -7,7 +7,7 @@ class AddonControllerSettings(BaseAppSettings):
     This class inherits defaults from BaseAppSettings and only overrides what's needed.
     """
 
-    APP_NAME: str = "ADDON_CONTROLLER"
+    APP_NAME: str = "ADDON_CONTROLLER_SERVICE"
     APP_PORT: int = 8001
     SSL_KEYFILE: str = "../../local_dev_deps/certs/localhost+2-key.pem"
     SSL_CERTFILE: str = "../../local_dev_deps/certs/localhost+2.pem"

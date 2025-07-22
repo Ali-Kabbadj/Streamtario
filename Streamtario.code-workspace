@@ -1,28 +1,26 @@
 {
   "folders": [
     {
-      "name": "addon-controller",
-      "path": "apps/addon-controller",
-      "settings": {
-        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
-      }
+      "name": "addon-controller-service",
+      "path": "apps/addon-controller-service"
     },
     {
       "name": "python-libs",
-      "path": "packages/python",
-      "settings": {
-        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
-      }
+      "path": "packages/python"
     },
     { "name": "typescript-lib", "path": "packages/typescript" },
     { "name": "api-gateway", "path": "apps/api-gateway" },
     { "name": "auth-service", "path": "apps/auth-service" },
     { "name": "frontend", "path": "apps/frontend" },
     { "name": "state-tracker-service", "path": "apps/state-tracker-service" },
-    { "name": "user-profile-service", "path": "apps/user-profile-service" },
+    {
+      "name": "account-profile-service",
+      "path": "apps/account-profile-service"
+    },
     { "name": "webview2-host", "path": "apps/webview2-host" },
     { "name": "build", "path": "build" },
-    { "name": "local_dev_deps", "path": "local_dev_deps" }
+    { "name": "local_dev_deps", "path": "local_dev_deps" },
+    { "name": "database", "path": "database" }
   ],
   "tasks": {
     "version": "2.0.0",
@@ -56,7 +54,6 @@
       }
     ]
   },
-
   "launch": {
     "version": "0.2.0",
     "inputs": [
@@ -69,72 +66,106 @@
     ],
     "configurations": [
       {
-        "name": "DB CLI: Create Database",
+        "name": "📅 Create Database",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:build}/scripts/db_cli.py",
         "args": ["create"],
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
+        "presentation": {
+          "hidden": false,
+          "group": "db",
+          "order": 1
+        }
       },
       {
-        "name": "DB CLI: Apply All Migrations",
+        "name": "📅 Apply Migrations",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:build}/scripts/db_cli.py",
         "args": ["upgrade", "head"],
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
+        "presentation": {
+          "hidden": false,
+          "group": "db",
+          "order": 1
+        }
       },
       {
-        "name": "DB CLI: Generate New Migration",
+        "name": "📅 Generate New Migration",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:build}/scripts/db_cli.py",
         "args": ["generate", "-m", "${input:migrationMessage}"],
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
+        "presentation": {
+          "hidden": false,
+          "group": "db",
+          "order": 2
+        }
       },
       {
-        "name": "DB CLI: DANGER - Drop Database",
+        "name": "⚠️ Drop Database",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:build}/scripts/db_cli.py",
         "args": ["drop"],
-        "console": "integratedTerminal"
+        "console": "integratedTerminal",
+        "presentation": {
+          "hidden": false,
+          "group": "db",
+          "order": 3
+        }
       },
       {
-        "name": "Debug: Addon Controller",
+        "name": "➕ Addons Service",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:build}/scripts/debug_runner.py",
         "args": ["app.settings:settings"],
-        "cwd": "${workspaceFolder:addon-controller}",
+        "cwd": "${workspaceFolder:addon-controller-service}",
         "justMyCode": false,
-        "preLaunchTask": "Install Streamtario Python lib",
+        // "preLaunchTask": "Install Streamtario Python lib",
         "console": "internalConsole",
-        "subProcess": false
+        "subProcess": false,
+        "presentation": {
+          "hidden": false,
+          "group": "services",
+          "order": 3
+        }
       },
       {
-        "name": "Debug: User Profile Service",
+        "name": "➕ Accounts Service",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder:build}/scripts/debug_runner.py",
         "args": ["app.settings:settings"],
-        "cwd": "${workspaceFolder:user-profile-service}",
+        "cwd": "${workspaceFolder:account-profile-service}",
         "justMyCode": false,
-        "preLaunchTask": "Install Streamtario Python lib",
+        // "preLaunchTask": "Install Streamtario Python lib",
         "console": "internalConsole",
-        "subProcess": false
+        "subProcess": false,
+        "presentation": {
+          "hidden": false,
+          "group": "services",
+          "order": 2
+        }
       }
     ],
     "compounds": [
       {
-        "name": "Debug: All Services",
-        "configurations": [
-          "Debug: Addon Controller",
-          "Debug: User Profile Service"
-        ]
+        "name": "💯 All Services",
+        "configurations": ["➕ Addons Service", "➕ Accounts Service"],
+        "preLaunchTask": "Install Streamtario Python lib",
+        "presentation": {
+          "hidden": false,
+          "group": "services",
+          "order": 1
+        }
       }
     ]
   },
+
   "settings": {
     "python.analysis.autoImportCompletions": true,
     "python.analysis.extraPaths": ["./packages/python/src"],
