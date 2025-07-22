@@ -1,15 +1,22 @@
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Depends, Body
 from fastapi_factory.responses import create_success_response, SuccessResponse
+from database_factory.db import get_db_session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.containers import Container
-from app.services.services import IAccountService, IProfileService
-from core.pydantic.auth.user.account import (
-    Account,
-    CreateAccountRequest,
-    InstallAddonRequest,
-)
+from core.pydantic.domain.account import Account
+from core.pydantic.api.account_api import CreateAccountRequest
+from core.pydantic.api.profile_api import InstallAddonRequest
 
+from app.use_cases.account.create_account import CreateAccountUseCase
+from app.use_cases.account.get_account import GetAccountUseCase
+from app.use_cases.profile.install_addon_for_all_profiles import (
+    InstallAddonForAllProfilesUseCase,
+)
+from app.use_cases.profile.uninstall_addon_from_all_profiles import (
+    UninstallAddonFromAllProfilesUseCase,
+)
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
 
@@ -18,11 +25,13 @@ router = APIRouter(prefix="/accounts", tags=["Accounts"])
 @inject
 async def create_new_account(
     request: CreateAccountRequest = Body(...),
-    account_service: IAccountService = Depends(Provide[Container.account_service]),
+    use_case: CreateAccountUseCase = Depends(
+        Provide[Container.create_account_use_case]
+    ),
+    # REMOVE: session: AsyncSession = Depends(get_db_session),
 ):
-    account = await account_service.create_account(
-        email=request.email, password=request.password
-    )
+    # The use case now handles its own session
+    account = await use_case.execute(email=request.email, password=request.password)
     return create_success_response(data=account, status_code=201)
 
 
@@ -30,9 +39,9 @@ async def create_new_account(
 @inject
 async def get_account_by_id(
     account_id: str,
-    account_service: IAccountService = Depends(Provide[Container.account_service]),
+    use_case: GetAccountUseCase = Depends(Provide[Container.get_account_use_case]),
 ):
-    account = await account_service.get_account_by_id(account_id)
+    account = await use_case.execute(account_id)
     return create_success_response(data=account)
 
 
@@ -41,11 +50,11 @@ async def get_account_by_id(
 async def install_addon_for_account(
     account_id: str,
     request: InstallAddonRequest,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: InstallAddonForAllProfilesUseCase = Depends(
+        Provide[Container.install_addon_for_all_profiles_use_case]
+    ),
 ):
-    summary = await profile_service.install_addon_for_all_profiles(
-        account_id, request.manifest_url
-    )
+    summary = await use_case.execute(account_id, request.manifest_url)
     return create_success_response(data=summary)
 
 
@@ -56,9 +65,9 @@ async def install_addon_for_account(
 async def uninstall_addon_from_account(
     account_id: str,
     manifest_id: str,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: UninstallAddonFromAllProfilesUseCase = Depends(
+        Provide[Container.uninstall_addon_from_all_profiles_use_case]
+    ),
 ):
-    summary = await profile_service.uninstall_addon_from_all_profiles(
-        account_id, manifest_id
-    )
+    summary = await use_case.execute(account_id, manifest_id)
     return create_success_response(data=summary)

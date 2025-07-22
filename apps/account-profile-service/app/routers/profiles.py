@@ -1,17 +1,23 @@
 from typing import List
 from dependency_injector.wiring import inject, Provide
-from fastapi_factory.responses import create_success_response, SuccessResponse
-from app.containers import Container
-from app.services.services import IProfileService
-from core.pydantic.auth.user.account import InstalledAddon
 from fastapi import APIRouter, Depends, Request
-from core.pydantic.auth.user.account import InstallAddonRequest
-from core.pydantic.catalog.catalog import (
-    CatalogResponse,
-    DiscoveredCatalog,
-)
 from starlette.responses import StreamingResponse
+from fastapi_factory.responses import create_success_response, SuccessResponse
+
+from app.containers import Container
+from core.pydantic.domain.addon import InstalledAddon
+from core.pydantic.api.profile_api import InstallAddonRequest
+from core.pydantic.catalog.catalog import CatalogResponse, DiscoveredCatalog
 from core.pydantic.meta.meta import MetaResponse
+
+from app.use_cases.profile.install_addon import InstallAddonUseCase
+from app.use_cases.profile.uninstall_addon import UninstallAddonUseCase
+from app.use_cases.profile.get_addon_catalog import GetAddonCatalogUseCase
+from app.use_cases.profile.discover_catalogs import DiscoverCatalogsUseCase
+from app.use_cases.profile.get_item_meta import GetItemMetaUseCase
+from app.use_cases.profile.search_addons import SearchAllAddonsUseCase
+from app.use_cases.profile.stream_search_addons import StreamSearchAllAddonsUseCase
+
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
@@ -25,9 +31,9 @@ router = APIRouter(prefix="/profiles", tags=["Profiles"])
 async def install_addon_for_profile(
     profile_id: str,
     request: InstallAddonRequest,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: InstallAddonUseCase = Depends(Provide[Container.install_addon_use_case]),
 ):
-    addon = await profile_service.install_addon(profile_id, request.manifest_url)
+    addon = await use_case.execute(profile_id, request.manifest_url)
     return create_success_response(data=addon, status_code=201)
 
 
@@ -36,9 +42,11 @@ async def install_addon_for_profile(
 async def uninstall_addon_from_profile(
     profile_id: str,
     manifest_id: str,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: UninstallAddonUseCase = Depends(
+        Provide[Container.uninstall_addon_use_case]
+    ),
 ):
-    await profile_service.uninstall_addon(profile_id, manifest_id)
+    await use_case.execute(profile_id, manifest_id)
     return None
 
 
@@ -52,19 +60,14 @@ async def get_profile_catalog(
     manifest_id: str,
     catalog_type: str,
     catalog_id: str,
-    request: Request,  # Inject request to access query params
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    request: Request,
+    use_case: GetAddonCatalogUseCase = Depends(
+        Provide[Container.get_addon_catalog_use_case]
+    ),
 ):
-    """Gets the content catalog for an addon installed on a specific profile."""
-    # Extract any extra properties from query params (e.g., ?genre=Action)
     extra_props = dict(request.query_params)
-
-    catalog = await profile_service.get_addon_catalog(
-        profile_id=profile_id,
-        manifest_id=manifest_id,
-        catalog_type=catalog_type,
-        catalog_id=catalog_id,
-        extra_props=extra_props,
+    catalog = await use_case.execute(
+        profile_id, manifest_id, catalog_type, catalog_id, extra_props
     )
     return create_success_response(data=catalog)
 
@@ -76,13 +79,11 @@ async def get_profile_catalog(
 @inject
 async def discover_profile_catalogs(
     profile_id: str,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: DiscoverCatalogsUseCase = Depends(
+        Provide[Container.discover_catalogs_use_case]
+    ),
 ):
-    """
-    Discovers all available catalogs from all addons installed on a profile.
-    This is used to build the main navigation UI.
-    """
-    catalogs = await profile_service.discover_catalogs(profile_id=profile_id)
+    catalogs = await use_case.execute(profile_id)
     return create_success_response(data=catalogs)
 
 
@@ -91,14 +92,11 @@ async def discover_profile_catalogs(
 async def search_profile_addons(
     profile_id: str,
     query: str,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: SearchAllAddonsUseCase = Depends(
+        Provide[Container.search_all_addons_use_case]
+    ),
 ):
-    """
-    Performs a global search across all search-enabled addons on a profile.
-    """
-    results = await profile_service.search_all_addons(
-        profile_id=profile_id, query=query
-    )
+    results = await use_case.execute(profile_id, query)
     return create_success_response(data=results)
 
 
@@ -107,20 +105,16 @@ async def search_profile_addons(
 async def stream_search_profile_addons(
     profile_id: str,
     query: str,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: StreamSearchAllAddonsUseCase = Depends(
+        Provide[Container.stream_search_all_addons_use_case]
+    ),
 ):
-    """
-    Performs a global search and streams categorized results back to the
-    client as they become available using Server-Sent Events.
-    """
-    results_generator = profile_service.stream_search_all_addons(
-        profile_id=profile_id, query=query
-    )
+    results_generator = use_case.execute(profile_id, query)
     return StreamingResponse(results_generator, media_type="text/event-stream")
 
 
 @router.get(
-    "/{profile_id}/meta/{item_type}/{item_id:path}",  # Use a path converter for the final part
+    "/{profile_id}/meta/{item_type}/{item_id:path}",
     response_model=SuccessResponse[MetaResponse],
 )
 @inject
@@ -128,15 +122,7 @@ async def get_item_meta(
     profile_id: str,
     item_type: str,
     item_id: str,
-    profile_service: IProfileService = Depends(Provide[Container.profile_service]),
+    use_case: GetItemMetaUseCase = Depends(Provide[Container.get_item_meta_use_case]),
 ):
-    """
-    Gets detailed metadata for a specific item (movie, series, etc.).
-    This endpoint finds the correct installed addon and proxies the request.
-    """
-    meta = await profile_service.get_meta(
-        profile_id=profile_id,
-        item_type=item_type,
-        item_id=item_id,
-    )
+    meta = await use_case.execute(profile_id, item_type, item_id)
     return create_success_response(data=meta)
