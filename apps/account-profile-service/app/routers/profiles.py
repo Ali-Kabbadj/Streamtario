@@ -120,12 +120,13 @@ async def stream_search_profile_addons(
 
 
 @router.get(
-    "/{profile_id}/meta/{item_id:path}",  # Use a path converter
+    "/{profile_id}/meta/{item_type}/{item_id:path}",  # Use a path converter for the final part
     response_model=SuccessResponse[MetaResponse],
 )
 @inject
 async def get_item_meta(
     profile_id: str,
+    item_type: str,
     item_id: str,
     profile_service: IProfileService = Depends(Provide[Container.profile_service]),
 ):
@@ -133,10 +134,9 @@ async def get_item_meta(
     Gets detailed metadata for a specific item (movie, series, etc.).
     This endpoint finds the correct installed addon and proxies the request.
     """
-    cleaned_item_id = item_id.removesuffix(".json")
-
     meta = await profile_service.get_meta(
         profile_id=profile_id,
-        item_id=cleaned_item_id,
+        item_type=item_type,
+        item_id=item_id,
     )
     return create_success_response(data=meta)
