@@ -1,53 +1,57 @@
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, Body, Depends, Query
-from fastapi_factory.responses import create_success_response, SuccessResponse
+from fastapi import APIRouter, Depends, Query
 
-from ...containers import Container
-from ...services.services import IAddonService
+# --- UPDATED IMPORTS ---
+from api_contract.responses import ApiResponse
+from api_contract.requests import CatalogRequest, MetaRequest
 from core.pydantic.addons.manifest import AddonManifest
-from core.pydantic.catalog.catalog import CatalogResponse, CatalogRequest
+from core.pydantic.catalog.catalog import CatalogResponse
 from core.pydantic.meta.meta import MetaResponse
-from ...services.services import IAddonService
+from ...containers import Container
+from ...use_cases.get_manifest import GetManifestUseCase
+from ...use_cases.get_catalog import GetCatalogUseCase
+from ...use_cases.get_meta import GetMetaUseCase
+
+# --- END IMPORTS ---
 
 router = APIRouter()
 
 
-@router.get("/manifest", response_model=SuccessResponse[AddonManifest])
+@router.get("/manifest", response_model=ApiResponse[AddonManifest])
 @inject
 async def get_addon_manifest(
     url: str = Query(..., description="The URL of the addon's manifest.json"),
-    addon_service: IAddonService = Depends(Provide[Container.addon_service]),
+    use_case: GetManifestUseCase = Depends(Provide[Container.get_manifest_use_case]),
 ):
-    manifest = await addon_service.get_manifest(url)
-    return create_success_response(data=manifest)
+    manifest = await use_case.execute(url)
+    return ApiResponse[AddonManifest](ok=True, data=manifest, error=None)
 
 
-@router.post("/catalog", response_model=SuccessResponse[CatalogResponse])
+@router.post("/catalog", response_model=ApiResponse[CatalogResponse])
 @inject
 async def get_addon_catalog(
-    request: CatalogRequest,
-    addon_service: IAddonService = Depends(Provide[Container.addon_service]),
+    request: CatalogRequest,  # Use the new shared model
+    use_case: GetCatalogUseCase = Depends(Provide[Container.get_catalog_use_case]),
 ):
-    """[INTERNAL] Fetches a content catalog from an addon's manifest URL."""
-    catalog = await addon_service.get_catalog(
+    catalog = await use_case.execute(
         manifest_url=request.manifest_url,
         catalog_type=request.catalog_type,
         catalog_id=request.catalog_id,
         extra_props=request.extra_props,
     )
-    return create_success_response(data=catalog)
+    return ApiResponse[CatalogResponse](ok=True, data=catalog, error=None)
 
 
-@router.post("/meta/{item_id}", response_model=SuccessResponse[MetaResponse])
+@router.post("/meta/{item_id}", response_model=ApiResponse[MetaResponse])
 @inject
 async def get_addon_meta(
     item_id: str,
-    manifest_url: str = Body(..., embed=True, alias="manifestUrl"),
-    addon_service: IAddonService = Depends(Provide[Container.addon_service]),
+    request: MetaRequest,
+    use_case: GetMetaUseCase = Depends(Provide[Container.get_meta_use_case]),
 ):
-    """[INTERNAL] Fetches detailed metadata for an item from an addon."""
-    meta = await addon_service.get_meta(
-        manifest_url=manifest_url,
+    meta = await use_case.execute(
+        manifest_url=request.manifest_url,
         item_id=item_id,
+        item_type=request.item_type,
     )
-    return create_success_response(data=meta)
+    return ApiResponse[MetaResponse](ok=True, data=meta, error=None)

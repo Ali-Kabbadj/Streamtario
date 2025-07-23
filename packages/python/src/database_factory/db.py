@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from fastapi_factory.settings import BaseAppSettings
+from fastapi_factory.config import BaseAppSettings
 from typing import AsyncGenerator
 
 
