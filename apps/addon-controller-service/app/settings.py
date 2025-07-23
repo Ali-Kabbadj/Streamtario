@@ -1,4 +1,4 @@
-from fastapi_factory.settings import BaseAppSettings
+from fastapi_factory.config import BaseAppSettings
 
 
 class AddonControllerSettings(BaseAppSettings):

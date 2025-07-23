@@ -1,9 +1,8 @@
 import sys
-
-from app.routers import accounts, profiles
 from .settings import settings
 from .containers import Container
-from fastapi_factory.app_factory import create_app, Application
+from app.routers import accounts, profiles
+from fastapi_factory.app import create_app, Application
 
 app: Application = create_app(settings)
 container = Container(settings=settings)

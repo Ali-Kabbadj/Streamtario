@@ -1,11 +1,10 @@
 import logging
 from fastapi import FastAPI
-
-from .middleware import HttpLoggingMiddleware
-from .settings import BaseAppSettings
-from .handlers import add_exception_handlers
-from core.utils.logging import setup_logging, log_init, log_info
 from dependency_injector.containers import DeclarativeContainer
+from .middleware.http_logging import HttpLoggingMiddleware
+from .config import BaseAppSettings
+from .exception_handlers.api import add_exception_handlers
+from core.utils.logging import setup_logging, log_init, log_info
 
 
 class Application(FastAPI):
@@ -35,7 +34,7 @@ def create_app(settings: BaseAppSettings) -> Application:
         log_init(
             f"Service '{settings.APP_NAME}' starting up in '{settings.APP_ENV}' mode"
         )
-        log_info(f"Accesible at : 'https://{settings.APP_HOST}:{settings.APP_PORT}'")
+        log_info(f"Accessible at: 'https://{settings.APP_HOST}:{settings.APP_PORT}'")
 
     @app.get("/health", tags=["System"])
     async def health_check():

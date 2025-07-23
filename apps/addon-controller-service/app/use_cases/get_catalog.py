@@ -1,8 +1,7 @@
 from .get_manifest import GetManifestUseCase
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import CatalogResponse
-from fastapi_factory.exceptions import NotFoundException, ValidationException
-from https_factory.models import ErrorResponse
+from domain_exceptions.exceptions import NotFoundException, ValidationException
 from core.utils.logging import log_http
 
 
@@ -36,13 +35,14 @@ class GetCatalogUseCase:
         external_catalog_url = f"{base_url}/{catalog_path}.json"
 
         log_http(f"Fetching external catalog from: {external_catalog_url}")
-        catalog_response = await self.addon_provider.get(
+        result = await self.addon_provider.get(
             url=external_catalog_url, response_model=CatalogResponse
         )
 
-        if isinstance(catalog_response, ErrorResponse):
+        if result is None:
             raise ValidationException(
-                "Failed to fetch or validate the external catalog.",
-                catalog_response.details,
+                message="Failed to fetch or validate the external catalog.",
+                details={"url": external_catalog_url},
             )
-        return catalog_response.data
+
+        return result

@@ -1,7 +1,7 @@
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.repositories.i_account_repository import IAccountRepository
 from .install_addon import InstallAddonUseCase
-from fastapi_factory.exceptions import NotFoundException, ConflictException
+from domain_exceptions.exceptions import NotFoundException, ConflictException
 from core.utils.logging import log_info
 from typing import Callable, Awaitable
 

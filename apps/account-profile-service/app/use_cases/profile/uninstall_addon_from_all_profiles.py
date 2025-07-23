@@ -1,5 +1,5 @@
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
-from fastapi_factory.exceptions import NotFoundException
+from domain_exceptions.exceptions import NotFoundException
 from core.utils.logging import log_info
 from typing import Callable, Awaitable
 
