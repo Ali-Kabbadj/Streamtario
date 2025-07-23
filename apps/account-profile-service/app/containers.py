@@ -1,8 +1,8 @@
 from dependency_injector import containers, providers
-from fastapi_factory.settings import BaseAppSettings
+from fastapi_factory.config import BaseAppSettings
 from database_factory.db import create_db_engine, create_db_session_factory
 from security_factory.password import BcryptPasswordHasher
-from https_factory.client import ApiClient
+from http_client_factory.client import ApiClient
 
 # Import Interfaces
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork

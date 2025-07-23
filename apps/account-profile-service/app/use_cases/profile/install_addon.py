@@ -3,7 +3,7 @@ from core.pydantic.domain.addon import InstalledAddon
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.repositories.i_profile_repository import IProfileRepository
 from app.domain.providers.i_addon_provider import IAddonProvider
-from fastapi_factory.exceptions import NotFoundException, ConflictException
+from domain_exceptions.exceptions import NotFoundException, ConflictException
 from core.utils.logging import log_info
 
 

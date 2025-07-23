@@ -4,8 +4,8 @@ from urllib.parse import quote
 from .get_manifest import GetManifestUseCase
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.meta.meta import MetaResponse
-from fastapi_factory.exceptions import NotFoundException
-from https_factory.models import SuccessResponse
+from domain_exceptions.exceptions import NotFoundException
+from api_contract.responses import ApiResponse
 from core.utils.logging import log_info, log_warn, log_error
 
 
@@ -32,8 +32,8 @@ class GetMetaUseCase:
             log_info(f"Item type '{item_type}' provided. Attempting direct fetch.")
             url = f"{base_url}/meta/{item_type}/{encoded_item_id}.json"
             result = await self.addon_provider.get(url, response_model=MetaResponse)
-            if isinstance(result, SuccessResponse):
-                return result.data
+            if result:
+                return result
             else:
                 raise NotFoundException(
                     "Metadata in external addon with specified type",
@@ -57,18 +57,15 @@ class GetMetaUseCase:
                 "No 'types' found for meta resource or at top-level.", manifest.id
             )
 
-        async def _try_fetch(t: str):
+        async def _try_fetch(t: str) -> MetaResponse | None:
             url = f"{base_url}/meta/{t}/{encoded_item_id}.json"
             return await self.addon_provider.get(url, response_model=MetaResponse)
 
         tasks = [_try_fetch(t) for t in types_to_check]
         results = await asyncio.gather(*tasks)
-
-        successful_response = next(
-            (res for res in results if isinstance(res, SuccessResponse)), None
-        )
+        successful_response = next((res for res in results if res is not None), None)
         if successful_response:
-            return successful_response.data
+            return successful_response
         else:
             log_error(
                 f"FAILURE: Could not fetch metadata for '{item_id}' from any attempted URL."

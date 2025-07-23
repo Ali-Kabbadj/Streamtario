@@ -4,7 +4,7 @@ from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.repositories.i_profile_repository import IProfileRepository
 from app.domain.providers.i_addon_provider import IAddonProvider
 from core.pydantic.meta.meta import MetaResponse
-from fastapi_factory.exceptions import (
+from domain_exceptions.exceptions import (
     NotFoundException,
     ValidationException,
     AddonProviderException,

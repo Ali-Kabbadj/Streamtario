@@ -2,14 +2,14 @@ from typing import List
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Depends, Request
 from starlette.responses import StreamingResponse
-from fastapi_factory.responses import create_success_response, SuccessResponse
 
+# --- UPDATED IMPORTS ---
+from api_contract.responses import ApiResponse
 from app.containers import Container
 from core.pydantic.domain.addon import InstalledAddon
 from core.pydantic.api.profile_api import InstallAddonRequest
 from core.pydantic.catalog.catalog import CatalogResponse, DiscoveredCatalog
 from core.pydantic.meta.meta import MetaResponse
-
 from app.use_cases.profile.install_addon import InstallAddonUseCase
 from app.use_cases.profile.uninstall_addon import UninstallAddonUseCase
 from app.use_cases.profile.get_addon_catalog import GetAddonCatalogUseCase
@@ -18,14 +18,13 @@ from app.use_cases.profile.get_item_meta import GetItemMetaUseCase
 from app.use_cases.profile.search_catalog import SearchCatalogUseCase
 from app.use_cases.profile.stream_search_catalog import StreamSearchCatalogCase
 
+# --- END IMPORTS ---
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
 
 @router.post(
-    "/{profile_id}/addons",
-    response_model=SuccessResponse[InstalledAddon],
-    status_code=201,
+    "/{profile_id}/addons", response_model=ApiResponse[InstalledAddon], status_code=201
 )
 @inject
 async def install_addon_for_profile(
@@ -34,10 +33,14 @@ async def install_addon_for_profile(
     use_case: InstallAddonUseCase = Depends(Provide[Container.install_addon_use_case]),
 ):
     addon = await use_case.execute(profile_id, request.manifest_url)
-    return create_success_response(data=addon, status_code=201)
+    return ApiResponse[InstalledAddon](ok=True, data=addon, error=None)
 
 
-@router.delete("/{profile_id}/addons/{manifest_id}", status_code=204)
+@router.delete(
+    "/{profile_id}/addons/{manifest_id}",
+    response_model=ApiResponse[None],
+    status_code=200,
+)
 @inject
 async def uninstall_addon_from_profile(
     profile_id: str,
@@ -47,12 +50,12 @@ async def uninstall_addon_from_profile(
     ),
 ):
     await use_case.execute(profile_id, manifest_id)
-    return None
+    return ApiResponse[None](ok=True, data=None, error=None)
 
 
 @router.get(
     "/{profile_id}/catalogs/{manifest_id}/{catalog_type}/{catalog_id}",
-    response_model=SuccessResponse[CatalogResponse],
+    response_model=ApiResponse[CatalogResponse],
 )
 @inject
 async def get_profile_catalog(
@@ -69,12 +72,12 @@ async def get_profile_catalog(
     catalog = await use_case.execute(
         profile_id, manifest_id, catalog_type, catalog_id, extra_props
     )
-    return create_success_response(data=catalog)
+    return ApiResponse[CatalogResponse](ok=True, data=catalog, error=None)
 
 
 @router.get(
     "/{profile_id}/catalogs/discover",
-    response_model=SuccessResponse[List[DiscoveredCatalog]],
+    response_model=ApiResponse[List[DiscoveredCatalog]],
 )
 @inject
 async def discover_profile_catalogs(
@@ -84,10 +87,10 @@ async def discover_profile_catalogs(
     ),
 ):
     catalogs = await use_case.execute(profile_id)
-    return create_success_response(data=catalogs)
+    return ApiResponse[List[DiscoveredCatalog]](ok=True, data=catalogs, error=None)
 
 
-@router.get("/{profile_id}/search", response_model=SuccessResponse[dict])
+@router.get("/{profile_id}/search", response_model=ApiResponse[dict])
 @inject
 async def search_profile_addons(
     profile_id: str,
@@ -97,7 +100,7 @@ async def search_profile_addons(
     ),
 ):
     results = await use_case.execute(profile_id, query)
-    return create_success_response(data=results)
+    return ApiResponse[dict](ok=True, data=results, error=None)
 
 
 @router.get("/{profile_id}/search/stream")
@@ -115,7 +118,7 @@ async def stream_search_profile_addons(
 
 @router.get(
     "/{profile_id}/meta/{item_type}/{item_id:path}",
-    response_model=SuccessResponse[MetaResponse],
+    response_model=ApiResponse[MetaResponse],
 )
 @inject
 async def get_item_meta(
@@ -125,4 +128,4 @@ async def get_item_meta(
     use_case: GetItemMetaUseCase = Depends(Provide[Container.get_item_meta_use_case]),
 ):
     meta = await use_case.execute(profile_id, item_type, item_id)
-    return create_success_response(data=meta)
+    return ApiResponse[MetaResponse](ok=True, data=meta, error=None)

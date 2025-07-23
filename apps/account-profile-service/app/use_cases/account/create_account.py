@@ -1,7 +1,8 @@
-from typing import Callable, Awaitable
+from typing import Callable
 from core.pydantic.domain.account import Account
 from security_factory.services.passwordservice import IPasswordHasher
-from validation_factory.validators import run_validators, ValidatorException
+from validation_factory.validators import run_validators
+from domain_exceptions.exceptions import ValidatorRuleException
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.validators.account_validator import (
     PasswordStrengthValidator,
@@ -27,7 +28,7 @@ class CreateAccountUseCase:
                 await run_validators(
                     email, [UniqueEmailValidator()], account_repository=uow.accounts
                 )
-            except ValidatorException as e:
+            except ValidatorRuleException as e:
                 await uow.rollback()
                 log_error(
                     f"Account creation validation failed for {email}: {e.message}",
