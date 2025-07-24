@@ -36,6 +36,11 @@ class GetAddonCatalogUseCase:
         if not installed_addon:
             raise NotFoundException("Installed Addon with manifest_id", manifest_id)
 
+        # we send only the fields we neeed for now
+        known_params = {"profileId", "manifestId", "catalogType", "catalogId"}
+        filtered_extra_props = {
+            k: v for k, v in extra_props.items() if k not in known_params
+        }
         log_info(
             f"Proxying catalog request for profile '{profile_id}' to addon-provider."
         )
@@ -43,5 +48,6 @@ class GetAddonCatalogUseCase:
             manifest_url=installed_addon.manifest_url,
             catalog_type=catalog_type,
             catalog_id=catalog_id,
-            extra_props=extra_props,
+            # extra_props=extra_props,
+            extra_props=filtered_extra_props,
         )

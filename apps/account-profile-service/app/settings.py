@@ -1,15 +1,16 @@
+from typing import Sequence
 from fastapi_factory.config import BaseAppSettings
+from pydantic_settings import SettingsConfigDict
+from pydantic import model_validator
 
 
-class UserProfileSettings(BaseAppSettings):
+class AccountProfileSettings(BaseAppSettings):
     """
-    Configuration specific to the User Profile service.
+    No need to hard‑code APP_NAME or APP_PORT here—
+    they’ll come from project‑x/.env
     """
 
-    APP_NAME: str = "ACCOUNT_PROFILE_SERVICE"
-    APP_PORT: int = 8002
-    SSL_KEYFILE: str = "../../local_dev_deps/certs/localhost+2-key.pem"
-    SSL_CERTFILE: str = "../../local_dev_deps/certs/localhost+2.pem"
+    pass
 
 
-settings = UserProfileSettings()
+settings = AccountProfileSettings()
