@@ -20,11 +20,32 @@
     { "name": "webview2-host", "path": "apps/webview2-host" },
     { "name": "build", "path": "build" },
     { "name": "local_dev_deps", "path": "local_dev_deps" },
-    { "name": "database", "path": "database" }
+    { "name": "database", "path": "database" },
+    { "name": "dev resources", "path": "dev_resources" }
   ],
   "tasks": {
     "version": "2.0.0",
     "tasks": [
+      {
+        "label": "RUN FRONTEND",
+        "type": "shell",
+        "command": "npm run dev",
+        "options": { "cwd": "${workspaceFolder:frontend}" },
+        "isBackground": true,
+        "problemMatcher": {
+          "pattern": {
+            "regexp": ".*Ready in.*",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".*Next.js.*",
+            "endsPattern": ".*Ready in.*"
+          }
+        }
+      },
       {
         "label": "Install Streamtario Python lib",
         "type": "shell",
@@ -125,7 +146,6 @@
         "args": ["app.settings:settings"],
         "cwd": "${workspaceFolder:addon-controller-service}",
         "justMyCode": false,
-        // "preLaunchTask": "Install Streamtario Python lib",
         "console": "internalConsole",
         "subProcess": false,
         "presentation": {
@@ -142,13 +162,41 @@
         "args": ["app.settings:settings"],
         "cwd": "${workspaceFolder:account-profile-service}",
         "justMyCode": false,
-        // "preLaunchTask": "Install Streamtario Python lib",
         "console": "internalConsole",
         "subProcess": false,
         "presentation": {
           "hidden": false,
           "group": "services",
           "order": 2
+        }
+      },
+      {
+        "type": "pwa-msedge",
+        "name": "Launch Microsoft Edge",
+        "request": "launch",
+        "runtimeArgs": ["--remote-debugging-port=9222"],
+        "url": "c:\\Users\\Ali\\.vscode\\extensions\\ms-edgedevtools.vscode-edge-devtools-2.1.9\\out\\startpage\\index.html",
+        "presentation": {
+          "hidden": true
+        }
+      },
+      {
+        "type": "pwa-msedge",
+        "name": "Launch Microsoft Edge in headless mode",
+        "request": "launch",
+        "runtimeArgs": ["--headless", "--remote-debugging-port=9222"],
+        "url": "c:\\Users\\Ali\\.vscode\\extensions\\ms-edgedevtools.vscode-edge-devtools-2.1.9\\out\\startpage\\index.html",
+        "presentation": {
+          "hidden": true
+        }
+      },
+      {
+        "type": "vscode-edge-devtools.debug",
+        "name": "Open Edge DevTools",
+        "request": "attach",
+        "url": "c:\\Users\\Ali\\.vscode\\extensions\\ms-edgedevtools.vscode-edge-devtools-2.1.9\\out\\startpage\\index.html",
+        "presentation": {
+          "hidden": true
         }
       }
     ],
@@ -162,6 +210,17 @@
           "group": "services",
           "order": 1
         }
+      },
+      {
+        "name": "Launch Edge Headless and attach DevTools",
+        "configurations": [
+          "Launch Microsoft Edge in headless mode",
+          "Open Edge DevTools"
+        ]
+      },
+      {
+        "name": "Launch Edge and attach DevTools",
+        "configurations": ["Launch Microsoft Edge", "Open Edge DevTools"]
       }
     ]
   },

@@ -5,6 +5,7 @@ from .middleware.http_logging import HttpLoggingMiddleware
 from .config import BaseAppSettings
 from .exception_handlers.api import add_exception_handlers
 from core.utils.logging import setup_logging, log_init, log_info
+from fastapi.middleware.cors import CORSMiddleware
 
 
 class Application(FastAPI):
@@ -22,6 +23,22 @@ def create_app(settings: BaseAppSettings) -> Application:
     redoc_url = "/redoc" if settings.APP_ENV == "development" else None
 
     app = Application(title=settings.APP_NAME, docs_url=docs_url, redoc_url=redoc_url)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            settings.ALLOWED_ORIGINS
+            # "https://localhost:3000",
+            # "http://localhost:3000",
+            # "https://localhost:8002",
+            # "https://localhost:8001",
+            # "http://localhost:8002",
+            # "http://localhost:8001",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.add_middleware(HttpLoggingMiddleware)
 
