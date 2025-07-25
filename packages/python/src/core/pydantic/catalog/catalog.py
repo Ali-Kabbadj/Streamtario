@@ -3,7 +3,10 @@ from typing import List, Optional, Any, Dict
 
 
 class CatalogItem(BaseModel):
-    """Represents a single item in a media catalog (e.g., a movie poster)."""
+    """
+    Represents a single item in a media catalog.
+    Designed for clean mapping to a GraphQL type.
+    """
 
     id: str
     type: str
@@ -12,14 +15,13 @@ class CatalogItem(BaseModel):
 
     class Config:
         populate_by_name = True
-        # "allow" for all data but each item will have a huge amount of data
         extra = "ignore"
 
 
 class CatalogResponse(BaseModel):
     """
-    Represents a full page of catalog content from an addon.
-    This is the standard response structure for a unified feed.
+    Represents a full page of catalog content from an external addon.
+    The alias ensures we can correctly parse the common `metas` field.
     """
 
     items: List[CatalogItem] = Field(..., alias="metas")

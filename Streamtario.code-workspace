@@ -21,7 +21,8 @@
     { "name": "build", "path": "build" },
     { "name": "local_dev_deps", "path": "local_dev_deps" },
     { "name": "database", "path": "database" },
-    { "name": "dev resources", "path": "dev_resources" }
+    { "name": "dev resources", "path": "dev_resources" },
+    { "name": "router", "path": "router" }
   ],
   "tasks": {
     "version": "2.0.0",

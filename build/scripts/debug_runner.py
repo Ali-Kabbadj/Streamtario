@@ -2,6 +2,14 @@ import sys
 import os
 import uvicorn
 import importlib
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=r".*_type_definition is deprecated.*",
+    category=UserWarning,
+    module="strawberry.utils.deprecations",
+)
 
 sys.path.insert(0, os.getcwd())
 
