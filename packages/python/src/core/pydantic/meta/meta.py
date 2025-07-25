@@ -1,20 +1,12 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
 class Video(BaseModel):
     id: str
     title: str
-    published_at: Optional[str] = Field(None, alias="publishedAt")
     released: Optional[str] = None
     thumbnail: Optional[str] = None
-    stream_id: Optional[str] = Field(None, alias="streamId")
-
-    @field_validator("published_at", mode="before")
-    def set_published_at_from_released(cls, v, values):
-        if v is None and "released" in values.data:
-            return values.data.get("released")
-        return v
 
     class Config:
         populate_by_name = True

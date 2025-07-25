@@ -12,3 +12,7 @@ class Profile(BaseModel):
         default_factory=list, alias="installedAddons"
     )
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    @property
+    def manifest_urls(self) -> List[str]:
+        return [addon.manifest_url for addon in self.installed_addons]

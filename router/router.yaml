@@ -1,0 +1,15 @@
+supergraph:
+  listen: 0.0.0.0:4000
+  cors:
+    allow_any_origin: true # For development
+  subgraphs:
+    accounts:
+      routing_url: http://account-profile-service:8002/graphql
+      schema:
+        subgraph_url: http://account-profile-service:8002/graphql
+
+    # Defines our "content" subgraph
+    content:
+      routing_url: http://addon-controller-service:8001/graphql
+      schema:
+        subgraph_url: http://addon-controller-service:8001/graphql

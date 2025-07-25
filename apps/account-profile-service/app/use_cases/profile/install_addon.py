@@ -1,7 +1,6 @@
-from typing import Awaitable, Callable
+from typing import Callable
 from core.pydantic.domain.addon import InstalledAddon
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
-from app.domain.repositories.i_profile_repository import IProfileRepository
 from app.domain.providers.i_addon_provider import IAddonProvider
 from domain_exceptions.exceptions import NotFoundException, ConflictException
 from core.utils.logging import log_info
@@ -29,6 +28,7 @@ class InstallAddonUseCase:
                     "InstalledAddon", manifest_url, {"profile_id": profile_id}
                 )
 
+            # This call now correctly uses the simplified provider
             validated_manifest = await self.addon_provider.get_manifest(manifest_url)
 
             new_addon = await uow.profiles.add_addon(

@@ -11,6 +11,7 @@ httpx
 httpx[http2]
 dependency-injector
 
+
 # Database (PostgreSQL) & ORM
 sqlalchemy[asyncio]
 asyncpg
@@ -21,3 +22,6 @@ redis[hiredis]
 
 # Encode
 bcrypt
+
+# Graphql
+strawberry-graphql[fastapi]
