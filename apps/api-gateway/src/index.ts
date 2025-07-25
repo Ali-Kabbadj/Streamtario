@@ -8,31 +8,22 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'http';
+import cors from 'cors';
 
-// =================================================================
-// ==              LOCALHOST SSL CERTIFICATE FIX                   ==
-// =================================================================
-// This patches HTTPS requests to localhost only, allowing Apollo Gateway
-// to connect to local development services with self-signed certificates
-// without affecting other HTTPS requests or requiring global env vars.
 
-// Create a custom HTTPS agent for localhost connections
 const localhostHttpsAgent = new https.Agent({
   rejectUnauthorized: false,
   checkServerIdentity: () => undefined,
 });
 
-// Store original HTTPS methods
 const originalHttpsRequest = https.request;
 const originalHttpsGet = https.get;
 
-// Patch https.request to use custom agent for localhost
 https.request = function (options, callback) {
   if (typeof options === 'string') {
     options = new URL(options);
   }
 
-  // Apply custom SSL handling only to localhost requests
   const isLocalhost = options.hostname === 'localhost' ||
     options.host === 'localhost' ||
     (typeof options === 'object' && options.hostname?.includes('localhost'));
@@ -45,7 +36,6 @@ https.request = function (options, callback) {
   return originalHttpsRequest(options, callback);
 };
 
-// Patch https.get for localhost
 https.get = function (options, callback) {
   if (typeof options === 'string') {
     options = new URL(options);
@@ -63,15 +53,10 @@ https.get = function (options, callback) {
   return originalHttpsGet(options, callback);
 };
 
-// =================================================================
-
-// ESM-compatible way to get __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/**
- * Initialize and start the Apollo Gateway
- */
+
 async function startGateway() {
   const app = express();
 
@@ -81,18 +66,34 @@ async function startGateway() {
         { name: 'accounts', url: 'https://localhost:8002/graphql' },
         { name: 'addons', url: 'https://localhost:8001/graphql' },
       ],
+      pollIntervalInMs: 5000,
     }),
   });
 
   const server = new ApolloServer({
     gateway,
+    introspection: true,
   });
 
   await server.start();
 
-  app.use('/graphql', express.json(), expressMiddleware(server));
+  app.get('/', (req, res) => {
+    res.send(`
+      <html>
+        <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+          <h1>API Gateway</h1>
+          <p>The GraphQL endpoint is available.</p>
+          <p>
+            <a href="/graphql">Click here to open Apollo Sandbox</a>
+          </p>
+        </body>
+      </html>
+    `);
+  });
 
-  // Start HTTPS server with local certificates
+
+  app.use('/graphql', cors(), express.json(), expressMiddleware(server));
+
   try {
     const keyPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2-key.pem');
     const certPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2.pem');
@@ -120,5 +121,4 @@ function startServer(server: Server, port: number, isHttps: boolean) {
   });
 }
 
-// Start the application
 startGateway().catch(console.error);

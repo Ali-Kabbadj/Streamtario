@@ -1,11 +1,15 @@
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from typing import List, Optional, Any
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import List, Optional, Any, Union
 
 
 class BehaviorHints(BaseModel):
     configurable: bool = False
     configuration_required: bool = Field(False, alias="configurationRequired")
-    model_config = ConfigDict(populate_by_name=True)
+    new_episode_notifications: Optional[bool] = Field(
+        None, alias="newEpisodeNotifications"
+    )
+    searchable: Optional[bool] = None
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class ExtraOption(BaseModel):
@@ -13,7 +17,7 @@ class ExtraOption(BaseModel):
     is_required: bool = Field(False, alias="isRequired")
     options: Optional[List[str]] = None
     options_limit: Optional[int] = Field(None, alias="optionsLimit")
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class Catalog(BaseModel):
@@ -23,13 +27,24 @@ class Catalog(BaseModel):
     extra: Optional[List[ExtraOption]] = None
     genres: Optional[List[str]] = None
     page_size: Optional[int] = Field(None, alias="pageSize")
-    model_config = ConfigDict(populate_by_name=True)
+    extra_supported: Optional[List[str]] = Field(None, alias="extraSupported")
+    extra_required: Optional[List[str]] = Field(None, alias="extraRequired")
+    is_search: Optional[bool] = Field(None, alias="isSearch")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class Resource(BaseModel):
     name: str
     types: Optional[List[str]] = None
     id_prefixes: Optional[List[str]] = Field(None, alias="idPrefixes")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+
+class AddonCatalog(BaseModel):
+    type: str
+    id: str
+    name: str
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class AddonManifest(BaseModel):
@@ -37,33 +52,35 @@ class AddonManifest(BaseModel):
     version: str
     name: str
     description: str
-    resources: List[Any]  # Start with a generic list
+    # CORRECTED: The type hint is now clean. The validator will handle the parsing.
+    resources: List[Resource]
     types: List[str]
     logo: Optional[str] = None
     background: Optional[str] = None
     catalogs: List[Catalog] = []
     id_prefixes: Optional[List[str]] = Field(None, alias="idPrefixes")
     behavior_hints: Optional[BehaviorHints] = Field(None, alias="behaviorHints")
+    addon_catalogs: Optional[List[AddonCatalog]] = Field(None, alias="addonCatalogs")
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    @model_validator(mode="after")
-    def process_resources_after_validation(self) -> "AddonManifest":
+    # CORRECTED: This is now a 'before' validator for the 'resources' field.
+    # It takes the raw list, processes it, and returns a clean List[Resource].
+    @field_validator("resources", mode="before")
+    @classmethod
+    def normalize_resources(cls, v: List[Any]) -> List[Resource]:
         processed_resources = []
-        for res in self.resources:
+        if not isinstance(v, list):
+            return []  # Or raise a ValueError, depending on desired strictness
+        for res in v:
             if isinstance(res, str):
                 processed_resources.append(Resource(name=res))
             elif isinstance(res, dict):
+                # Manually handle camelCase for idPrefixes if it's a dict
                 resource_data = {
                     "name": res.get("name"),
                     "types": res.get("types"),
-                    "id_prefixes": res.get(
-                        "idPrefixes"
-                    ),  # Manually get from the camelCase key
+                    "id_prefixes": res.get("idPrefixes") or res.get("id_prefixes"),
                 }
                 processed_resources.append(Resource(**resource_data))
-            elif isinstance(res, Resource):
-                processed_resources.append(res)
-
-        self.resources = processed_resources
-        return self
+        return processed_resources
