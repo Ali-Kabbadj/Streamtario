@@ -12,9 +12,9 @@ app.container = container
 container.wire(
     modules=[
         sys.modules[__name__],
-        ".routers.accounts",
-        ".routers.profiles",
-        ".graphql.resolvers",
+        "app.routers.accounts",
+        "app.routers.profiles",
+        "app.graphql.resolvers",
     ]
 )
 

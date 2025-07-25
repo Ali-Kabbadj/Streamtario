@@ -1,0 +1,33 @@
+{
+  "name": "api-gateway",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "clean": "node -e \"const fs = require('fs'); const p = 'dist'; if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); console.log('🧹 Deleted', p); } catch (e) { console.warn('Could not delete', p, e); } }\"",
+    "build": "npm run clean && tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@apollo/gateway": "^2.7.2",
+    "@apollo/server": "^5.0.0",
+    "@as-integrations/express5": "^1.1.2",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "graphql": "^16.11.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.3",
+    "@types/node": "24.1.0",
+    "cross-env": "7.0.3",
+    "nodemon": "3.1.10",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}

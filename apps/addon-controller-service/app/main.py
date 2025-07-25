@@ -3,6 +3,8 @@ from .settings import settings
 from .containers import Container
 from .api.v1 import routes as v1_routes
 from fastapi_factory.app import create_app, Application
+
+
 from .graphql.schema import graphql_app
 
 app: Application = create_app(settings)

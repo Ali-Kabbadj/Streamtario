@@ -1,10 +1,8 @@
 import strawberry
 from typing import List
 
-# This file is now much simpler. It only defines the types this service owns.
 
-
-@strawberry.federation.type(keys=["id"])
+@strawberry.federation.type(keys=["id"], name="Profile")
 class ProfileType:
     id: strawberry.ID
     name: str
