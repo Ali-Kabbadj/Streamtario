@@ -59,11 +59,6 @@ class AggregateAllAddonsUseCase:
                 # We match on the catalog's 'type' and 'name'
                 if catalog.type == item_type and catalog.name == catalog_name:
 
-                    # --- FIX: Correctly format the extra properties for the URL path ---
-                    # According to Stremio spec, it's /catalog/type/id/prop1=val1&prop2=val2.json
-                    # Let's re-verify this. The docs say: /catalog/{type}/{id}/{extraArgs}.json
-                    # where extraArgs is stringified. Example: "search=tron&skip=100"
-                    # The properties themselves should be joined by '&'.
                     extra_args_list = [
                         f"{k}={v}" for k, v in extra_props.items() if v is not None
                     ]

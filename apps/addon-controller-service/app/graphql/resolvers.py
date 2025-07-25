@@ -1,8 +1,6 @@
 from dependency_injector.wiring import inject, Provide
 from app.containers import Container
 from app.use_cases.aggregate_all_addons import AggregateAllAddonsUseCase
-
-# Import the actual Strawberry types we will be constructing.
 from .types import (
     CatalogResult,
     MetaResult,
@@ -58,6 +56,7 @@ async def resolve_profile_meta(
     if not pydantic_meta:
         return MetaResult(meta=None)
 
+    # Complete mapping from the Pydantic MetaItem to the Strawberry MetaItemType
     strawberry_meta = MetaItemType(
         id=strawberry.ID(pydantic_meta.id),
         type=pydantic_meta.type,
