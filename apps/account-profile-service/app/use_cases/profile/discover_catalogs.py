@@ -1,3 +1,5 @@
+# /apps/account-profile-service/app/use_cases/profile/discover_catalogs.py
+
 import asyncio
 from typing import List, Callable
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
@@ -46,6 +48,7 @@ class DiscoverCatalogsUseCase:
                         catalogId=catalog.id,
                         catalogName=catalog.name,
                         catalogType=catalog.type,
+                        supportedItemTypes=manifest.types,
                         extraProps=(
                             [e.model_dump(by_alias=True) for e in catalog.extra]
                             if catalog.extra

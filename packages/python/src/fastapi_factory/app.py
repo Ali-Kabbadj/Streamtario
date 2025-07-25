@@ -26,15 +26,7 @@ def create_app(settings: BaseAppSettings) -> Application:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            settings.ALLOWED_ORIGINS
-            # "https://localhost:3000",
-            # "http://localhost:3000",
-            # "https://localhost:8002",
-            # "https://localhost:8001",
-            # "http://localhost:8002",
-            # "http://localhost:8001",
-        ],
+        allow_origins=settings.ALLOWED_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

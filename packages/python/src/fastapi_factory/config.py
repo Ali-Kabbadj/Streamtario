@@ -38,26 +38,11 @@ class BaseAppSettings(BaseSettings):
     # --- CORS
     ALLOWED_ORIGINS: Annotated[Sequence[str], NoDecode] = []
 
-    # model_config = SettingsConfigDict(
-    #     env_file=find_dotenv(usecwd=True, raise_error_if_not_found=False),
-    #     env_file_encoding="utf-8",
-    #     # you could also disable JSON decoding globally with enable_decoding=False
-    # )
-
-    # @field_validator("ALLOWED_ORIGINS", mode="before")
-    # @classmethod
-    # def _split_origins(cls, v):
-    #     # v is the raw string from .env
-    #     if isinstance(v, str):
-    #         return [o.strip() for o in v.split(",") if o.strip()]
-    #     return v
-
     model_config = SettingsConfigDict(
-        # first load the global root, then load the project’s .env last
         env_file=[
-            str(ROOT_ENV),  # /path/to/monorepo/.env
+            str(ROOT_ENV),
             find_dotenv(
-                usecwd=True,  # e.g. /path/to/monorepo/project-x/.env
+                usecwd=True,
                 raise_error_if_not_found=False,
             ),
         ],

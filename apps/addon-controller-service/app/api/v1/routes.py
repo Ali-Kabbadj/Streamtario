@@ -1,7 +1,5 @@
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Depends, Query
-
-# --- UPDATED IMPORTS ---
 from api_contract.responses import ApiResponse
 from api_contract.requests import CatalogRequest, MetaRequest
 from core.pydantic.addons.manifest import AddonManifest
@@ -11,8 +9,6 @@ from ...containers import Container
 from ...use_cases.get_manifest import GetManifestUseCase
 from ...use_cases.get_catalog import GetCatalogUseCase
 from ...use_cases.get_meta import GetMetaUseCase
-
-# --- END IMPORTS ---
 
 router = APIRouter()
 
@@ -30,7 +26,7 @@ async def get_addon_manifest(
 @router.post("/catalog", response_model=ApiResponse[CatalogResponse])
 @inject
 async def get_addon_catalog(
-    request: CatalogRequest,  # Use the new shared model
+    request: CatalogRequest,
     use_case: GetCatalogUseCase = Depends(Provide[Container.get_catalog_use_case]),
 ):
     catalog = await use_case.execute(
@@ -44,7 +40,7 @@ async def get_addon_catalog(
 
 @router.post("/meta/{item_id}", response_model=ApiResponse[MetaResponse])
 @inject
-async def get_addon_meta(
+async def get_item_meta(
     item_id: str,
     request: MetaRequest,
     use_case: GetMetaUseCase = Depends(Provide[Container.get_meta_use_case]),
