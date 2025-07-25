@@ -204,12 +204,6 @@
         "url": "https://localhost:3000/*",
         "webRoot": "${workspaceFolder:frontend}",
         "sourceMaps": true,
-        "sourceMapPathOverrides": {
-          "webpack://_N_E/*": "${webRoot}/*",
-          "webpack://*": "${webRoot}/*",
-          "/_next/*": "${webRoot}/.next/*",
-          "meteor://app/*": "${webRoot}/*"
-        },
         "timeout": 30000,
         "trace": true,
         "presentation": {

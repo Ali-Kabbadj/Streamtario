@@ -17,9 +17,27 @@ class CatalogItem(BaseModel):
 
 
 class CatalogResponse(BaseModel):
-    """Represents a full page of catalog content from an addon."""
+    """
+    Represents a full page of catalog content from an addon.
+    This is the standard response structure for a unified feed.
+    """
 
     items: List[CatalogItem] = Field(..., alias="metas")
+
+
+class DiscoveredCatalog(BaseModel):
+    """A UI-friendly representation of a single browsable catalog."""
+
+    addon_name: str = Field(..., alias="addonName")
+    manifest_id: str = Field(..., alias="manifestId")
+    catalog_id: str = Field(..., alias="catalogId")
+    catalog_name: str = Field(..., alias="catalogName")
+    catalog_type: str = Field(..., alias="catalogType")
+    supported_item_types: List[str] = Field([], alias="supportedItemTypes")
+    extra_props: List[dict] = Field([], alias="extraProps")
+
+    class Config:
+        populate_by_name = True
 
 
 class CatalogRequest(BaseModel):
@@ -29,22 +47,6 @@ class CatalogRequest(BaseModel):
     catalog_type: str = Field(..., alias="catalogType")
     catalog_id: str = Field(..., alias="catalogId")
     extra_props: Dict[str, Any] = Field({}, alias="extraProps")
-
-
-class DiscoveredCatalog(BaseModel):
-    """A UI-friendly representation of a single browsable catalog."""
-
-    addon_name: str = Field(..., alias="addonName")
-    manifest_id: str = Field(..., alias="manifestId")
-
-    catalog_id: str = Field(..., alias="catalogId")
-    catalog_name: str = Field(..., alias="catalogName")
-    catalog_type: str = Field(..., alias="catalogType")
-
-    extra_props: List[dict] = Field([], alias="extraProps")
-
-    class Config:
-        populate_by_name = True
 
 
 class AddonSearchResult(BaseModel):

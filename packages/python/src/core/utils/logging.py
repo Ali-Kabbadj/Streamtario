@@ -115,8 +115,8 @@ def print_my_json(obj, *, indent: int = 2, sort_keys: bool = False):
 
 def setup_logging(app_name: str = "StreamtarioApp"):
     is_prod = os.getenv("APP_ENV") == "production"
-    log_level = "INFO" if is_prod else "DEBUG"
-
+    # log_level = "INFO" if is_prod else "DEBUG"
+    log_level = "INFO"
     logger = logging.getLogger()
     logger.setLevel(log_level)
     if logger.hasHandlers():
