@@ -1,0 +1,6 @@
+{
+  "name": "myapp",
+  "version": "5.0.18",
+  "builtin-baseline": "96fd599859beaed2ae891a2b2982746f28611b07",
+  "dependencies": ["openssl", "curl", "nlohmann-json", "webview2", "wil"]
+}
