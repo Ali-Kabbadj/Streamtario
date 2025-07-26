@@ -18,11 +18,11 @@ class GetManifestUseCase:
         result = await self.addon_provider.get(url, response_model=AddonManifest)
 
         if not result:
+            # The public client returns None on any failure. We convert that to an exception.
             log_error(f"Failed to get manifest from {url}")
             raise ValidationException(
                 message=f"The manifest at {url} is invalid or could not be reached."
             )
 
         log_http(f"Successfully validated manifest for: {result.name}")
-        result.manifest_url = url
         return result

@@ -1,14 +1,16 @@
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import CatalogResponse, CatalogItem
+from core.pydantic.addons.manifest import AddonManifest, Catalog
 from core.utils.logging import log_info, log_warn
 from .get_manifest import GetManifestUseCase
 
 
 class AggregateCatalogUseCase:
     """
-    Orchestrates fetching, filtering, and interleaving catalog data from multiple addon manifests.
+    Orchestrates fetching catalog data. If a manifest_id_filter is provided,
+    it will only query that specific addon. Otherwise, it aggregates from all.
     """
 
     def __init__(
@@ -19,72 +21,116 @@ class AggregateCatalogUseCase:
         self.get_manifest_use_case = get_manifest_use_case
         self.addon_provider = addon_provider
 
+    async def _get_fetch_tasks_for_manifest(
+        # ... (this helper function has no changes)
+        self,
+        manifest: AddonManifest,
+        base_url: str,
+        item_type: str,
+        catalog_id: Optional[str],
+        extra_props: Dict[str, Any],
+    ) -> List[Tuple[asyncio.Task, str]]:
+        tasks_with_prefixes = []
+        routing_prefix = manifest.id
+        catalogs_to_query: List[Catalog] = []
+
+        if catalog_id:
+            found_catalog = next(
+                (
+                    c
+                    for c in manifest.catalogs
+                    if c.type == item_type and c.id == catalog_id
+                ),
+                None,
+            )
+            if found_catalog:
+                catalogs_to_query.append(found_catalog)
+        else:
+            catalogs_to_query = [
+                c for c in manifest.catalogs if c.type == item_type and not c.is_search
+            ]
+
+        for catalog in catalogs_to_query:
+            extra_path_segment = ""
+            if extra_props:
+                extra_args = [
+                    f"{k}={v}" for k, v in extra_props.items() if v is not None
+                ]
+                if extra_args:
+                    extra_path_segment = f"/{'&'.join(extra_args)}"
+
+            catalog_path = (
+                f"catalog/{catalog.type}/{catalog.id}{extra_path_segment}.json"
+            )
+            full_url = f"{base_url.rsplit('/', 1)[0]}/{catalog_path}"
+
+            log_info(
+                f"Queueing catalog fetch from: {full_url}",
+                data={"addon": manifest.name},
+            )
+            task = self.addon_provider.get(full_url, response_model=CatalogResponse)
+            tasks_with_prefixes.append((task, routing_prefix))
+        return tasks_with_prefixes
+
     async def execute(
         self,
         manifest_urls: List[str],
         item_type: str,
-        catalog_id: str,
+        catalog_id: Optional[str],
+        manifest_id_filter: Optional[str],  # <-- NEW ARGUMENT
         extra_props: Dict[str, Any],
         filter_by_type: Optional[str] = None,
     ) -> List[CatalogItem]:
-        """Fetches and interleaves catalog items from all relevant addons."""
         manifests = await asyncio.gather(
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )
 
-        tasks = []
-        for manifest in manifests:
-            if not manifest:
+        manifests_to_process = manifests
+        if manifest_id_filter:
+            manifests_to_process = [
+                m for m in manifests if m and m.id == manifest_id_filter
+            ]
+            if not manifests_to_process:
+                log_warn(
+                    f"Provider filter applied, but no installed addon with ID '{manifest_id_filter}' was found."
+                )
+                return []
+
+        tasks_with_prefixes: List[Tuple[asyncio.Task, str]] = []
+        # Use the potentially filtered list of manifests
+        for manifest in manifests_to_process:
+            if not manifest or not manifest.manifest_url:
                 continue
 
-            if manifest.manifest_url == None:
-                continue
-            manifest_base_url = next(
-                (url for url in manifest_urls if manifest.manifest_url in url),
-                None,
+            manifest_tasks = await self._get_fetch_tasks_for_manifest(
+                manifest=manifest,
+                base_url=manifest.manifest_url,
+                item_type=item_type,
+                catalog_id=catalog_id,
+                extra_props=extra_props,
             )
-            if not manifest_base_url:
-                continue
+            tasks_with_prefixes.extend(manifest_tasks)
 
-            for catalog in manifest.catalogs:
-                if catalog.type == item_type and catalog.id == catalog_id:
-                    extra_args_list = [
-                        f"{k}={v}" for k, v in extra_props.items() if v is not None
-                    ]
-                    extra_args_str = "&".join(extra_args_list)
-                    catalog_path = f"catalog/{catalog.type}/{catalog.id}"
-                    if extra_args_str:
-                        catalog_path += f"/{extra_args_str}"
+        if not tasks_with_prefixes:
+            return []
 
-                    full_url = (
-                        f"{manifest_base_url.rsplit('/', 1)[0]}/{catalog_path}.json"
-                    )
-                    log_info(f"Queueing catalog fetch from: {full_url}")
-                    tasks.append(
-                        self.addon_provider.get(
-                            full_url, response_model=CatalogResponse
-                        )
-                    )
+        tasks = [tp[0] for tp in tasks_with_prefixes]
+        prefixes = [tp[1] for tp in tasks_with_prefixes]
 
         list_of_responses: List[CatalogResponse | None] = await asyncio.gather(*tasks)
+        responses_with_prefixes = zip(list_of_responses, prefixes)
 
         list_of_item_lists = []
-        for res in list_of_responses:
-            if res and hasattr(res, "items") and res.items is not None:
-                list_of_item_lists.append(res.items)
-            elif res:
-                log_warn(
-                    "Response received but contains no 'items' attribute.", data=res
-                )
-            else:
-                log_warn("A catalog fetch task returned None.")
+        for response, prefix in responses_with_prefixes:
+            if response and response.items:
+                for item in response.items:
+                    item.id = f"{prefix}:{item.id}"
+                list_of_item_lists.append(response.items)
 
         combined_items: List[CatalogItem] = []
         seen_ids = set()
         if list_of_item_lists:
-            max_len = max(
-                (len(item_list) for item_list in list_of_item_lists), default=0
-            )
+            max_len = max((len(lst) for lst in list_of_item_lists), default=0)
             for i in range(max_len):
                 for item_list in list_of_item_lists:
                     if i < len(item_list):
@@ -93,15 +139,7 @@ class AggregateCatalogUseCase:
                             combined_items.append(item)
                             seen_ids.add(item.id)
 
-        log_info(f"Aggregated a total of {len(combined_items)} items before filtering.")
-
         if filter_by_type:
-            filtered_items = [
-                item for item in combined_items if item.type == filter_by_type
-            ]
-            log_info(
-                f"Returning {len(filtered_items)} items after filtering by type '{filter_by_type}'."
-            )
-            return filtered_items
+            return [item for item in combined_items if item.type == filter_by_type]
 
         return combined_items

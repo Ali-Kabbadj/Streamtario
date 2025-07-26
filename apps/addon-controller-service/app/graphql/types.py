@@ -1,9 +1,9 @@
 import strawberry
-from typing import List, Optional, Any
+from typing import List, Optional
 from strawberry.federation.schema_directives import Requires
+from strawberry.scalars import JSON
 
 
-# NEW: A type to represent the extra properties for a discoverable catalog
 @strawberry.type
 class DiscoveredCatalogExtraProp:
     name: str
@@ -25,7 +25,6 @@ class DiscoveredCatalogType:
 
 @strawberry.type
 class CatalogItemType:
-    # ... (no changes here)
     id: strawberry.ID
     type: str
     name: str
@@ -34,7 +33,6 @@ class CatalogItemType:
 
 @strawberry.type
 class VideoType:
-    # ... (no changes here)
     id: strawberry.ID
     title: str
     released: Optional[str] = None
@@ -43,7 +41,6 @@ class VideoType:
 
 @strawberry.type
 class MetaItemType:
-    # ... (no changes here)
     id: strawberry.ID
     type: str
     name: str
@@ -63,16 +60,13 @@ class CatalogResult:
 
 
 @strawberry.type
-class MetaResult:
-    meta: Optional[MetaItemType]
+class AddonSearchResultType:
+    addon_name: str
+    results_by_type: JSON  # type: ignore # Using JSON scalar for { "movie": [...], "series": [...] }
 
 
 @strawberry.federation.type(name="Profile", keys=["id"], extend=True)
 class ProfileExtension:
-    """
-    This class extends the "Profile" type defined in the account-profile-service.
-    """
-
     id: strawberry.ID = strawberry.federation.field(external=True)
     manifest_urls: List[str] = strawberry.federation.field(external=True)
 
@@ -86,15 +80,25 @@ class ProfileExtension:
     async def catalog(
         self,
         itemType: str,
-        catalogId: str,  # CHANGED from catalogName
+        catalogId: Optional[str] = None,
+        manifestId: Optional[str] = None,
+        extraProps: Optional[JSON] = None,  # type: ignore
         filterByType: Optional[str] = None,
     ) -> "CatalogResult":
         from .resolvers import resolve_profile_catalog
 
-        return await resolve_profile_catalog(self, itemType, catalogId, filterByType)
+        return await resolve_profile_catalog(
+            self, itemType, catalogId, manifestId, extraProps, filterByType
+        )
 
     @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
-    async def meta(self, itemType: str, itemId: str) -> "MetaResult":
+    async def meta(self, itemType: str, itemId: str) -> Optional["MetaItemType"]:
         from .resolvers import resolve_profile_meta
 
         return await resolve_profile_meta(self, itemType, itemId)
+
+    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    async def search(self, query: str) -> List["AddonSearchResultType"]:
+        from .resolvers import resolve_search
+
+        return await resolve_search(self, query)

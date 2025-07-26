@@ -3,7 +3,7 @@ from typing import List, Tuple
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.addons.manifest import AddonManifest
 from core.pydantic.meta.meta import MetaItem
-from domain_exceptions.exceptions import AddonProviderException, NotFoundException
+from domain_exceptions.exceptions import AddonProviderException, ValidationException
 from core.utils.logging import log_info, log_error
 from .get_manifest import GetManifestUseCase
 from .get_meta import GetMetaUseCase
@@ -11,7 +11,8 @@ from .get_meta import GetMetaUseCase
 
 class FindAndGetMetaUseCase:
     """
-    Finds the single responsible addon for a given item ID and fetches its metadata.
+    Finds the single responsible addon for a given federated item ID,
+    strips the routing prefix, and then fetches its metadata.
     """
 
     def __init__(
@@ -25,7 +26,6 @@ class FindAndGetMetaUseCase:
     async def _fetch_manifest_and_pair_with_url(
         self, url: str
     ) -> Tuple[str, AddonManifest | None]:
-        """Helper to fetch a manifest and return it with its original URL."""
         try:
             manifest = await self.get_manifest_use_case.execute(url)
             return url, manifest
@@ -36,51 +36,46 @@ class FindAndGetMetaUseCase:
     async def execute(
         self, manifest_urls: List[str], item_type: str, item_id: str
     ) -> MetaItem | None:
-        """Finds the correct addon and fetches metadata for a single item."""
         if ":" not in item_id:
-            raise NotFoundException("Item with invalid ID format", item_id)
+            raise ValidationException(
+                message=f"The provided item ID '{item_id}' is not in the required 'prefix:id' format.",
+                ui_message="The requested item has an invalid identifier.",
+                details={"invalid_id": item_id},
+            )
 
-        item_prefix_part = item_id.split(":")[0]
-        log_info(f"Looking for provider for meta with prefix: '{item_prefix_part}'")
+        routing_prefix, addon_specific_id = item_id.split(":", 1)
+        log_info(f"Looking for provider manifest with ID: '{routing_prefix}'")
 
         url_manifest_pairs = await asyncio.gather(
             *[self._fetch_manifest_and_pair_with_url(url) for url in manifest_urls]
         )
 
         responsible_manifest_url = None
-        debug_lookups = {}
         for url, manifest in url_manifest_pairs:
-            if not manifest:
-                continue
-
-            meta_resource = next(
-                (res for res in manifest.resources if res.name == "meta"), None
-            )
-            if not meta_resource:
-                debug_lookups[manifest.id] = "No 'meta' resource found."
-                continue
-
-            prefixes = meta_resource.id_prefixes or manifest.id_prefixes or []
-            normalized_prefixes = [p.rstrip(":") for p in prefixes]
-            debug_lookups[manifest.id] = (
-                f"Checked against prefixes: {normalized_prefixes}"
-            )
-
-            if item_prefix_part in normalized_prefixes:
+            if manifest and manifest.id == routing_prefix:
                 log_info(f"Found responsible manifest: '{manifest.id}' at url {url}")
                 responsible_manifest_url = url
                 break
 
         if not responsible_manifest_url:
             raise AddonProviderException(
-                looking_for=f"Metadata for prefix '{item_prefix_part}'",
-                attempted_lookups=debug_lookups,
+                looking_for=f"Metadata for an addon with ID '{routing_prefix}'",
+                attempted_lookups={
+                    "manifest_urls": manifest_urls,
+                    "looking_for_id": routing_prefix,
+                },
             )
 
+        # Call the simpler use case with the correct, addon-specific ID
         meta_response = await self.get_meta_use_case.execute(
             manifest_url=responsible_manifest_url,
-            item_id=item_id,
+            item_id=addon_specific_id,  # Pass the stripped ID
             item_type=item_type,
         )
 
-        return meta_response.meta if meta_response else None
+        if meta_response and meta_response.meta:
+            # Re-apply the full federated ID to the result for consistency.
+            meta_response.meta.id = item_id
+            return meta_response.meta
+
+        return None

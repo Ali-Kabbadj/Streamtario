@@ -12,3 +12,13 @@ class ExternalAddonProvider(IExternalAddonProvider):
 
     async def get[T: BaseModel](self, url: str, response_model: Type[T]) -> T | None:
         return await self.public_api_client.get(url, response_model)
+
+    # --- IMPLEMENTATION OF NEW METHOD ---
+    async def get_raw_text(self, url: str) -> str | None:
+        """
+        Uses the underlying public client to fetch the raw response text.
+        This is useful for cases where Pydantic parsing might fail and we need
+        to inspect the raw data.
+        """
+        response = await self.public_api_client.get_raw_response(url)
+        return response.text if response and response.status_code == 200 else None

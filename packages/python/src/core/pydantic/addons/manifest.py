@@ -14,7 +14,7 @@ class BehaviorHints(BaseModel):
 
 class ExtraOption(BaseModel):
     name: str
-    is_required: bool = Field(False, alias="isRequired")
+    is_required: Optional[bool] = Field(None, alias="isRequired")
     options: Optional[List[str]] = None
     options_limit: Optional[int] = Field(None, alias="optionsLimit")
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
@@ -29,7 +29,7 @@ class Catalog(BaseModel):
     page_size: Optional[int] = Field(None, alias="pageSize")
     extra_supported: Optional[List[str]] = Field(None, alias="extraSupported")
     extra_required: Optional[List[str]] = Field(None, alias="extraRequired")
-    is_search: Optional[bool] = Field(None, alias="isSearch")
+    is_search: bool = Field(False, alias="isSearch")
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
