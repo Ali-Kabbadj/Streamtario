@@ -1,7 +1,5 @@
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Body, Depends
-
-# --- UPDATED IMPORTS ---
 from api_contract.responses import ApiResponse
 from app.containers import Container
 from core.pydantic.domain.account import Account
@@ -16,8 +14,6 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
 
-# --- END IMPORTS ---
-
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
 
 
@@ -30,7 +26,6 @@ async def create_new_account(
     ),
 ):
     account = await use_case.execute(email=request.email, password=request.password)
-    # We return a 201 status, so the body should also be present.
     return ApiResponse[Account](ok=True, data=account, error=None)
 
 
@@ -40,7 +35,6 @@ async def get_account_by_id(
     account_id: str,
     use_case: GetAccountUseCase = Depends(Provide[Container.get_account_use_case]),
 ):
-    # The use case now raises NotFoundException, which the handler will catch.
     account = await use_case.execute(account_id)
     return ApiResponse[Account](ok=True, data=account, error=None)
 

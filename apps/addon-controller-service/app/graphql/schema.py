@@ -5,8 +5,6 @@ from .types import ProfileExtension
 
 @strawberry.type
 class Query:
-    # A root query type is required by the spec, even if it's empty.
-    # The main functionality is exposed via the ProfileExtension.
     _service_name: str = "content"
 
 

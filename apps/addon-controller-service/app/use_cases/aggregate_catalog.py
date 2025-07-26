@@ -37,14 +37,16 @@ class AggregateCatalogUseCase:
             if not manifest:
                 continue
 
+            if manifest.manifest_url == None:
+                continue
             manifest_base_url = next(
-                (url for url in manifest_urls if manifest.id in url), None
+                (url for url in manifest_urls if manifest.manifest_url in url),
+                None,
             )
             if not manifest_base_url:
                 continue
 
             for catalog in manifest.catalogs:
-                # CORRECTED: The core logic now uses catalog.id for matching
                 if catalog.type == item_type and catalog.id == catalog_id:
                     extra_args_list = [
                         f"{k}={v}" for k, v in extra_props.items() if v is not None
@@ -93,7 +95,6 @@ class AggregateCatalogUseCase:
 
         log_info(f"Aggregated a total of {len(combined_items)} items before filtering.")
 
-        # NEW: The crucial filtering step
         if filter_by_type:
             filtered_items = [
                 item for item in combined_items if item.type == filter_by_type

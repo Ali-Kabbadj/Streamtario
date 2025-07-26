@@ -17,31 +17,32 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception as e:
-            process_time = (time.time() - start_time) * 1000
+            if request.url.path != "/graphql":
+                process_time = (time.time() - start_time) * 1000
+                log_http(
+                    f"Request failed: {request.method} {request.url.path} - 500 Internal Server Error",
+                    data={
+                        "method": request.method,
+                        "path": request.url.path,
+                        "client": request.client.host,
+                        "processing_time_ms": round(process_time, 2),
+                        "error": str(e),
+                    },
+                    context="http_error",
+                )
+                raise e
+
+        process_time = (time.time() - start_time) * 1000
+        if request.url.path != "/graphql":
             log_http(
-                f"Request failed: {request.method} {request.url.path} - 500 Internal Server Error",
+                f"Request: {request.method} {request.url.path} - {response.status_code}",
                 data={
                     "method": request.method,
                     "path": request.url.path,
                     "client": request.client.host,
+                    "status_code": response.status_code,
                     "processing_time_ms": round(process_time, 2),
-                    "error": str(e),
                 },
-                context="http_error",
             )
-            raise e
-
-        process_time = (time.time() - start_time) * 1000
-
-        log_http(
-            f"Request: {request.method} {request.url.path} - {response.status_code}",
-            data={
-                "method": request.method,
-                "path": request.url.path,
-                "client": request.client.host,
-                "status_code": response.status_code,
-                "processing_time_ms": round(process_time, 2),
-            },
-        )
 
         return response

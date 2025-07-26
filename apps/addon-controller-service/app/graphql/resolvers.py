@@ -2,8 +2,6 @@ from typing import List, Optional
 from dependency_injector.wiring import inject, Provide
 from app.containers import Container
 from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
-
-# NEW: Import the new use cases
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from .types import (
@@ -95,7 +93,6 @@ async def resolve_profile_catalog(
     return CatalogResult(items=strawberry_items)
 
 
-# UPDATED: This resolver now uses the new, specific use case
 @inject
 async def resolve_profile_meta(
     profile: ProfileExtension,
@@ -112,7 +109,6 @@ async def resolve_profile_meta(
             "manifest_urls": profile.manifest_urls,
         },
     )
-    # The 'execute' method signature matches the new use case
     pydantic_meta = await use_case.execute(
         manifest_urls=profile.manifest_urls,
         item_type=item_type,

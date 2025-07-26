@@ -51,8 +51,8 @@ class AddonManifest(BaseModel):
     id: str
     version: str
     name: str
+    manifest_url: Optional[str] = None
     description: str
-    # CORRECTED: The type hint is now clean. The validator will handle the parsing.
     resources: List[Resource]
     types: List[str]
     logo: Optional[str] = None
@@ -61,22 +61,18 @@ class AddonManifest(BaseModel):
     id_prefixes: Optional[List[str]] = Field(None, alias="idPrefixes")
     behavior_hints: Optional[BehaviorHints] = Field(None, alias="behaviorHints")
     addon_catalogs: Optional[List[AddonCatalog]] = Field(None, alias="addonCatalogs")
-
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    # CORRECTED: This is now a 'before' validator for the 'resources' field.
-    # It takes the raw list, processes it, and returns a clean List[Resource].
     @field_validator("resources", mode="before")
     @classmethod
     def normalize_resources(cls, v: List[Any]) -> List[Resource]:
         processed_resources = []
         if not isinstance(v, list):
-            return []  # Or raise a ValueError, depending on desired strictness
+            return []
         for res in v:
             if isinstance(res, str):
                 processed_resources.append(Resource(name=res))
             elif isinstance(res, dict):
-                # Manually handle camelCase for idPrefixes if it's a dict
                 resource_data = {
                     "name": res.get("name"),
                     "types": res.get("types"),
