@@ -1,7 +1,7 @@
 import httpx
 import json
 import asyncio
-from typing import Type, Union
+from typing import Type, Union, Optional
 from pydantic import BaseModel, ValidationError
 
 
@@ -18,27 +18,34 @@ class PublicApiClient:
             self._client = httpx.AsyncClient(**self._client_args)
         return self._client
 
-    async def get[T: BaseModel](
-        self, url: str, response_model: Type[T]
-    ) -> Union[T, None]:
+    # --- NEW METHOD to get the raw response object ---
+    async def get_raw_response(self, url: str) -> Optional[httpx.Response]:
         client = await self._get_client()
         last_exception = None
         for attempt in range(self.retries):
             try:
                 response = await client.get(url)
-                response.raise_for_status()
-                # It directly validates the raw JSON into the target model
-                return response_model.model_validate(response.json())
-            except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                # We don't raise for status, the caller can decide what to do
+                return response
+            except httpx.RequestError as e:
                 last_exception = e
                 await asyncio.sleep(0.5 * (attempt + 1))
                 continue
-            except (ValidationError, json.JSONDecodeError) as e:
-                # If validation fails, it's a hard failure for this simple client.
-                last_exception = e
-                break  # Don't retry on bad data
         print(f"Failed to fetch public URL {url}. Last error: {last_exception}")
         return None
+
+    async def get[T: BaseModel](
+        self, url: str, response_model: Type[T]
+    ) -> Union[T, None]:
+        response = await self.get_raw_response(url)
+        if not response or response.status_code != 200:
+            return None
+
+        try:
+            return response_model.model_validate(response.json())
+        except (ValidationError, json.JSONDecodeError) as e:
+            print(f"Failed to validate public URL {url}. Error: {e}")
+            return None
 
     async def close(self):
         if self._client and not self._client.is_closed:

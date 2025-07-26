@@ -1,12 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from dependency_injector.wiring import inject, Provide
 from app.containers import Container
 from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from .types import (
+    AddonSearchResultType,
     CatalogResult,
-    MetaResult,
     ProfileExtension,
     CatalogItemType,
     MetaItemType,
@@ -16,6 +16,7 @@ from .types import (
 )
 import strawberry
 from core.utils.logging import log_info
+from app.use_cases.search_use_case import SearchUseCase
 
 
 @inject
@@ -35,12 +36,15 @@ async def resolve_discoverable_catalogs(
         extra_props = [
             DiscoveredCatalogExtraProp(
                 name=prop["name"],
-                is_required=prop.get("isRequired", False),
+                is_required=prop.get(
+                    "isRequired", False
+                ),  # Map camelCase to snake_case
                 options=prop.get("options"),
                 options_limit=prop.get("optionsLimit"),
             )
             for prop in p_cat.extra_props
         ]
+        # --- END FIX ---
 
         strawberry_catalogs.append(
             DiscoveredCatalogType(
@@ -59,27 +63,31 @@ async def resolve_discoverable_catalogs(
 @inject
 async def resolve_profile_catalog(
     profile: ProfileExtension,
-    item_type: str,
-    catalog_id: str,  # CHANGED from catalog_name
-    filter_by_type: Optional[str],
+    itemType: str,
+    catalogId: Optional[str],
+    manifestId: Optional[str],  # <-- NEW ARGUMENT
+    extraProps: Optional[Dict[str, Any]],
+    filterByType: Optional[str],
     use_case: AggregateCatalogUseCase = Provide[Container.aggregate_catalog_use_case],
 ) -> CatalogResult:
     log_info(
         f"GraphQL: Resolving federated field 'catalog' for profile {profile.id}",
         context="graphql",
         data={
-            "item_type": item_type,
-            "catalog_id": catalog_id,  # CHANGED
-            "manifest_urls": profile.manifest_urls,
-            "filter_by_type": filter_by_type,
+            "item_type": itemType,
+            "catalog_id": catalogId,
+            "manifest_id_filter": manifestId,
+            "extra_props": extraProps,
+            "filter_by_type": filterByType,
         },
     )
     pydantic_items = await use_case.execute(
         manifest_urls=profile.manifest_urls,
-        item_type=item_type,
-        catalog_id=catalog_id,  # CHANGED
-        extra_props={},
-        filter_by_type=filter_by_type,
+        item_type=itemType,
+        catalog_id=catalogId,
+        manifest_id_filter=manifestId,
+        extra_props=extraProps if extraProps else {},
+        filter_by_type=filterByType,
     )
     strawberry_items = [
         CatalogItemType(
@@ -96,27 +104,24 @@ async def resolve_profile_catalog(
 @inject
 async def resolve_profile_meta(
     profile: ProfileExtension,
-    item_type: str,
-    item_id: str,
+    itemType: str,
+    itemId: str,
     use_case: FindAndGetMetaUseCase = Provide[Container.find_and_get_meta_use_case],
-) -> MetaResult:
+) -> Optional[MetaItemType]:
     log_info(
         f"GraphQL: Resolving federated field 'meta' for profile {profile.id}",
         context="graphql",
-        data={
-            "item_type": item_type,
-            "item_id": item_id,
-            "manifest_urls": profile.manifest_urls,
-        },
+        data={"item_type": itemType, "item_id": itemId},
     )
     pydantic_meta = await use_case.execute(
         manifest_urls=profile.manifest_urls,
-        item_type=item_type,
-        item_id=item_id,
+        item_type=itemType,
+        item_id=itemId,
     )
     if not pydantic_meta:
-        return MetaResult(meta=None)
+        return None
 
+    # Map from Pydantic model to Strawberry type
     strawberry_meta = MetaItemType(
         id=strawberry.ID(pydantic_meta.id),
         type=pydantic_meta.type,
@@ -130,16 +135,40 @@ async def resolve_profile_meta(
         imdb_rating=pydantic_meta.imdb_rating,
         videos=(
             [
-                VideoType(
-                    id=strawberry.ID(v.id),
-                    title=v.title,
-                    released=v.released,
-                    thumbnail=v.thumbnail,
-                )
+                VideoType(id=strawberry.ID(v.id), **v.model_dump(exclude={"id"}))
                 for v in pydantic_meta.videos
             ]
             if pydantic_meta.videos
             else []
         ),
     )
-    return MetaResult(meta=strawberry_meta)
+    return strawberry_meta
+
+
+@inject
+async def resolve_search(
+    profile: ProfileExtension,
+    query: str,
+    use_case: SearchUseCase = Provide[Container.search_use_case],
+) -> List[AddonSearchResultType]:
+    log_info(
+        f"GraphQL: Resolving federated 'search' for profile {profile.id}",
+        context="graphql",
+        data={"query": query},
+    )
+    pydantic_results = await use_case.execute(profile.manifest_urls, query)
+
+    strawberry_results = []
+    for result in pydantic_results:
+        serializable_results = {
+            type_name: [item.model_dump() for item in items]
+            for type_name, items in result.results_by_type.items()
+        }
+
+        strawberry_results.append(
+            AddonSearchResultType(
+                addon_name=result.addon_name,
+                results_by_type=serializable_results,
+            )
+        )
+    return strawberry_results

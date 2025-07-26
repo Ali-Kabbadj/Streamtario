@@ -10,6 +10,11 @@ from core.utils.logging import log_info, log_warn, log_error
 
 
 class GetMetaUseCase:
+    """
+    A simple use case that fetches metadata for a specific item ID from a
+    single, known manifest URL. It does not perform any ID manipulation.
+    """
+
     def __init__(
         self,
         get_manifest_use_case: GetManifestUseCase,
@@ -26,6 +31,8 @@ class GetMetaUseCase:
         )
         manifest = await self.get_manifest_use_case.execute(manifest_url)
         base_url = manifest_url.rsplit("/", 1)[0]
+
+        # This ID is now assumed to be the correct, addon-specific ID.
         encoded_item_id = quote(item_id)
 
         if item_type:

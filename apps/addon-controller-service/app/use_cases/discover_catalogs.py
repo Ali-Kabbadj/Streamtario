@@ -8,8 +8,26 @@ from core.utils.logging import log_error, log_info
 
 class DiscoverCatalogsUseCase:
     """
-    Takes a list of manifest URLs, fetches them, and extracts all non-search
-    catalogs into a UI-friendly list.
+    Takes a list of manifest URLs, fetches them, and transforms their catalog
+    listings into a UI-friendly format. This is the primary mechanism for
+    powering dynamic UI elements like genre or content-type dropdowns.
+
+    Intended UI Workflow:
+    1.  The UI calls the 'discoverable_catalogs' GraphQL query for a user profile.
+    2.  This use case returns a flat list of all available, non-search catalogs
+        from all of the user's installed addons.
+    3.  Each item in the list (`DiscoveredCatalog`) contains:
+        - `addonName` and `manifestId`: To allow the UI to group catalogs by
+          their source addon or present a provider-switching dropdown ("All", "Provider A", etc.).
+        - `catalogId`, `catalogName`, `catalogType`: To render the primary
+          navigation (e.g., a "Movies" tab with a "Top" catalog).
+        - `extraProps`: This is the crucial part for dynamic filters. It's a
+          list of objects describing properties like `genre`. Each object
+          details its `name`, if it's `isRequired`, and a list of
+          possible `options` (e.g., ["Action", "Comedy", "Drama"]).
+    4.  When a user interacts with the UI (e.g., selects the "Top Movies" catalog),
+        the UI uses the `catalogId` and `catalogType` along with any selected
+        `extraProps` values to call the 'catalog' GraphQL query.
     """
 
     def __init__(self, get_manifest_use_case: GetManifestUseCase):
