@@ -14,7 +14,7 @@ class BehaviorHints(BaseModel):
 
 class ExtraOption(BaseModel):
     name: str
-    is_required: Optional[bool] = Field(None, alias="isRequired")
+    is_required: bool = Field(False, alias="isRequired")
     options: Optional[List[str]] = None
     options_limit: Optional[int] = Field(None, alias="optionsLimit")
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
@@ -29,7 +29,11 @@ class Catalog(BaseModel):
     page_size: Optional[int] = Field(None, alias="pageSize")
     extra_supported: Optional[List[str]] = Field(None, alias="extraSupported")
     extra_required: Optional[List[str]] = Field(None, alias="extraRequired")
-    is_search: bool = Field(False, alias="isSearch")
+
+    # THE CHANGE: Make the field optional and provide a default.
+    # This is a safer pattern for boolean flags in complex nested models.
+    is_search: Optional[bool] = Field(default=False, validation_alias="isSearch")
+
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
@@ -51,16 +55,17 @@ class AddonManifest(BaseModel):
     id: str
     version: str
     name: str
-    manifest_url: Optional[str] = None
     description: str
     resources: List[Resource]
     types: List[str]
     logo: Optional[str] = None
+    manifest_url: Optional[str] = None
     background: Optional[str] = None
     catalogs: List[Catalog] = []
     id_prefixes: Optional[List[str]] = Field(None, alias="idPrefixes")
     behavior_hints: Optional[BehaviorHints] = Field(None, alias="behaviorHints")
     addon_catalogs: Optional[List[AddonCatalog]] = Field(None, alias="addonCatalogs")
+
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     @field_validator("resources", mode="before")
@@ -68,11 +73,12 @@ class AddonManifest(BaseModel):
     def normalize_resources(cls, v: List[Any]) -> List[Resource]:
         processed_resources = []
         if not isinstance(v, list):
-            return []
+            return []  # Or raise a ValueError, depending on desired strictness
         for res in v:
             if isinstance(res, str):
                 processed_resources.append(Resource(name=res))
             elif isinstance(res, dict):
+                # Manually handle camelCase for idPrefixes if it's a dict
                 resource_data = {
                     "name": res.get("name"),
                     "types": res.get("types"),

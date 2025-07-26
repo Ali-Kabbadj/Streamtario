@@ -1,8 +1,6 @@
 import asyncio
 from typing import List, Dict, Tuple, Coroutine
 from urllib.parse import quote
-
-from sqlalchemy import JSON
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import (
     CatalogResponse,
@@ -40,12 +38,6 @@ class SearchUseCase:
         encoded_query = quote(search_query)
 
         for manifest in manifests:
-            log_info(
-                msg="working on manifest",
-                data={
-                    "with catalog": [catalog.dict() for catalog in manifest.catalogs]
-                },
-            )
             if not manifest or not manifest.manifest_url or not manifest.catalogs:
                 continue
 
