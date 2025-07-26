@@ -23,6 +23,6 @@ class GetManifestUseCase:
             raise ValidationException(
                 message=f"The manifest at {url} is invalid or could not be reached."
             )
-
+        result.manifest_url = url
         log_http(f"Successfully validated manifest for: {result.name}")
         return result
