@@ -1,5 +1,5 @@
 import strawberry
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 from strawberry.federation.schema_directives import Requires
 from strawberry.scalars import JSON
 
@@ -62,7 +62,9 @@ class CatalogResult:
 @strawberry.type
 class AddonSearchResultType:
     addon_name: str
-    results_by_type: JSON  # type: ignore # Using JSON scalar for { "movie": [...], "series": [...] }
+    results_by_type: JSON  # type: ignore
+    error: Optional[str] = None
+    error: Optional[str] = None
 
 
 @strawberry.federation.type(name="Profile", keys=["id"], extend=True)
@@ -96,9 +98,3 @@ class ProfileExtension:
         from .resolvers import resolve_profile_meta
 
         return await resolve_profile_meta(self, itemType, itemId)
-
-    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
-    async def search(self, query: str) -> List["AddonSearchResultType"]:
-        from .resolvers import resolve_search
-
-        return await resolve_search(self, query)

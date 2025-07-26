@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, AsyncGenerator
 from dependency_injector.wiring import inject, Provide
 from app.containers import Container
 from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
@@ -17,6 +17,7 @@ from .types import (
 import strawberry
 from core.utils.logging import log_info
 from app.use_cases.search_use_case import SearchUseCase
+from strawberry.scalars import JSON
 
 
 @inject
@@ -143,32 +144,3 @@ async def resolve_profile_meta(
         ),
     )
     return strawberry_meta
-
-
-@inject
-async def resolve_search(
-    profile: ProfileExtension,
-    query: str,
-    use_case: SearchUseCase = Provide[Container.search_use_case],
-) -> List[AddonSearchResultType]:
-    log_info(
-        f"GraphQL: Resolving federated 'search' for profile {profile.id}",
-        context="graphql",
-        data={"query": query},
-    )
-    pydantic_results = await use_case.execute(profile.manifest_urls, query)
-
-    strawberry_results = []
-    for result in pydantic_results:
-        serializable_results = {
-            type_name: [item.model_dump() for item in items]
-            for type_name, items in result.results_by_type.items()
-        }
-
-        strawberry_results.append(
-            AddonSearchResultType(
-                addon_name=result.addon_name,
-                results_by_type=serializable_results,
-            )
-        )
-    return strawberry_results

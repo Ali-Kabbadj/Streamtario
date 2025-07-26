@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
+from core.pydantic.api.error import ErrorResponse
 
 
 class CatalogItem(BaseModel):
@@ -56,7 +57,10 @@ class AddonSearchResult(BaseModel):
     """Holds the results from a single addon, categorized by media type."""
 
     addon_name: str = Field(..., alias="addonName")
-    results_by_type: Dict[str, List[CatalogItem]] = Field(..., alias="resultsByType")
+    results_by_type: Dict[str, List[CatalogItem]] = Field(
+        default_factory=dict, alias="resultsByType"
+    )
+    error: Optional[ErrorResponse] = None
 
     class Config:
         populate_by_name = True

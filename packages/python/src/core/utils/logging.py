@@ -13,8 +13,8 @@ class CustomJsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         timestamp = (
-            datetime.fromtimestamp(record.created).strftime("%M:%S")
-            + f".{int(record.msecs):03d}"
+            datetime.fromtimestamp(record.created).strftime("%Y-%m-%dT%H:%M:%S")
+            + f".{int(record.msecs):03d}Z"
         )
         emoji_map = {
             "INFO": "✅",
@@ -76,7 +76,7 @@ class VscodeDebugConsoleHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             timestamp = (
-                datetime.fromtimestamp(record.created).strftime("%M:%S")
+                datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S")
                 + f".{int(record.msecs):03d}"
             )
             emoji = self.emoji_map.get(record.levelname, "💬")
