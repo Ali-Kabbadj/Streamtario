@@ -1,7 +1,10 @@
+# /apps/account-profile-service/app/graphql/types.py
+
 import strawberry
 from typing import List, Optional
 from core.pydantic.domain.account import Account as PydanticAccount
 from core.pydantic.domain.profile import Profile as PydanticProfile
+from core.pydantic.domain.addon import InstalledAddon as PydanticInstalledAddon
 
 # ========= INPUT TYPES =========
 
@@ -10,6 +13,18 @@ from core.pydantic.domain.profile import Profile as PydanticProfile
 class CreateAccountInput:
     email: str
     password: str
+
+
+@strawberry.input
+class InstallAddonInput:
+    profile_id: strawberry.ID
+    manifest_url: str
+
+
+@strawberry.input
+class UninstallAddonInput:
+    profile_id: strawberry.ID
+    manifest_id: str
 
 
 # ========= OBJECT TYPES =========
@@ -27,7 +42,7 @@ class ProfileType:
     def from_pydantic(cls, model: PydanticProfile) -> "ProfileType":
         return cls(
             id=strawberry.ID(model.id),
-            name=model.name,
+            name=model.name or "profile has no name",
             avatar=model.avatar,
             manifest_urls=model.manifest_urls,
         )
@@ -49,6 +64,23 @@ class AccountType:
         )
 
 
+@strawberry.type
+class InstalledAddonType:
+    id: strawberry.ID
+    manifest_url: str
+    manifest_id: str
+    installed_at: str  # Using str for GraphQL compatibility with datetime
+
+    @classmethod
+    def from_pydantic(cls, model: PydanticInstalledAddon) -> "InstalledAddonType":
+        return cls(
+            id=strawberry.ID(model.id),
+            manifest_url=model.manifest_url,
+            manifest_id=model.manifest_id,
+            installed_at=model.installed_at.isoformat(),
+        )
+
+
 # ========= MUTATION PAYLOADS =========
 
 
@@ -61,3 +93,28 @@ class CreateAccountSuccess:
 class CreateAccountError:
     message: str
     field: Optional[str] = None
+
+
+@strawberry.type
+class InstallAddonSuccess:
+    addon: InstalledAddonType
+
+
+@strawberry.type
+class InstallAddonError:
+    message: str
+    profile_id: strawberry.ID
+
+
+@strawberry.type
+class UninstallAddonSuccess:
+    success: bool
+    profile_id: strawberry.ID
+    manifest_id: str
+
+
+@strawberry.type
+class UninstallAddonError:
+    message: str
+    profile_id: strawberry.ID
+    manifest_id: str

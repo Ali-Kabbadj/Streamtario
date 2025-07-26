@@ -10,7 +10,7 @@ from app.containers import Container  # Import Container
 
 @strawberry.type
 class Query:
-    _service_name: str = "content"
+    pass
 
 
 @strawberry.type
@@ -40,8 +40,8 @@ class Subscription:
             if result.error:
                 yield AddonSearchResultType(
                     addon_name=result.addon_name,
-                    results_by_type={},  # No results in case of an error
-                    error=result.error.message,  # Pass only the message to GraphQL client
+                    results_by_type={},
+                    error=result.error.message,
                 )
                 continue
 
