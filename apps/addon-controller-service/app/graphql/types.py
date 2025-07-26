@@ -82,7 +82,6 @@ class ProfileExtension:
 
         return await resolve_discoverable_catalogs(self)
 
-    # CORRECTED: We now find catalogs by their stable 'catalogId'
     @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
     async def catalog(
         self,

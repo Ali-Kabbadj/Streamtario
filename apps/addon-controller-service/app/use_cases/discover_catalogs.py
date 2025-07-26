@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Tuple
+from typing import List
 from core.pydantic.addons.manifest import AddonManifest, Catalog
 from core.pydantic.catalog.catalog import DiscoveredCatalog
 from .get_manifest import GetManifestUseCase
@@ -47,7 +47,6 @@ class DiscoverCatalogsUseCase:
                         catalogId=catalog.id,
                         catalogName=catalog.name,
                         catalogType=catalog.type,
-                        # UPDATED: Populate the new field from the manifest's top-level types
                         supportedItemTypes=manifest.types,
                         extraProps=(
                             [prop.model_dump(by_alias=True) for prop in catalog.extra]

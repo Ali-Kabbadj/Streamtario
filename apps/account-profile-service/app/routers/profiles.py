@@ -5,21 +5,14 @@ from app.containers import Container
 from core.pydantic.domain.addon import InstalledAddon
 from core.pydantic.api.profile_api import InstallAddonRequest
 from core.pydantic.domain.profile import Profile
-from domain_exceptions.exceptions import NotFoundException
-
-# Import only the use cases that still exist
 from app.use_cases.profile.install_addon import InstallAddonUseCase
 from app.use_cases.profile.uninstall_addon import UninstallAddonUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
-from app.use_cases.account.get_account import (
-    GetAccountUseCase,
-)  # Keep for now if needed elsewhere
 
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
 
-# This is the new, simple resource endpoint for the Gateway to consume.
 @router.get("/{profile_id}", response_model=ApiResponse[Profile])
 @inject
 async def get_profile_by_id(
