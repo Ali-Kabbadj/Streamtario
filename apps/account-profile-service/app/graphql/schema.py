@@ -1,3 +1,5 @@
+# /apps/account-profile-service/app/graphql/schema.py
+
 import strawberry
 from typing import List
 from strawberry.fastapi import GraphQLRouter
@@ -6,8 +8,19 @@ from .types import (
     CreateAccountInput,
     CreateAccountSuccess,
     CreateAccountError,
+    InstallAddonInput,
+    InstallAddonSuccess,
+    InstallAddonError,
+    UninstallAddonInput,
+    UninstallAddonSuccess,
+    UninstallAddonError,
 )
-from .resolvers import resolve_profile, resolve_create_account
+from .resolvers import (
+    resolve_profile,
+    resolve_create_account,
+    resolve_install_addon,
+    resolve_uninstall_addon,
+)
 
 
 # This input type is used by the gateway for the _entities query.
@@ -45,8 +58,20 @@ class Mutation:
     @strawberry.mutation
     async def create_account(
         self, input: CreateAccountInput
-    ) -> CreateAccountSuccess | CreateAccountError:  # CORRECTED: Use proper type hint
+    ) -> CreateAccountSuccess | CreateAccountError:
         return await resolve_create_account(input)
+
+    @strawberry.mutation
+    async def install_addon(
+        self, input: InstallAddonInput
+    ) -> InstallAddonSuccess | InstallAddonError:
+        return await resolve_install_addon(input)
+
+    @strawberry.mutation
+    async def uninstall_addon(
+        self, input: UninstallAddonInput
+    ) -> UninstallAddonSuccess | UninstallAddonError:
+        return await resolve_uninstall_addon(input)
 
 
 # We initialize the schema with federation enabled.
@@ -56,7 +81,14 @@ schema = strawberry.federation.Schema(
     query=Query,
     mutation=Mutation,  # Add the mutation type to the schema
     enable_federation_2=True,
-    types=[CreateAccountSuccess, CreateAccountError],
+    types=[
+        CreateAccountSuccess,
+        CreateAccountError,
+        InstallAddonSuccess,
+        InstallAddonError,
+        UninstallAddonSuccess,
+        UninstallAddonError,
+    ],
 )
 
 graphql_app = GraphQLRouter(schema)
