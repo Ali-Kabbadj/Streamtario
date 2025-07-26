@@ -8,9 +8,16 @@ from pydantic import BaseModel, ValidationError
 class PublicApiClient:
     """A simple HTTP client for fetching raw data from public, external URLs."""
 
-    def __init__(self, client: httpx.AsyncClient | None = None, retries: int = 2):
+    def __init__(
+        self, client: httpx.AsyncClient | None = None, retries: int = 2, verify: bool = True
+    ):
         self.retries = retries
-        self._client_args = {"http2": True, "follow_redirects": True, "timeout": 15.0}
+        self._client_args = {
+            "http2": True,
+            "follow_redirects": True,
+            "timeout": 15.0,
+            "verify": verify,  # Add verify here
+        }
         self._client = client
 
     async def _get_client(self) -> httpx.AsyncClient:
