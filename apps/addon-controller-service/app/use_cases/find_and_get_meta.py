@@ -2,7 +2,8 @@ import asyncio
 from typing import List, Tuple
 from core.pydantic.addons.manifest import AddonManifest
 from core.pydantic.meta.meta import MetaItem
-from domain_exceptions.exceptions import AddonProviderException, ValidationException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info, log_error
 from .get_manifest import GetManifestUseCase
 from .get_meta import GetMetaUseCase
@@ -36,10 +37,11 @@ class FindAndGetMetaUseCase:
         self, manifest_urls: List[str], item_type: str, item_id: str
     ) -> MetaItem | None:
         if ":" not in item_id:
-            raise ValidationException(
-                message=f"The provided item ID '{item_id}' is not in the required 'prefix:id' format.",
-                ui_message="The requested item has an invalid identifier.",
-                details={"invalid_id": item_id},
+            raise ApiException(
+                ApiErrorCode.VALIDATION_ERROR,
+                details={
+                    "reason": f"Item ID '{item_id}' is not in 'prefix:id' format."
+                },
             )
 
         routing_prefix, addon_specific_id = item_id.split(":", 1)
@@ -57,10 +59,10 @@ class FindAndGetMetaUseCase:
                 break
 
         if not responsible_manifest_url:
-            raise AddonProviderException(
-                looking_for=f"Metadata for an addon with ID '{routing_prefix}'",
-                attempted_lookups={
-                    "manifest_urls": manifest_urls,
+            raise ApiException(
+                ApiErrorCode.ADDON_NOT_FOUND,
+                details={
+                    "reason": "Provider for prefix not found",
                     "looking_for_id": routing_prefix,
                 },
             )

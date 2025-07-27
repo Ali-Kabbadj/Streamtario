@@ -1,12 +1,10 @@
 from typing import Callable, Optional
 from core.pydantic.domain.profile import Profile
 from security_factory.services.passwordservice import IPasswordHasher
-from domain_exceptions.exceptions import (
-    ValidationException,
-    NotFoundException,
-    ApiException,
-)
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
+from app.domain.policies.i_authorization_policy import IAuthorizationPolicy
 from core.utils.logging import log_info
 
 
@@ -17,9 +15,11 @@ class UpdateProfileUseCase:
         self,
         uow_factory: Callable[[], IUnitOfWork],
         password_hasher: IPasswordHasher,
+        authorization_policy: IAuthorizationPolicy,
     ):
         self.uow_factory = uow_factory
         self.password_hasher = password_hasher
+        self.authorization_policy = authorization_policy
 
     async def execute(
         self,
@@ -34,18 +34,16 @@ class UpdateProfileUseCase:
             f"Attempting to update profile {profile_id} for account {requesting_account_id}"
         )
 
-        async with self.uow_factory() as uow:
-            account = await uow.accounts.get_by_id(requesting_account_id)
-            if not account or not any(p.id == profile_id for p in account.profiles):
-                raise ApiException(
-                    status_code=403,
-                    message=f"Account {requesting_account_id} is not authorized to update profile {profile_id}.",
-                    ui_message="You are not authorized to perform this action.",
-                )
+        await self.authorization_policy.check_profile_ownership(
+            requesting_account_id=requesting_account_id, profile_id=profile_id
+        )
 
+        async with self.uow_factory() as uow:
             profile = await uow.profiles.get_by_id(profile_id)
             if not profile:
-                raise NotFoundException("Profile", profile_id)
+                raise ApiException(
+                    ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile_id}
+                )
 
             if name is not None:
                 profile.name = name
@@ -55,9 +53,8 @@ class UpdateProfileUseCase:
             if is_private is True:
                 profile.is_private = True
                 if not pin or len(pin) != 4 or not pin.isdigit():
-                    raise ValidationException(
-                        message="A 4-digit PIN is required to make a profile private.",
-                        ui_message="A 4-digit PIN must be provided to set or change the PIN on a private profile.",
+                    raise ApiException(
+                        ApiErrorCode.VALIDATION_PIN_REQUIRED,
                         details={"field": "pin"},
                     )
                 profile.pin_hash = self.password_hasher.hash(pin)

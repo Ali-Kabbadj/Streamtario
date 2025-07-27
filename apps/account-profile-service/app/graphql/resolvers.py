@@ -17,13 +17,8 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
-from domain_exceptions.exceptions import (
-    ValidatorRuleException,
-    NotFoundException,
-    ConflictException,
-    ApiException,
-    ValidationException,
-)
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from .types import (
     InstallAddonForAllProfilesError,
     InstallAddonForAllProfilesInput,
@@ -53,34 +48,47 @@ from .types import (
 import strawberry
 from core.utils.logging import log_info, log_error
 
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
+
+# --- QUERIES ---
+
 
 @inject
 async def resolve_profile(
     id: strawberry.ID,
+    info: Info,
     use_case: GetProfileUseCase = Provide[Container.get_profile_use_case],
 ) -> ProfileType | None:
-    pydantic_profile = await use_case.execute(profile_id=str(id))
-    if not pydantic_profile:
-        return None
+    current_user_payload = None
+    try:
+        current_user_payload = get_current_user_payload(info.context["request"])
+    except ApiException:
+        pass
+
+    pydantic_profile = await use_case.execute(
+        profile_id=str(id),
+        requesting_account_id=(
+            current_user_payload.sub if current_user_payload else None
+        ),
+    )
     return ProfileType.from_pydantic(pydantic_profile)
 
 
 @inject
-async def resolve_create_account(
-    input: CreateAccountInput,
-    use_case: CreateAccountUseCase = Provide[Container.create_account_use_case],
-) -> CreateAccountSuccess | CreateAccountError:
-    try:
-        pydantic_account = await use_case.execute(
-            email=input.email, password=input.password
-        )
-        account_type = AccountType.from_pydantic(pydantic_account)
-        return CreateAccountSuccess(account=account_type)
-    except ValidatorRuleException as e:
-        field = e.details.get("field") if isinstance(e.details, dict) else None
-        return CreateAccountError(message=e.ui_message, field=field)
-    except Exception:
-        return CreateAccountError(message="An unexpected server error occurred.")
+async def resolve_account(
+    info: Info,
+    use_case: GetAccountUseCase = Provide[Container.get_account_use_case],
+) -> AccountType | None:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    account_id = current_user.sub
+
+    log_info(f"GraphQL: Fetching account details for {account_id}", context="graphql")
+    pydantic_account = await use_case.execute(account_id=account_id)
+    return AccountType.from_pydantic(pydantic_account)
+
+
+# --- MUTATIONS ---
 
 
 @inject
@@ -89,38 +97,26 @@ async def resolve_create_profile(
     input: CreateProfileInput,
     use_case: CreateProfileUseCase = Provide[Container.create_profile_use_case],
 ) -> CreateProfileSuccess | CreateProfileError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+
     try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
-        account_id = current_user.sub
-
-        log_info(
-            f"GraphQL: Creating profile '{input.name}' for account {account_id}",
-            context="graphql",
-        )
-
         pydantic_profile = await use_case.execute(
-            account_id=account_id,
+            account_id=current_user.sub,
             name=input.name,
             avatar=input.avatar,
             is_private=input.is_private,
             pin=input.pin,
         )
-        profile_type = ProfileType.from_pydantic(pydantic_profile)
-        return CreateProfileSuccess(profile=profile_type)
-    except (
-        ValidationException,
-        NotFoundException,
-        ConflictException,
-        ApiException,
-    ) as e:
-        log_error(f"GraphQL: Profile creation failed: {e.message}", data=e.details)
+        return CreateProfileSuccess(profile=ProfileType.from_pydantic(pydantic_profile))
+    except ApiException as e:
         field = e.details.get("field") if isinstance(e.details, dict) else None
-        return CreateProfileError(message=e.ui_message, field=field)
+        return CreateProfileError(code=e.code, message=e.ui_message, field=field)
     except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
         log_error(
             "GraphQL: Unexpected error during profile creation", data={"error": str(e)}
         )
-        return CreateProfileError(message="An unexpected server error occurred.")
+        return CreateProfileError(code=e_code.name, message=e_code.value.ui_message)
 
 
 @inject
@@ -129,10 +125,9 @@ async def resolve_update_profile(
     input: UpdateProfileInput,
     use_case: UpdateProfileUseCase = Provide[Container.update_profile_use_case],
 ) -> UpdateProfileSuccess | UpdateProfileError:
-    try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
-        log_info(f"GraphQL: Updating profile {input.profile_id}", context="graphql")
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
 
+    try:
         pydantic_profile = await use_case.execute(
             requesting_account_id=current_user.sub,
             profile_id=str(input.profile_id),
@@ -141,17 +136,16 @@ async def resolve_update_profile(
             is_private=input.is_private,
             pin=input.pin,
         )
-        profile_type = ProfileType.from_pydantic(pydantic_profile)
-        return UpdateProfileSuccess(profile=profile_type)
-    except (ValidationException, NotFoundException, ApiException) as e:
-        log_error(f"GraphQL: Profile update failed: {e.message}", data=e.details)
+        return UpdateProfileSuccess(profile=ProfileType.from_pydantic(pydantic_profile))
+    except ApiException as e:
         field = e.details.get("field") if isinstance(e.details, dict) else None
-        return UpdateProfileError(message=e.ui_message, field=field)
+        return UpdateProfileError(code=e.code, message=e.ui_message, field=field)
     except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
         log_error(
             "GraphQL: Unexpected error during profile update", data={"error": str(e)}
         )
-        return UpdateProfileError(message="An unexpected server error occurred.")
+        return UpdateProfileError(code=e_code.name, message=e_code.value.ui_message)
 
 
 @inject
@@ -160,33 +154,28 @@ async def resolve_install_addon(
     input: InstallAddonInput,
     use_case: InstallAddonUseCase = Provide[Container.install_addon_use_case],
 ) -> InstallAddonSuccess | InstallAddonError:
-    try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
-        log_info(
-            f"GraphQL: Installing addon from {input.manifest_url} for profile {input.profile_id}",
-            context="graphql",
-        )
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
 
+    try:
         pydantic_addon = await use_case.execute(
             requesting_account_id=current_user.sub,
             profile_id=str(input.profile_id),
             manifest_url=input.manifest_url,
         )
-        addon_type = InstalledAddonType.from_pydantic(pydantic_addon)
-        return InstallAddonSuccess(addon=addon_type)
-    except (NotFoundException, ConflictException, ApiException) as e:
-        log_error(
-            f"GraphQL: Failed to install addon for profile {input.profile_id}",
-            data={"error": e.message},
+        return InstallAddonSuccess(
+            addon=InstalledAddonType.from_pydantic(pydantic_addon)
         )
-        return InstallAddonError(message=e.ui_message, profile_id=input.profile_id)
-    except Exception as e:
-        log_error(
-            f"GraphQL: Unexpected error installing addon for profile {input.profile_id}",
-            data={"error": str(e)},
-        )
+    except ApiException as e:
         return InstallAddonError(
-            message="An unexpected server error occurred.", profile_id=input.profile_id
+            code=e.code, message=e.ui_message, profile_id=input.profile_id
+        )
+    except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
+        log_error("GraphQL: Unexpected error installing addon", data={"error": str(e)})
+        return InstallAddonError(
+            code=e_code.name,
+            message=e_code.value.ui_message,
+            profile_id=input.profile_id,
         )
 
 
@@ -196,13 +185,9 @@ async def resolve_uninstall_addon(
     input: UninstallAddonInput,
     use_case: UninstallAddonUseCase = Provide[Container.uninstall_addon_use_case],
 ) -> UninstallAddonSuccess | UninstallAddonError:
-    try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
-        log_info(
-            f"GraphQL: Uninstalling addon {input.manifest_id} from profile {input.profile_id}",
-            context="graphql",
-        )
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
 
+    try:
         await use_case.execute(
             requesting_account_id=current_user.sub,
             profile_id=str(input.profile_id),
@@ -211,23 +196,21 @@ async def resolve_uninstall_addon(
         return UninstallAddonSuccess(
             success=True, profile_id=input.profile_id, manifest_id=input.manifest_id
         )
-    except (NotFoundException, ApiException) as e:
-        log_error(
-            f"GraphQL: Failed to uninstall addon {input.manifest_id} from profile {input.profile_id}",
-            data={"error": e.message},
-        )
+    except ApiException as e:
         return UninstallAddonError(
+            code=e.code,
             message=e.ui_message,
             profile_id=input.profile_id,
             manifest_id=input.manifest_id,
         )
     except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
         log_error(
-            f"GraphQL: Unexpected error uninstalling addon for profile {input.profile_id}",
-            data={"error": str(e)},
+            "GraphQL: Unexpected error uninstalling addon", data={"error": str(e)}
         )
         return UninstallAddonError(
-            message="An unexpected server error occurred.",
+            code=e_code.name,
+            message=e_code.value.ui_message,
             profile_id=input.profile_id,
             manifest_id=input.manifest_id,
         )
@@ -241,19 +224,23 @@ async def resolve_install_addon_for_all_profiles(
         Container.install_addon_for_all_profiles_use_case
     ],
 ) -> InstallAddonForAllProfilesSuccess | InstallAddonForAllProfilesError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+
     try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
         summary = await use_case.execute(current_user.sub, input.manifest_url)
         return InstallAddonForAllProfilesSuccess(summary=summary)
-    except (NotFoundException, ValidationException, ConflictException) as e:
-        return InstallAddonForAllProfilesError(message=e.ui_message, error=e)
+    except ApiException as e:
+        return InstallAddonForAllProfilesError(
+            code=e.code, message=e.ui_message, error=e.details
+        )
     except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
         log_error(
-            "GraphQL: Unexpected error during account-wide addon install",
+            "GraphQL: Unexpected error during account-wide install",
             data={"error": str(e)},
         )
         return InstallAddonForAllProfilesError(
-            message="Unexpected error during account-wide addon install", error=e
+            code=e_code.name, message=e_code.value.ui_message, error={"error": str(e)}
         )
 
 
@@ -265,44 +252,38 @@ async def resolve_uninstall_addon_from_all_profiles(
         Container.uninstall_addon_from_all_profiles_use_case
     ],
 ) -> UninstallAddonFromAllProfilesSuccess | UninstallAddonFromAllProfilesError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+
     try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
         summary = await use_case.execute(current_user.sub, input.manifest_id)
         return UninstallAddonFromAllProfilesSuccess(summary=summary)
-    except NotFoundException as e:
-        return UninstallAddonFromAllProfilesError(message=e.ui_message)
+    except ApiException as e:
+        return UninstallAddonFromAllProfilesError(code=e.code, message=e.ui_message)
     except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
         log_error(
-            "GraphQL: Unexpected error during account-wide addon uninstall",
+            "GraphQL: Unexpected error during account-wide uninstall",
             data={"error": str(e)},
         )
         return UninstallAddonFromAllProfilesError(
-            message="An unexpected server error occurred."
+            code=e_code.name, message=e_code.value.ui_message
         )
 
 
 @inject
-async def resolve_account(
-    info: Info,
-    use_case: GetAccountUseCase = Provide[Container.get_account_use_case],
-) -> AccountType | None:
+async def resolve_create_account(
+    input: CreateAccountInput,
+    use_case: CreateAccountUseCase = Provide[Container.create_account_use_case],
+) -> CreateAccountSuccess | CreateAccountError:
     try:
-        current_user: TokenPayload = get_current_user_payload(info.context["request"])
-        account_id = current_user.sub
-
-        log_info(
-            f"GraphQL: Fetching account details for {account_id}", context="graphql"
+        pydantic_account = await use_case.execute(
+            email=input.email, password=input.password
         )
-
-        pydantic_account = await use_case.execute(account_id=account_id)
-        if not pydantic_account:
-            return None
-        return AccountType.from_pydantic(pydantic_account)
-    except ApiException:
-        return None
-    except Exception as e:
-        log_error(
-            "GraphQL: Unexpected error during myAccount resolution",
-            data={"error": str(e)},
-        )
-        return None
+        account_type = AccountType.from_pydantic(pydantic_account)
+        return CreateAccountSuccess(account=account_type)
+    except ApiException as e:
+        field = e.details.get("field") if isinstance(e.details, dict) else None
+        return CreateAccountError(code=e.code, message=e.ui_message, field=field)
+    except Exception:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
+        return CreateAccountError(code=e_code.name, message=e_code.value.ui_message)

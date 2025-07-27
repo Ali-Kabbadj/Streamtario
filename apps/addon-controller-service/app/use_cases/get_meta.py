@@ -4,7 +4,8 @@ from urllib.parse import quote
 from .get_manifest import GetManifestUseCase
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.meta.meta import MetaResponse
-from domain_exceptions.exceptions import NotFoundException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info, log_warn, log_error
 
 
@@ -39,9 +40,13 @@ class GetMetaUseCase:
             if result:
                 return result
             else:
-                raise NotFoundException(
-                    "Metadata in external addon with specified type",
-                    f"{item_type}/{item_id}",
+                raise ApiException(
+                    ApiErrorCode.ADDON_NOT_FOUND,
+                    details={
+                        "reason": "Metadata not found in external addon with specified type",
+                        "type": item_type,
+                        "id": item_id,
+                    },
                 )
 
         log_warn(
@@ -51,14 +56,22 @@ class GetMetaUseCase:
             (res for res in manifest.resources if res.name == "meta"), None
         )
         if not meta_resource:
-            raise NotFoundException(
-                "Addon does not have a 'meta' resource", manifest.id
+            raise ApiException(
+                ApiErrorCode.ADDON_NOT_FOUND,
+                details={
+                    "reason": "Addon does not have a 'meta' resource",
+                    "addon_id": manifest.id,
+                },
             )
 
         types_to_check = meta_resource.types or manifest.types
         if not types_to_check:
-            raise NotFoundException(
-                "No 'types' found for meta resource or at top-level.", manifest.id
+            raise ApiException(
+                ApiErrorCode.ADDON_NOT_FOUND,
+                details={
+                    "reason": "No 'types' found for meta resource or at top-level",
+                    "addon_id": manifest.id,
+                },
             )
 
         async def _try_fetch(t: str) -> MetaResponse | None:
@@ -74,4 +87,10 @@ class GetMetaUseCase:
             log_error(
                 f"FAILURE: Could not fetch metadata for '{item_id}' from any attempted URL."
             )
-            raise NotFoundException("Metadata for item ID in external addon", item_id)
+            raise ApiException(
+                ApiErrorCode.ADDON_NOT_FOUND,
+                details={
+                    "reason": "Metadata not found for item ID in external addon",
+                    "id": item_id,
+                },
+            )

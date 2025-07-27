@@ -2,7 +2,8 @@ from app.domain.providers.i_external_addon_provider import IExternalAddonProvide
 from core.pydantic.addons.manifest import AddonManifest
 from validation_factory.validators import run_validators
 from ..validators.manifest_url_validator import ManifestUrlValidator
-from domain_exceptions.exceptions import ValidationException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_http, log_error, log_info
 
 
@@ -12,6 +13,7 @@ class GetManifestUseCase:
 
     async def execute(self, url: str) -> AddonManifest:
         log_info(f"Running validation for manifest URL: {url}")
+        # The validator now raises a coded ApiException
         await run_validators(url, [ManifestUrlValidator()])
 
         log_http(f"Fetching manifest from: {url}")
@@ -19,9 +21,8 @@ class GetManifestUseCase:
 
         if not result:
             log_error(f"Failed to get manifest from {url}")
-            raise ValidationException(
-                message=f"The manifest at {url} is invalid or could not be reached."
-            )
+            # Raise the standard, coded exception
+            raise ApiException(ApiErrorCode.VALIDATION_MANIFEST_URL_INVALID)
         result.manifest_url = url
         log_http(f"Successfully validated manifest for: {result.name}")
         return result

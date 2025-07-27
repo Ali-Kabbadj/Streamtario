@@ -10,7 +10,10 @@ from core.pydantic.catalog.catalog import (
 from core.pydantic.api.error import ErrorResponse
 from http_client_factory.client import ApiClient
 from api_contract.responses import ApiResponse
-from domain_exceptions.exceptions import NotFoundException, ApiException
+
+# --- FIX: Import the correct exception and error code enum ---
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info, log_error, log_warn
 from .get_manifest import GetManifestUseCase
 from core.pydantic.api.internals import ManifestUrlsResponse
@@ -31,8 +34,12 @@ class SearchUseCase:
 
     async def _get_manifest_urls_for_profile(self, profile_id: str) -> List[str]:
         if not self.account_service_url:
+            # --- FIX: Raise correct, coded exception ---
             raise ApiException(
-                "ACCOUNT_PROFILE_SERVICE_URL URL is not configured.", status_code=500
+                ApiErrorCode.SERVICE_UNAVAILABLE,
+                details={
+                    "reason": "ACCOUNT_PROFILE_SERVICE_URL URL is not configured."
+                },
             )
 
         url = f"{self.account_service_url}/internal/v1/profiles/{profile_id}/manifest-urls"
@@ -42,7 +49,10 @@ class SearchUseCase:
         )
 
         if not api_response.ok or api_response.data is None:
-            raise NotFoundException("Profile", profile_id)
+            # --- FIX: Raise correct, coded exception ---
+            raise ApiException(
+                ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile_id}
+            )
 
         return api_response.data.manifest_urls
 
@@ -53,9 +63,10 @@ class SearchUseCase:
         manifest_urls = []
         try:
             manifest_urls = await self._get_manifest_urls_for_profile(profile_id)
-        except NotFoundException:
+        except ApiException as e:
+            # This handles both PROFILE_NOT_FOUND and SERVICE_UNAVAILABLE from the above helper
             log_warn(
-                f"Search initiated for a profile that does not exist: {profile_id}. Subscription will end."
+                f"Search cannot proceed for profile {profile_id}: {e.code}",
             )
             return
         except Exception as e:

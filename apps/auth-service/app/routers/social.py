@@ -7,11 +7,14 @@ from google.auth.transport import requests  # type: ignore
 
 from app.containers import Container
 from api_contract.responses import ApiResponse
-from security.schemas import TokenResponse, TokenPayload
+from security.schemas import TokenResponse
 from security.jwt_service import IJwtService
 from http_client_factory.client import ApiClient
+
 from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.pydantic.domain.account import Account
+
 
 router = APIRouter(tags=["Authentication"])
 
@@ -41,14 +44,16 @@ async def google_login(
 
     except ValueError as e:
         raise ApiException(
-            status_code=401,
-            message=f"Invalid Google token: {e}",
-            ui_message="The Google authentication token is invalid.",
+            ApiErrorCode.INVALID_CREDENTIALS,
+            details={"reason": "Invalid Google token", "error": str(e)},
         )
 
     account_service_url = settings.ACCOUNT_PROFILE_SERVICE_URL
     if not account_service_url:
-        raise ApiException("Authentication backend is not configured.", status_code=503)
+        raise ApiException(
+            ApiErrorCode.SERVICE_UNAVAILABLE,
+            details={"service": "account-profile-service"},
+        )
 
     internal_url = f"{account_service_url}/internal/v1/accounts/social-login"
     social_payload = {"provider": "google", "social_id": google_user_id, "email": email}
@@ -58,24 +63,22 @@ async def google_login(
     )
 
     if not account_response.ok or not account_response.data:
+        error_to_raise = ApiErrorCode.AUTHENTICATION_REQUIRED
+        if (
+            account_response.error
+            and account_response.error.type == ApiErrorCode.ACCOUNT_EMAIL_EXISTS.name
+        ):
+            error_to_raise = ApiErrorCode.ACCOUNT_EMAIL_EXISTS
+
         raise ApiException(
-            message=(
-                account_response.error.dev_message
-                if account_response.error
-                else "Could not process social login."
-            ),
-            ui_message=(
-                account_response.error.ui_message
-                if account_response.error
-                else "An error occurred during social login."
-            ),
-            status_code=409,
+            error_to_raise,
+            details=account_response.error.details if account_response.error else None,
         )
 
     account = account_response.data
-    token_payload = TokenPayload(sub=account.id, email=account.email)
-    access_token = jwt_service.create_access_token(data=token_payload.model_dump())
-    refresh_token = jwt_service.create_refresh_token(data=token_payload.model_dump())
+    token_payload = {"sub": account.id, "email": account.email}
+    access_token = jwt_service.create_access_token(data=token_payload)
+    refresh_token = jwt_service.create_refresh_token(data=token_payload)
 
     token_response = TokenResponse(
         accessToken=access_token, refreshToken=refresh_token, tokenType="bearer"

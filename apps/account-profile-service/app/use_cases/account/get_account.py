@@ -1,7 +1,7 @@
 from typing import Callable
 from core.pydantic.domain.account import Account
-from domain_exceptions.exceptions import NotFoundException
-
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 
 
@@ -14,6 +14,8 @@ class GetAccountUseCase:
             account = await uow.accounts.get_by_id(account_id)
 
         if not account:
-            raise NotFoundException(entity_name="Account", identifier=account_id)
+            raise ApiException(
+                ApiErrorCode.ACCOUNT_NOT_FOUND, details={"account_id": account_id}
+            )
 
         return account

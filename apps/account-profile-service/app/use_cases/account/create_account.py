@@ -1,8 +1,9 @@
-from typing import Callable, Optional
+from typing import Callable
 from core.pydantic.domain.account import Account
 from security_factory.services.passwordservice import IPasswordHasher
 from validation_factory.validators import run_validators
-from domain_exceptions.exceptions import ValidatorRuleException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.validators.account_validator import (
     PasswordStrengthValidator,
@@ -27,12 +28,12 @@ class CreateAccountUseCase:
                 await run_validators(
                     email, [UniqueEmailValidator()], account_repository=uow.accounts
                 )
-            except ValidatorRuleException as e:
+            except ApiException as e:
                 log_error(
                     f"Account creation validation failed for {email}: {e.message}",
                     data=e.details,
                 )
-                raise
+                raise e
 
             hashed_password = self.password_hasher.hash(password)
 
@@ -44,8 +45,9 @@ class CreateAccountUseCase:
             created_account = await uow.accounts.get_by_id(new_account_orm.id)
 
         if not created_account:
-            raise RuntimeError(
-                f"FATAL: Newly created account for {email} could not be found."
+            raise ApiException(
+                ApiErrorCode.UNEXPECTED_ERROR,
+                override_message=f"FATAL: Newly created account for {email} could not be found.",
             )
 
         log_info(f"Successfully created account {created_account.id} for {email}")
