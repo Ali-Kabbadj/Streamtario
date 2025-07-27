@@ -36,7 +36,7 @@ class InstallAddonUseCase:
                 addon.manifest_url == manifest_url for addon in profile.installed_addons
             ):
                 raise ConflictException(
-                    "InstalledAddon", manifest_url, {"profile_id": profile_id}
+                    "Addon", manifest_url, {"profile_id": profile_id}
                 )
 
             validated_manifest = await self.addon_provider.get_manifest(manifest_url)

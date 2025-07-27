@@ -5,6 +5,7 @@ from typing import List, Optional
 from core.pydantic.domain.account import Account as PydanticAccount
 from core.pydantic.domain.profile import Profile as PydanticProfile
 from core.pydantic.domain.addon import InstalledAddon as PydanticInstalledAddon
+from strawberry.scalars import JSON
 
 # ========= INPUT TYPES =========
 
@@ -50,7 +51,34 @@ class UpdateProfileInput:
     pin: Optional[str] = None
 
 
+@strawberry.input
+class InstallAddonForAllProfilesInput:
+    manifest_url: str
+
+
+@strawberry.input
+class UninstallAddonFromAllProfilesInput:
+    manifest_id: str
+
+
 # ========= OBJECT TYPES =========
+
+
+@strawberry.type
+class InstalledAddonType:
+    id: strawberry.ID
+    manifest_url: str
+    manifest_id: str
+    installed_at: str
+
+    @classmethod
+    def from_pydantic(cls, model: PydanticInstalledAddon) -> "InstalledAddonType":
+        return cls(
+            id=strawberry.ID(model.id),
+            manifest_url=model.manifest_url,
+            manifest_id=model.manifest_id,
+            installed_at=model.installed_at.isoformat(),
+        )
 
 
 @strawberry.federation.type(keys=["id"], name="Profile")
@@ -58,18 +86,22 @@ class ProfileType:
     id: strawberry.ID
     name: str
     avatar: Optional[str]
-    manifest_urls: List[str]
     is_private: bool
+    installed_addons: List[InstalledAddonType]
+    manifest_urls: List[str]
 
-    # This is a 'factory' method to create a Strawberry type from a Pydantic model
     @classmethod
     def from_pydantic(cls, model: PydanticProfile) -> "ProfileType":
         return cls(
             id=strawberry.ID(model.id),
             name=model.name or "profile has no name",
             avatar=model.avatar,
-            manifest_urls=model.manifest_urls,
             is_private=model.is_private,
+            installed_addons=[
+                InstalledAddonType.from_pydantic(a) for a in model.installed_addons
+            ],
+            # --- And we populate it from the Pydantic model's property ---
+            manifest_urls=model.manifest_urls,
         )
 
 
@@ -79,30 +111,12 @@ class AccountType:
     email: str
     profiles: List[ProfileType]
 
-    # Factory method to create this type from the Pydantic Account model
     @classmethod
     def from_pydantic(cls, model: PydanticAccount) -> "AccountType":
         return cls(
             id=strawberry.ID(model.id),
             email=model.email,
             profiles=[ProfileType.from_pydantic(p) for p in model.profiles],
-        )
-
-
-@strawberry.type
-class InstalledAddonType:
-    id: strawberry.ID
-    manifest_url: str
-    manifest_id: str
-    installed_at: str  # Using str for GraphQL compatibility with datetime
-
-    @classmethod
-    def from_pydantic(cls, model: PydanticInstalledAddon) -> "InstalledAddonType":
-        return cls(
-            id=strawberry.ID(model.id),
-            manifest_url=model.manifest_url,
-            manifest_id=model.manifest_id,
-            installed_at=model.installed_at.isoformat(),
         )
 
 
@@ -174,4 +188,24 @@ class LoginSuccess:
 
 @strawberry.type
 class LoginError:
+    message: str
+
+
+@strawberry.type
+class InstallAddonForAllProfilesSuccess:
+    summary: JSON  # type: ignore
+
+
+@strawberry.type
+class InstallAddonForAllProfilesError:
+    message: str
+
+
+@strawberry.type
+class UninstallAddonFromAllProfilesSuccess:
+    summary: JSON  # type: ignore
+
+
+@strawberry.type
+class UninstallAddonFromAllProfilesError:
     message: str

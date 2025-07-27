@@ -6,11 +6,18 @@ from strawberry.types import Info
 from app.security.dependencies import get_current_user_payload
 from security.schemas import TokenPayload
 from app.containers import Container
+from app.use_cases.account.get_account import GetAccountUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
 from app.use_cases.account.create_account import CreateAccountUseCase
 from app.use_cases.profile.install_addon import InstallAddonUseCase
+from app.use_cases.profile.install_addon_for_all_profiles import (
+    InstallAddonForAllProfilesUseCase,
+)
 from app.use_cases.profile.uninstall_addon import UninstallAddonUseCase
 from app.use_cases.profile.create_profile import CreateProfileUseCase
+from app.use_cases.profile.uninstall_addon_from_all_profiles import (
+    UninstallAddonFromAllProfilesUseCase,
+)
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
 from domain_exceptions.exceptions import (
     ValidatorRuleException,
@@ -20,6 +27,9 @@ from domain_exceptions.exceptions import (
     ValidationException,
 )
 from .types import (
+    InstallAddonForAllProfilesError,
+    InstallAddonForAllProfilesInput,
+    InstallAddonForAllProfilesSuccess,
     ProfileType,
     CreateAccountInput,
     CreateAccountSuccess,
@@ -29,6 +39,9 @@ from .types import (
     InstallAddonSuccess,
     InstallAddonError,
     InstalledAddonType,
+    UninstallAddonFromAllProfilesError,
+    UninstallAddonFromAllProfilesInput,
+    UninstallAddonFromAllProfilesSuccess,
     UninstallAddonInput,
     UninstallAddonSuccess,
     UninstallAddonError,
@@ -224,3 +237,81 @@ async def resolve_uninstall_addon(
             profile_id=input.profile_id,
             manifest_id=input.manifest_id,
         )
+
+
+@inject
+async def resolve_install_addon_for_all_profiles(
+    info: Info,
+    input: InstallAddonForAllProfilesInput,
+    use_case: InstallAddonForAllProfilesUseCase = Provide[
+        Container.install_addon_for_all_profiles_use_case
+    ],
+) -> InstallAddonForAllProfilesSuccess | InstallAddonForAllProfilesError:
+    try:
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        summary = await use_case.execute(current_user.sub, input.manifest_url)
+        return InstallAddonForAllProfilesSuccess(summary=summary)
+    except (NotFoundException, ValidationException, ConflictException) as e:
+        return InstallAddonForAllProfilesError(message=e.ui_message)
+    except Exception as e:
+        log_error(
+            "GraphQL: Unexpected error during account-wide addon install",
+            data={"error": str(e)},
+        )
+        return InstallAddonForAllProfilesError(
+            message="An unexpected server error occurred."
+        )
+
+
+@inject
+async def resolve_uninstall_addon_from_all_profiles(
+    info: Info,
+    input: UninstallAddonFromAllProfilesInput,
+    use_case: UninstallAddonFromAllProfilesUseCase = Provide[
+        Container.uninstall_addon_from_all_profiles_use_case
+    ],
+) -> UninstallAddonFromAllProfilesSuccess | UninstallAddonFromAllProfilesError:
+    try:
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        summary = await use_case.execute(current_user.sub, input.manifest_id)
+        return UninstallAddonFromAllProfilesSuccess(summary=summary)
+    except NotFoundException as e:
+        return UninstallAddonFromAllProfilesError(message=e.ui_message)
+    except Exception as e:
+        log_error(
+            "GraphQL: Unexpected error during account-wide addon uninstall",
+            data={"error": str(e)},
+        )
+        return UninstallAddonFromAllProfilesError(
+            message="An unexpected server error occurred."
+        )
+
+
+@inject
+async def resolve_account(
+    info: Info,
+    use_case: GetAccountUseCase = Provide[Container.get_account_use_case],
+) -> AccountType | None:
+    try:
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        account_id = current_user.sub
+
+        log_info(
+            f"GraphQL: Fetching account details for {account_id}", context="graphql"
+        )
+
+        pydantic_account = await use_case.execute(account_id=account_id)
+        if not pydantic_account:
+            return None
+        return AccountType.from_pydantic(pydantic_account)
+    except ApiException:
+        # This will happen if the token is invalid/expired.
+        # Returning None is appropriate as there is no authenticated user.
+        return None
+    except Exception as e:
+        log_error(
+            "GraphQL: Unexpected error during myAccount resolution",
+            data={"error": str(e)},
+        )
+        # For an internal error, we should not expose details, just return None.
+        return None

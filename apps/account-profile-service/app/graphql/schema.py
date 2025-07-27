@@ -7,6 +7,10 @@ from strawberry.types import Info
 from fastapi import Request  # <-- THE CORRECT IMPORT
 
 from .types import (
+    AccountType,
+    InstallAddonForAllProfilesError,
+    InstallAddonForAllProfilesInput,
+    InstallAddonForAllProfilesSuccess,
     ProfileType,
     CreateAccountInput,
     CreateAccountSuccess,
@@ -14,6 +18,9 @@ from .types import (
     InstallAddonInput,
     InstallAddonSuccess,
     InstallAddonError,
+    UninstallAddonFromAllProfilesError,
+    UninstallAddonFromAllProfilesInput,
+    UninstallAddonFromAllProfilesSuccess,
     UninstallAddonInput,
     UninstallAddonSuccess,
     UninstallAddonError,
@@ -25,11 +32,14 @@ from .types import (
     UpdateProfileError,
 )
 from .resolvers import (
+    resolve_install_addon_for_all_profiles,
+    resolve_account,
     resolve_profile,
     resolve_create_account,
     resolve_install_addon,
     resolve_uninstall_addon,
     resolve_create_profile,
+    resolve_uninstall_addon_from_all_profiles,
     resolve_update_profile,
 )
 
@@ -45,6 +55,11 @@ class Query:
     @strawberry.field
     async def profile(self, id: strawberry.ID) -> ProfileType | None:
         return await resolve_profile(id=id)
+
+    @strawberry.field
+    async def account(self, info: Info) -> AccountType | None:
+        """Fetches the complete account details for the currently authenticated user."""
+        return await resolve_account(info)
 
     @strawberry.field(name="_entities")
     async def resolve_entities(
@@ -90,6 +105,18 @@ class Mutation:
     ) -> UninstallAddonSuccess | UninstallAddonError:
         return await resolve_uninstall_addon(info, input)
 
+    @strawberry.mutation
+    async def install_addon_for_all_profiles(
+        self, info: Info, input: InstallAddonForAllProfilesInput
+    ) -> InstallAddonForAllProfilesSuccess | InstallAddonForAllProfilesError:
+        return await resolve_install_addon_for_all_profiles(info, input)
+
+    @strawberry.mutation
+    async def uninstall_addon_from_all_profiles(
+        self, info: Info, input: UninstallAddonFromAllProfilesInput
+    ) -> UninstallAddonFromAllProfilesSuccess | UninstallAddonFromAllProfilesError:
+        return await resolve_uninstall_addon_from_all_profiles(info, input)
+
 
 async def get_context(request: Request) -> dict:
     """
@@ -114,6 +141,12 @@ schema = strawberry.federation.Schema(
         CreateProfileError,
         UpdateProfileSuccess,
         UpdateProfileError,
+        UpdateProfileSuccess,
+        UpdateProfileError,
+        InstallAddonForAllProfilesSuccess,
+        InstallAddonForAllProfilesError,
+        UninstallAddonFromAllProfilesSuccess,
+        UninstallAddonFromAllProfilesError,
     ],
 )
 

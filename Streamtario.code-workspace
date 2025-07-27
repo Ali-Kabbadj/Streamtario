@@ -203,9 +203,7 @@
         "outputCapture": "std",
         "localRoot": "${workspaceFolder:api-gateway}",
         "remoteRoot": "/app",
-        "presentation": {
-          "hidden": true
-        }
+        "presentation": { "hidden": false, "group": "services", "order": 4 }
       },
       {
         "name": "REACT_DEVTOOLS",

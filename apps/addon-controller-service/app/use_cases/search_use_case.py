@@ -1,6 +1,14 @@
+# /apps/addon-controller-service/app/use_cases/search_use_case.py
+
 import asyncio
 from typing import List, Dict, Any, AsyncGenerator
 from urllib.parse import quote
+
+# --- Add these imports ---
+from pydantic import BaseModel
+from typing import List
+
+# ---
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import (
     CatalogResponse,
@@ -8,7 +16,9 @@ from core.pydantic.catalog.catalog import (
     AddonSearchResult,
 )
 from core.pydantic.addons.manifest import AddonManifest
-from core.pydantic.domain.profile import Profile
+
+# The Profile model is no longer needed here
+# from core.pydantic.domain.profile import Profile
 from core.pydantic.api.error import ErrorResponse
 from http_client_factory.client import ApiClient
 from api_contract.responses import ApiResponse
@@ -18,6 +28,11 @@ from core.utils.logging import log_info, log_error, log_warn
 
 
 from .get_manifest import GetManifestUseCase
+
+
+# --- Define the expected response model from our new internal endpoint ---
+class ManifestUrlsResponse(BaseModel):
+    manifest_urls: List[str]
 
 
 class SearchUseCase:
@@ -39,13 +54,14 @@ class SearchUseCase:
                 "ACCOUNT_PROFILE_SERVICE_URL URL is not configured.", status_code=500
             )
 
-        url = f"{self.account_service_url}/api/v1/profiles/{profile_id}"
+        url = f"{self.account_service_url}/internal/v1/profiles/{profile_id}/manifest-urls"
 
-        api_response: ApiResponse[Profile] = await self.api_client.get(
-            url, response_model=Profile
+        api_response: ApiResponse[ManifestUrlsResponse] = await self.api_client.get(
+            url, response_model=ManifestUrlsResponse
         )
 
         if not api_response.ok or api_response.data is None:
+            # This will correctly raise a 404 if the profile doesn't exist
             raise NotFoundException("Profile", profile_id)
 
         return api_response.data.manifest_urls
