@@ -5,6 +5,7 @@ from jose import JWTError, jwt
 from pydantic import ValidationError
 from .schemas import TokenPayload
 from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 
 
 class IJwtService(ABC):
@@ -70,15 +71,18 @@ class JwtService(IJwtService):
             return TokenPayload(**payload)
         except JWTError as e:
             raise ApiException(
-                status_code=401,
-                message=f"Could not validate credentials: {e}",
-                ui_message="Your session is invalid or has expired. Please log in again.",
-                details={"error_type": "JWTError"},
+                error_code=ApiErrorCode.AUTHENTICATION_REQUIRED,
+                details={
+                    "reason": "Could not validate credentials",
+                    "error_type": "JWTError",
+                    "jwt_error": str(e),
+                },
             )
         except ValidationError:
             raise ApiException(
-                status_code=401,
-                message="Invalid token payload.",
-                ui_message="Your session is invalid or has expired. Please log in again.",
-                details={"error_type": "TokenPayloadError"},
+                error_code=ApiErrorCode.AUTHENTICATION_REQUIRED,
+                details={
+                    "reason": "Invalid token payload",
+                    "error_type": "TokenPayloadError",
+                },
             )

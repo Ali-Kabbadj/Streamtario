@@ -39,14 +39,9 @@ def main():
         settings = getattr(settings_module, setting_variable_name)
 
         reload_enabled = settings.RELOAD and not is_debugging
-
-        # --- THIS IS THE CRITICAL CHANGE ---
-        # We now check for the existence of SSL settings from the environment.
-        # This makes running with HTTPS optional and controllable.
         ssl_keyfile = settings.SSL_KEYFILE if settings.SSL_KEYFILE else None
         ssl_certfile = settings.SSL_CERTFILE if settings.SSL_CERTFILE else None
 
-        # Conditionally create the uvicorn_args dictionary
         uvicorn_args = {
             "host": settings.APP_HOST,
             "port": settings.APP_PORT,

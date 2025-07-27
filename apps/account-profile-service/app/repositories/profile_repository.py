@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import Null, delete
+from sqlalchemy import delete
 from sqlalchemy.orm import selectinload
 from core.database.models.auth.account import ProfileOrm
 from core.database.models.auth.addon import InstalledAddonOrm
@@ -8,7 +8,8 @@ from typing import Optional
 from app.domain.repositories.i_profile_repository import IProfileRepository
 from core.pydantic.domain.profile import Profile
 from core.pydantic.domain.addon import InstalledAddon
-from domain_exceptions.exceptions import NotFoundException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 
 
 class ProfileRepository(IProfileRepository):
@@ -46,12 +47,18 @@ class ProfileRepository(IProfileRepository):
         )
 
     async def update(self, profile: Profile) -> Profile:
-        """Updates a profile by merging the state of a Pydantic model."""
+        """
+        Updates a profile and returns the full, eagerly-loaded domain model.
+        """
+        # 1. Fetch the ORM object to be updated.
         profile_orm = await self.session.get(ProfileOrm, profile.id)
         if not profile_orm:
-            raise NotFoundException("Profile", profile.id)
+            raise ApiException(
+                ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile.id}
+            )
 
-        profile_orm.name = profile.name or "Defautl"
+        # 2. Apply the changes from the Pydantic model.
+        profile_orm.name = profile.name or "Default"
         profile_orm.avatar = (
             profile.avatar
             or "https://i.pinimg.com/736x/5b/50/e7/5b50e75d07c726d36f397f6359098f58.jpg"
@@ -59,8 +66,26 @@ class ProfileRepository(IProfileRepository):
         profile_orm.is_private = profile.is_private
         profile_orm.pin_hash = profile.pin_hash or ""
 
+        # 3. Flush the changes to the database.
         await self.session.flush()
-        return Profile.model_validate(profile_orm)
+
+        # --- THIS IS THE FIX ---
+        # 4. Expire the object to ensure we get fresh data from the DB.
+        self.session.expire(profile_orm)
+
+        # 5. Re-fetch the object using a query that EAGERLY LOADS the relationships.
+        #    This guarantees that when Pydantic accesses `.installed_addons`,
+        #    the data is already present and no lazy-loading I/O occurs.
+        stmt = (
+            select(ProfileOrm)
+            .where(ProfileOrm.id == profile.id)
+            .options(selectinload(ProfileOrm.installed_addons))
+        )
+        result = await self.session.execute(stmt)
+        updated_orm = result.scalars().one()
+
+        # 6. Now, it is safe to validate the fully-loaded ORM object.
+        return Profile.model_validate(updated_orm)
 
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
         """Fetches a single profile by its ID, eagerly loading its addons."""

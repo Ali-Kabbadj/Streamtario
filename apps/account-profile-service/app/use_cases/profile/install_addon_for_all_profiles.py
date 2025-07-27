@@ -1,6 +1,7 @@
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from .install_addon import InstallAddonUseCase
-from domain_exceptions.exceptions import NotFoundException, ConflictException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info
 from typing import Callable
 
@@ -19,7 +20,9 @@ class InstallAddonForAllProfilesUseCase:
             account = await uow.accounts.get_by_id(account_id)
 
         if not account:
-            raise NotFoundException("Account", account_id)
+            raise ApiException(
+                ApiErrorCode.ACCOUNT_NOT_FOUND, details={"account_id": account_id}
+            )
 
         results = {"success": [], "skipped": []}
         for profile in account.profiles:
@@ -32,10 +35,14 @@ class InstallAddonForAllProfilesUseCase:
                 results["success"].append(
                     {"profile_id": profile.id, "addon_id": installed.id}
                 )
-            except ConflictException:
-                results["skipped"].append(
-                    {"profile_id": profile.id, "reason": "Already installed."}
-                )
+            except ApiException as e:
+                if e.code == ApiErrorCode.ADDON_ALREADY_INSTALLED.name:
+                    results["skipped"].append(
+                        {"profile_id": profile.id, "reason": "Already installed."}
+                    )
+                else:
+                    # Re-raise other critical errors
+                    raise e
         log_info(
             f"Completed account-wide install for '{manifest_url}' on account '{account_id}'"
         )

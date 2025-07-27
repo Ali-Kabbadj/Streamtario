@@ -1,13 +1,12 @@
 from typing import Callable, Optional
 from core.pydantic.domain.profile import Profile
 from security_factory.services.passwordservice import IPasswordHasher
-from domain_exceptions.exceptions import (
-    ValidationException,
-    NotFoundException,
-    ConflictException,
-)
+from domain_exceptions.exceptions import ApiException  # <-- Change imports
+from api_contract.errors import ApiErrorCode  # <-- Add this import
+from app.domain.events.i_event_publisher import IEventPublisher
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from core.utils.logging import log_info
+from core.pydantic.events.base import ProfileCreatedEvent
 
 MAX_PROFILES_PER_ACCOUNT = 5
 
@@ -19,9 +18,11 @@ class CreateProfileUseCase:
         self,
         uow_factory: Callable[[], IUnitOfWork],
         password_hasher: IPasswordHasher,
+        event_publisher: IEventPublisher,
     ):
         self.uow_factory = uow_factory
         self.password_hasher = password_hasher
+        self.event_publisher = event_publisher
 
     async def execute(
         self,
@@ -36,9 +37,9 @@ class CreateProfileUseCase:
         pin_hash: Optional[str] = None
         if is_private:
             if not pin or len(pin) != 4 or not pin.isdigit():
-                raise ValidationException(
-                    message="A 4-digit PIN is required for private profiles.",
-                    ui_message="A 4-digit PIN is required to make a profile private.",
+                # --- This is the new way to raise errors ---
+                raise ApiException(
+                    error_code=ApiErrorCode.VALIDATION_PIN_REQUIRED,
                     details={"field": "pin"},
                 )
             pin_hash = self.password_hasher.hash(pin)
@@ -46,14 +47,15 @@ class CreateProfileUseCase:
         async with self.uow_factory() as uow:
             account = await uow.accounts.get_by_id(account_id)
             if not account:
-                raise NotFoundException("Account", account_id)
+                raise ApiException(error_code=ApiErrorCode.ACCOUNT_NOT_FOUND)
 
             if len(account.profiles) >= MAX_PROFILES_PER_ACCOUNT:
-                raise ConflictException(
-                    entity_name="Profile",
-                    identifier=account_id,
+                # --- And another example ---
+                raise ApiException(
+                    error_code=ApiErrorCode.ACCOUNT_PROFILE_LIMIT_REACHED,
                     details={
-                        "reason": f"Account has reached the maximum profile limit of {MAX_PROFILES_PER_ACCOUNT}."
+                        "limit": MAX_PROFILES_PER_ACCOUNT,
+                        "current": len(account.profiles),
                     },
                 )
 
@@ -65,6 +67,14 @@ class CreateProfileUseCase:
                 pin_hash=pin_hash,
             )
             await uow.commit()
+
+        await self.event_publisher.publish(
+            ProfileCreatedEvent(
+                name=new_profile.name or "Default",
+                profile_id=new_profile.id,
+                account_id=account_id,
+            )
+        )
 
         log_info(
             f"Successfully created profile {new_profile.id} ('{name}') for account {account_id}"

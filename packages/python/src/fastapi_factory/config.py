@@ -46,6 +46,10 @@ class BaseAppSettings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: Optional[int] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
 
+    # Caching
+    REDIS_HOST: str = None
+    REDIS_PORT: int = None
+
     model_config = SettingsConfigDict(
         env_file=[
             str(ROOT_ENV),

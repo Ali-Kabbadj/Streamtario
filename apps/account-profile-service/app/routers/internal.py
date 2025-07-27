@@ -7,9 +7,8 @@ from core.pydantic.api.account_api import CreateAccountRequest, SocialLoginReque
 from app.use_cases.account.find_or_create_by_social import FindOrCreateBySocialUseCase
 from app.use_cases.account.login import LoginUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
-from domain_exceptions.exceptions import NotFoundException
+from domain_exceptions.exceptions import ApiException
 from core.pydantic.api.internals import ManifestUrlsResponse
-
 
 router = APIRouter(tags=["Internal"])
 
@@ -62,10 +61,10 @@ async def get_manifest_urls_for_profile(
     Called by the addon-controller-service.
     """
     try:
-        profile = await use_case.execute(profile_id)
+        profile = await use_case.execute(profile_id, requesting_account_id=None)
         response_data = ManifestUrlsResponse(manifest_urls=profile.manifest_urls)
         return ApiResponse[ManifestUrlsResponse](
             ok=True, data=response_data, error=None
         )
-    except NotFoundException as e:
+    except ApiException as e:
         raise e
