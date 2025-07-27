@@ -26,8 +26,6 @@ class IJwtService(ABC):
 
 
 class JwtService(IJwtService):
-    # --- THIS IS THE FIX ---
-    # Add explicit type hints to the constructor.
     def __init__(
         self,
         secret_key: str,
@@ -37,8 +35,6 @@ class JwtService(IJwtService):
     ):
         self.secret_key = secret_key
         self.algorithm = algorithm
-        # Pydantic (used in the container) will now see these hints and automatically
-        # convert the string values from settings into integers.
         self.access_token_expire_minutes = access_token_expire_minutes
         self.refresh_token_expire_days = refresh_token_expire_days
 
@@ -49,7 +45,6 @@ class JwtService(IJwtService):
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
-            # This line will now work correctly because the value is an integer.
             expire = datetime.now(timezone.utc) + timedelta(
                 minutes=self.access_token_expire_minutes
             )
@@ -63,7 +58,6 @@ class JwtService(IJwtService):
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
-            # This will also be fixed for the same reason.
             expire = datetime.now(timezone.utc) + timedelta(
                 days=self.refresh_token_expire_days
             )

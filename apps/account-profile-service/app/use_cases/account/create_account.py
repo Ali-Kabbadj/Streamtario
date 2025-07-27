@@ -23,7 +23,6 @@ class CreateAccountUseCase:
     async def execute(self, email: str, password: str) -> Account:
         async with self.uow_factory() as uow:
             try:
-                # We still validate password strength for direct sign-ups
                 await run_validators(password, [PasswordStrengthValidator()])
                 await run_validators(
                     email, [UniqueEmailValidator()], account_repository=uow.accounts
@@ -37,7 +36,6 @@ class CreateAccountUseCase:
 
             hashed_password = self.password_hasher.hash(password)
 
-            # The create method now returns the ORM object.
             new_account_orm = await uow.accounts.create(
                 email=email, hashed_password=hashed_password
             )

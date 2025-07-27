@@ -123,14 +123,12 @@ def setup_logging(app_name: str = "StreamtarioApp"):
         logger.handlers.clear()
 
     if is_prod:
-        # Production gets the robust JSON file logger
         file_handler = logging.handlers.RotatingFileHandler(
             f"logs/{app_name}.log", maxBytes=5 * 1024 * 1024, backupCount=3
         )
         file_handler.setFormatter(CustomJsonFormatter(app_name=app_name))
         logger.addHandler(file_handler)
     else:
-        # Development gets our new, final, beautiful handler
         vscode_handler = VscodeDebugConsoleHandler(app_name=app_name)
         logger.addHandler(vscode_handler)
 

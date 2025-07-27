@@ -14,11 +14,11 @@ from app.use_cases.search_use_case import SearchUseCase
 
 
 class Container(containers.DeclarativeContainer):
-    api_client: providers.Factory[ApiClient] = providers.Factory(  # Change to ApiClient
-        ApiClient, verify_ssl=False  # Instantiate with verify=False
+    api_client: providers.Factory[ApiClient] = providers.Factory(
+        ApiClient, verify_ssl=False
     )
     public_api_client: providers.Factory[PublicApiClient] = providers.Factory(
-        PublicApiClient, verify=False  # Instantiate with verify=False
+        PublicApiClient, verify=False
     )
 
     # Adapters

@@ -1,8 +1,5 @@
-// /apps/api-gateway/src/index.ts
-
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express5';
-// --- NEW IMPORT ---
 import { ApolloGateway, IntrospectAndCompose, RemoteGraphQLDataSource } from '@apollo/gateway';
 import express from 'express';
 import https from 'https';
@@ -21,20 +18,14 @@ import { ExecutionArgs, getOperationAST, print, introspectionFromSchema } from '
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 
-// --- THIS IS THE CRITICAL FIX ---
-// We create a custom data source class that will forward the authorization header.
 class AuthenticatedDataSource extends RemoteGraphQLDataSource {
   willSendRequest({ request, context }) {
-    // Check if the context contains the headers from the original request
     if (context.headers?.authorization) {
-      // Add the authorization header to the outgoing request to the subgraph
       request.http.headers.set('authorization', context.headers.authorization);
     }
   }
 }
 
-
-// ... (The rest of the file from the previous step is mostly the same)
 interface AddonServiceError {
   message: string;
   code?: string;
@@ -126,14 +117,12 @@ async function startGateway() {
     target: serviceMap.auth.url,
     changeOrigin: true,
     secure: false,
-    // logLevel: 'debug',
   });
   app.use('/api/v1/auth', authProxy);
 
   interface WsServerCleanup { dispose: () => Promise<void> | void; }
   let serverCleanup: WsServerCleanup | null = null;
 
-  // --- GATEWAY CONFIGURATION UPDATED ---
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
       subgraphs: [
@@ -142,7 +131,6 @@ async function startGateway() {
       ],
       pollIntervalInMs: 5000,
     }),
-    // Use the buildService hook to plug in our custom data source
     buildService({ url }) {
       return new AuthenticatedDataSource({ url });
     },
@@ -172,8 +160,6 @@ async function startGateway() {
     else { res.status(503).send('Gateway schema is not available yet.'); }
   });
 
-  // --- CONTEXT FUNCTION IS STILL REQUIRED ---
-  // This gets the headers into the gateway's context, which our data source then reads.
   app.use('/graphql', cors(), express.json(), expressMiddleware(server, {
     context: async ({ req }) => ({ headers: req.headers }),
   }));

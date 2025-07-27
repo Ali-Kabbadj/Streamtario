@@ -1,9 +1,5 @@
-# /apps/account-profile-service/app/routers/internal.py
-
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Body, Depends
-from pydantic import BaseModel
-from typing import List
 from api_contract.responses import ApiResponse
 from app.containers import Container
 from core.pydantic.domain.account import Account
@@ -12,17 +8,12 @@ from app.use_cases.account.find_or_create_by_social import FindOrCreateBySocialU
 from app.use_cases.account.login import LoginUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
 from domain_exceptions.exceptions import NotFoundException
+from core.pydantic.api.internals import ManifestUrlsResponse
 
-# --- THE FIX: Remove the prefix from the router definition ---
+
 router = APIRouter(tags=["Internal"])
 
 
-# --- Define the response model ---
-class ManifestUrlsResponse(BaseModel):
-    manifest_urls: List[str]
-
-
-# --- THE FIX: Add the full path to the route decorator ---
 @router.post("/accounts/validate-credentials", response_model=ApiResponse[Account])
 @inject
 async def validate_credentials(
@@ -37,7 +28,6 @@ async def validate_credentials(
     return ApiResponse[Account](ok=True, data=account, error=None)
 
 
-# --- THE FIX: Add the full path to the route decorator ---
 @router.post("/accounts/social-login", response_model=ApiResponse[Account])
 @inject
 async def find_or_create_social_account(
@@ -58,7 +48,6 @@ async def find_or_create_social_account(
     return ApiResponse[Account](ok=True, data=account, error=None)
 
 
-# --- This route's path is now correct relative to the main /internal/v1 prefix ---
 @router.get(
     "/profiles/{profile_id}/manifest-urls",
     response_model=ApiResponse[ManifestUrlsResponse],

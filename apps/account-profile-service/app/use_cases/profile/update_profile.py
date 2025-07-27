@@ -23,7 +23,6 @@ class UpdateProfileUseCase:
 
     async def execute(
         self,
-        # --- NEW ARGUMENT for authorization ---
         requesting_account_id: str,
         profile_id: str,
         name: Optional[str],
@@ -36,28 +35,23 @@ class UpdateProfileUseCase:
         )
 
         async with self.uow_factory() as uow:
-            # First, fetch the full account to check profile ownership
             account = await uow.accounts.get_by_id(requesting_account_id)
             if not account or not any(p.id == profile_id for p in account.profiles):
                 raise ApiException(
-                    status_code=403,  # 403 Forbidden
+                    status_code=403,
                     message=f"Account {requesting_account_id} is not authorized to update profile {profile_id}.",
                     ui_message="You are not authorized to perform this action.",
                 )
 
-            # Now we know the user is authorized, get the specific profile to update
             profile = await uow.profiles.get_by_id(profile_id)
             if not profile:
-                # This should be rare if the above check passed, but it's good practice.
                 raise NotFoundException("Profile", profile_id)
 
-            # Update fields if they were provided
             if name is not None:
                 profile.name = name
             if avatar is not None:
                 profile.avatar = avatar
 
-            # Handle privacy and PIN logic
             if is_private is True:
                 profile.is_private = True
                 if not pin or len(pin) != 4 or not pin.isdigit():

@@ -5,7 +5,6 @@ from .get_manifest import GetManifestUseCase
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.meta.meta import MetaResponse
 from domain_exceptions.exceptions import NotFoundException
-from api_contract.responses import ApiResponse
 from core.utils.logging import log_info, log_warn, log_error
 
 
@@ -31,8 +30,6 @@ class GetMetaUseCase:
         )
         manifest = await self.get_manifest_use_case.execute(manifest_url)
         base_url = manifest_url.rsplit("/", 1)[0]
-
-        # This ID is now assumed to be the correct, addon-specific ID.
         encoded_item_id = quote(item_id)
 
         if item_type:

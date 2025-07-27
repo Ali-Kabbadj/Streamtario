@@ -1,4 +1,3 @@
-# /apps/auth-service/app/main.py
 import sys
 from fastapi import APIRouter, Depends, Body
 from dependency_injector.wiring import inject, Provide
@@ -20,9 +19,6 @@ from .routers import social as social_router
 app: Application = create_app(settings)
 container = Container(settings=settings)
 app.container = container
-
-# --- Define Router for LOGIN ---
-# No prefix. The path is exactly what the gateway sends.
 router = APIRouter(tags=["Authentication"])
 
 
@@ -34,7 +30,6 @@ async def login_for_access_token(
     jwt_service: IJwtService = Depends(Provide[Container.jwt_service]),
     settings=Depends(Provide[Container.settings]),
 ):
-    # This function's body is correct and remains unchanged.
     account_service_url = settings.ACCOUNT_PROFILE_SERVICE_URL
     if not account_service_url:
         raise ApiException("Authentication backend is not configured.", status_code=503)
@@ -66,12 +61,10 @@ async def login_for_access_token(
     return ApiResponse[TokenResponse](ok=True, data=token_response, error=None)
 
 
-# --- Wire up everything ---
 container.wire(
     modules=[sys.modules[__name__], "app.routers.refresh", "app.routers.social"]
 )
 
-# --- Include all routers with NO prefixes ---
 app.include_router(router)
 app.include_router(refresh_router.router)
 app.include_router(social_router.router)

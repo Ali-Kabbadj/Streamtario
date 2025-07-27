@@ -20,7 +20,6 @@ class ApiException(Exception):
         self.message = message
         self.status_code = status_code
         self.details = details
-        # Use the provided UI message, or fall back to the main message
         self.ui_message = ui_message if ui_message is not None else message
         super().__init__(self.message)
 
@@ -39,7 +38,6 @@ class NotFoundException(ApiException):
 
 
 class ValidationException(ApiException):
-    # This class is meant to be subclassed or instantiated with specific details.
     def __init__(
         self,
         message: str = "Validation failed.",
@@ -102,5 +100,4 @@ class ValidatorRuleException(ValidationException):
             "invalid_value": serializable_value,
             "reason": reason,
         }
-        # This now calls the explicit ValidationException.__init__
         super().__init__(message=message, ui_message=ui_message, details=details)

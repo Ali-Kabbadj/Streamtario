@@ -1,10 +1,8 @@
-# /apps/account-profile-service/app/graphql/schema.py
-
 import strawberry
 from typing import List
 from strawberry.fastapi import GraphQLRouter
 from strawberry.types import Info
-from fastapi import Request  # <-- THE CORRECT IMPORT
+from fastapi import Request
 
 from .types import (
     AccountType,
