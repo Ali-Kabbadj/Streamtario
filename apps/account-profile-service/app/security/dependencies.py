@@ -41,5 +41,4 @@ def get_current_user_payload(
             ui_message="Authentication required.",
         )
 
-    # The decode_token method already handles JWTError and raises a formatted ApiException
     return jwt_service.decode_token(token)

@@ -20,9 +20,7 @@ def create_db_engine(settings: BaseAppSettings):
         f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@"
         f"{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
     )
-    return create_async_engine(
-        db_url, echo=False
-    )  # Set echo=True to log all SQL statements
+    return create_async_engine(db_url, echo=False)
 
 
 def create_db_session_factory(engine) -> async_sessionmaker[AsyncSession]:

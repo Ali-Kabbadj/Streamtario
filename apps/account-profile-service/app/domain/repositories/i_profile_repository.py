@@ -11,7 +11,6 @@ class IProfileRepository(ABC):
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
         pass
 
-    # --- NEW METHOD ---
     @abstractmethod
     async def create(
         self,

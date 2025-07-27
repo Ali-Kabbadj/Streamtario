@@ -1,5 +1,3 @@
-# /apps/account-profile-service/app/graphql/resolvers.py
-
 from dependency_injector.wiring import inject, Provide
 from strawberry.types import Info
 
@@ -92,7 +90,6 @@ async def resolve_create_profile(
     use_case: CreateProfileUseCase = Provide[Container.create_profile_use_case],
 ) -> CreateProfileSuccess | CreateProfileError:
     try:
-        # --- THE FIX: Removed 'await' ---
         current_user: TokenPayload = get_current_user_payload(info.context["request"])
         account_id = current_user.sub
 
@@ -133,7 +130,6 @@ async def resolve_update_profile(
     use_case: UpdateProfileUseCase = Provide[Container.update_profile_use_case],
 ) -> UpdateProfileSuccess | UpdateProfileError:
     try:
-        # --- THE FIX: Removed 'await' ---
         current_user: TokenPayload = get_current_user_payload(info.context["request"])
         log_info(f"GraphQL: Updating profile {input.profile_id}", context="graphql")
 
@@ -165,7 +161,6 @@ async def resolve_install_addon(
     use_case: InstallAddonUseCase = Provide[Container.install_addon_use_case],
 ) -> InstallAddonSuccess | InstallAddonError:
     try:
-        # --- THE FIX: Removed 'await' ---
         current_user: TokenPayload = get_current_user_payload(info.context["request"])
         log_info(
             f"GraphQL: Installing addon from {input.manifest_url} for profile {input.profile_id}",
@@ -202,7 +197,6 @@ async def resolve_uninstall_addon(
     use_case: UninstallAddonUseCase = Provide[Container.uninstall_addon_use_case],
 ) -> UninstallAddonSuccess | UninstallAddonError:
     try:
-        # --- THE FIX: Removed 'await' ---
         current_user: TokenPayload = get_current_user_payload(info.context["request"])
         log_info(
             f"GraphQL: Uninstalling addon {input.manifest_id} from profile {input.profile_id}",
@@ -252,14 +246,14 @@ async def resolve_install_addon_for_all_profiles(
         summary = await use_case.execute(current_user.sub, input.manifest_url)
         return InstallAddonForAllProfilesSuccess(summary=summary)
     except (NotFoundException, ValidationException, ConflictException) as e:
-        return InstallAddonForAllProfilesError(message=e.ui_message)
+        return InstallAddonForAllProfilesError(message=e.ui_message, error=e)
     except Exception as e:
         log_error(
             "GraphQL: Unexpected error during account-wide addon install",
             data={"error": str(e)},
         )
         return InstallAddonForAllProfilesError(
-            message="An unexpected server error occurred."
+            message="Unexpected error during account-wide addon install", error=e
         )
 
 
@@ -305,13 +299,10 @@ async def resolve_account(
             return None
         return AccountType.from_pydantic(pydantic_account)
     except ApiException:
-        # This will happen if the token is invalid/expired.
-        # Returning None is appropriate as there is no authenticated user.
         return None
     except Exception as e:
         log_error(
             "GraphQL: Unexpected error during myAccount resolution",
             data={"error": str(e)},
         )
-        # For an internal error, we should not expose details, just return None.
         return None

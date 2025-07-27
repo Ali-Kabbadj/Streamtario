@@ -7,9 +7,8 @@ from domain_exceptions.exceptions import (
     ConflictException,
 )
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
-from core.utils.logging import log_info, log_error
+from core.utils.logging import log_info
 
-# A business rule: limit the number of profiles per account.
 MAX_PROFILES_PER_ACCOUNT = 5
 
 

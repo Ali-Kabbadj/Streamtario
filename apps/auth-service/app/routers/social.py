@@ -1,5 +1,3 @@
-# /apps/auth-service/app/routers/social.py
-
 from fastapi import APIRouter, Depends, Body
 from dependency_injector.wiring import inject, Provide
 from pydantic import BaseModel
@@ -19,7 +17,7 @@ router = APIRouter(tags=["Authentication"])
 
 
 class GoogleLoginRequest(BaseModel):
-    token: str  # This is the id_token from Google
+    token: str
 
 
 @router.post("/google/login", response_model=ApiResponse[TokenResponse])
@@ -34,7 +32,6 @@ async def google_login(
     Authenticates a user with a Google ID token and issues local JWTs.
     """
     try:
-        # --- THE FIX: Add the audience parameter ---
         id_info = id_token.verify_oauth2_token(
             request.token, requests.Request(), settings.GOOGLE_CLIENT_ID
         )
@@ -49,7 +46,6 @@ async def google_login(
             ui_message="The Google authentication token is invalid.",
         )
 
-    # 2. Call account-profile-service to find or create the account
     account_service_url = settings.ACCOUNT_PROFILE_SERVICE_URL
     if not account_service_url:
         raise ApiException("Authentication backend is not configured.", status_code=503)
@@ -73,12 +69,10 @@ async def google_login(
                 if account_response.error
                 else "An error occurred during social login."
             ),
-            status_code=409,  # Conflict is a likely error here
+            status_code=409,
         )
 
     account = account_response.data
-
-    # 3. Issue our own JWTs
     token_payload = TokenPayload(sub=account.id, email=account.email)
     access_token = jwt_service.create_access_token(data=token_payload.model_dump())
     refresh_token = jwt_service.create_refresh_token(data=token_payload.model_dump())

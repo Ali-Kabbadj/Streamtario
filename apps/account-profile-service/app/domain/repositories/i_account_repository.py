@@ -19,7 +19,6 @@ class IAccountRepository(ABC):
         """Fetches an account by its email."""
         pass
 
-    # --- NEW METHODS ---
     @abstractmethod
     async def get_by_google_id(self, google_id: str) -> Optional[Account]:
         """Fetches an account by its Google ID."""

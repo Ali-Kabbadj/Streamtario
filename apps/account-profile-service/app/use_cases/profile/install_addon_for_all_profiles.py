@@ -1,13 +1,8 @@
-# /apps/account-profile-service/app/use_cases/profile/install_addon_for_all_profiles.py
-
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
-
-# This import is no longer needed:
-# from app.domain.repositories.i_account_repository import IAccountRepository
 from .install_addon import InstallAddonUseCase
 from domain_exceptions.exceptions import NotFoundException, ConflictException
 from core.utils.logging import log_info
-from typing import Callable, Awaitable
+from typing import Callable
 
 
 class InstallAddonForAllProfilesUseCase:
@@ -29,8 +24,6 @@ class InstallAddonForAllProfilesUseCase:
         results = {"success": [], "skipped": []}
         for profile in account.profiles:
             try:
-                # --- THE FIX IS HERE ---
-                # We now pass all three required arguments to the child use case.
                 installed = await self.install_addon_use_case.execute(
                     requesting_account_id=account_id,
                     profile_id=profile.id,

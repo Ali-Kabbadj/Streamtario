@@ -1,5 +1,5 @@
-# /apps/account-profile-service/app/graphql/types.py
-
+from os import error
+from pydantic import Json
 import strawberry
 from typing import List, Optional
 from core.pydantic.domain.account import Account as PydanticAccount
@@ -100,7 +100,6 @@ class ProfileType:
             installed_addons=[
                 InstalledAddonType.from_pydantic(a) for a in model.installed_addons
             ],
-            # --- And we populate it from the Pydantic model's property ---
             manifest_urls=model.manifest_urls,
         )
 
@@ -199,6 +198,7 @@ class InstallAddonForAllProfilesSuccess:
 @strawberry.type
 class InstallAddonForAllProfilesError:
     message: str
+    error: Optional[JSON]  # type: ignore
 
 
 @strawberry.type

@@ -17,8 +17,6 @@ class ProfileRepository(IProfileRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    # --- NEW IMPLEMENTATION ---
-
     async def create(
         self,
         account_id: str,
@@ -38,10 +36,6 @@ class ProfileRepository(IProfileRepository):
         self.session.add(new_profile_orm)
         await self.session.flush()
 
-        # --- THE FIX ---
-        # Manually construct the Pydantic model instead of using model_validate.
-        # This avoids the lazy-loading issue on the 'installed_addons' relationship,
-        # which we know is empty for a new profile.
         return Profile(
             id=new_profile_orm.id,
             name=new_profile_orm.name,

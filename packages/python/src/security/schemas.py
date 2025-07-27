@@ -5,7 +5,7 @@ from typing import Optional
 class TokenPayload(BaseModel):
     """Defines the data encoded within the JWT."""
 
-    sub: str  # 'sub' (subject) is the standard claim for the user ID
+    sub: str
     email: str
 
 

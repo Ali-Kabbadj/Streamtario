@@ -25,7 +25,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
                     data={
                         "method": request.method,
                         "path": request.url.path,
-                        "client": request.client.host,  # type: ignore
+                        "client": request.client.host,
                         "status_code": response.status_code,
                         "processing_time_ms": round(process_time, 2),
                     },
@@ -33,7 +33,6 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
             return response
 
         except Exception as e:
-            # Exception path: log the error and re-raise it
             process_time = (time.time() - start_time) * 1000
             if request.url.path != "/graphql":
                 log_http(
@@ -41,7 +40,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
                     data={
                         "method": request.method,
                         "path": request.url.path,
-                        "client": request.client.host,  # type: ignore
+                        "client": request.client.host,
                         "processing_time_ms": round(process_time, 2),
                         "error": str(e),
                         "traceback": traceback.format_exc(),

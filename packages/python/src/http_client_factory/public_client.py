@@ -9,14 +9,17 @@ class PublicApiClient:
     """A simple HTTP client for fetching raw data from public, external URLs."""
 
     def __init__(
-        self, client: httpx.AsyncClient | None = None, retries: int = 2, verify: bool = True
+        self,
+        client: httpx.AsyncClient | None = None,
+        retries: int = 2,
+        verify: bool = True,
     ):
         self.retries = retries
         self._client_args = {
             "http2": True,
             "follow_redirects": True,
             "timeout": 15.0,
-            "verify": verify,  # Add verify here
+            "verify": verify,
         }
         self._client = client
 
@@ -25,14 +28,12 @@ class PublicApiClient:
             self._client = httpx.AsyncClient(**self._client_args)
         return self._client
 
-    # --- NEW METHOD to get the raw response object ---
     async def get_raw_response(self, url: str) -> Optional[httpx.Response]:
         client = await self._get_client()
         last_exception = None
         for attempt in range(self.retries):
             try:
                 response = await client.get(url)
-                # We don't raise for status, the caller can decide what to do
                 return response
             except httpx.RequestError as e:
                 last_exception = e

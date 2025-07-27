@@ -21,7 +21,6 @@ class FindOrCreateBySocialUseCase:
 
         async with self.uow_factory() as uow:
             account: Account | None = None
-            # 1. Try to find user by their social ID
             if provider == "google":
                 account = await uow.accounts.get_by_google_id(social_id)
             elif provider == "facebook":
@@ -31,11 +30,8 @@ class FindOrCreateBySocialUseCase:
                 log_info(f"Found existing account {account.id} via {provider} ID.")
                 return account
 
-            # 2. If not found, check if an account with that email already exists
             account_by_email = await uow.accounts.get_by_email(email)
             if account_by_email:
-                # This logic can be adjusted based on business rules.
-                # Here, we prevent linking if the email is already taken by a non-social account.
                 if account_by_email.hashed_password:
                     raise ConflictException(
                         "Email",
@@ -44,9 +40,6 @@ class FindOrCreateBySocialUseCase:
                             "reason": "Email is already registered with a password."
                         },
                     )
-                # If we wanted to allow linking, we would update the existing account with the social ID here.
-
-            # 3. If no account exists, create a new one.
             log_info(
                 f"No existing account found. Creating new account for email {email} with {provider} ID."
             )
@@ -55,10 +48,7 @@ class FindOrCreateBySocialUseCase:
                 google_id=social_id if provider == "google" else None,
                 facebook_id=social_id if provider == "facebook" else None,
             )
-            # A default profile is no longer created automatically. The user will be prompted to create one.
             await uow.commit()
-
-            # Retrieve the full account model after creation
             created_account = await uow.accounts.get_by_id(orm_account.id)
             if not created_account:
                 raise RuntimeError("Failed to retrieve newly created social account.")

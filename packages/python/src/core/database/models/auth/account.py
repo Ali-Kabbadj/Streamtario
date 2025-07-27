@@ -14,9 +14,8 @@ class AccountOrm(Base):
         String, primary_key=True, default=lambda: str(uuid.uuid4())
     )
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String, nullable=True)  # Now nullable
+    hashed_password: Mapped[str] = mapped_column(String, nullable=True)
 
-    # Fields for social providers
     google_id: Mapped[str] = mapped_column(String, unique=True, nullable=True)
     facebook_id: Mapped[str] = mapped_column(String, unique=True, nullable=True)
 
@@ -37,7 +36,6 @@ class ProfileOrm(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     avatar: Mapped[str] = mapped_column(String, nullable=True)
 
-    # Profile security
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     pin_hash: Mapped[str] = mapped_column(String, nullable=True)
 

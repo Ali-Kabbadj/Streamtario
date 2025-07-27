@@ -1,6 +1,6 @@
 import asyncio
 from typing import List
-from core.pydantic.addons.manifest import AddonManifest, Catalog
+from core.pydantic.addons.manifest import AddonManifest
 from core.pydantic.catalog.catalog import DiscoveredCatalog
 from .get_manifest import GetManifestUseCase
 from core.utils.logging import log_error, log_info

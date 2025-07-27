@@ -3,21 +3,15 @@ from fastapi_factory.config import BaseAppSettings
 from database_factory.db import create_db_engine, create_db_session_factory
 from security_factory.password import BcryptPasswordHasher
 from http_client_factory.client import ApiClient
-
-# Import Interfaces
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.providers.i_addon_provider import IAddonProvider
 from security_factory.services.passwordservice import IPasswordHasher
-
-# Import Concrete Implementations
 from app.infrastructure.sqlalchemy_uow.session_manager import SqlAlchemyUnitOfWork
 from app.adapters.addon_provider import AddonProvider
-
-# Import ALL remaining Use Cases
 from app.use_cases.account.create_account import CreateAccountUseCase
 from app.use_cases.account.find_or_create_by_social import FindOrCreateBySocialUseCase
 from app.use_cases.account.get_account import GetAccountUseCase
-from app.use_cases.account.login import LoginUseCase  # <-- NEW IMPORT
+from app.use_cases.account.login import LoginUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
 from app.use_cases.profile.create_profile import CreateProfileUseCase
 from app.use_cases.profile.install_addon import InstallAddonUseCase
@@ -63,7 +57,6 @@ class Container(containers.DeclarativeContainer):
         JwtService,
         secret_key=settings.provided.JWT_SECRET_KEY,
         algorithm=settings.provided.JWT_ALGORITHM,
-        # The expire minutes are not needed here as this service only decodes tokens
         access_token_expire_minutes=0,
         refresh_token_expire_days=0,
     )

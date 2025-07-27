@@ -1,38 +1,19 @@
-# /apps/addon-controller-service/app/use_cases/search_use_case.py
-
 import asyncio
 from typing import List, Dict, Any, AsyncGenerator
 from urllib.parse import quote
-
-# --- Add these imports ---
-from pydantic import BaseModel
 from typing import List
-
-# ---
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import (
     CatalogResponse,
-    CatalogItem,
     AddonSearchResult,
 )
-from core.pydantic.addons.manifest import AddonManifest
-
-# The Profile model is no longer needed here
-# from core.pydantic.domain.profile import Profile
 from core.pydantic.api.error import ErrorResponse
 from http_client_factory.client import ApiClient
 from api_contract.responses import ApiResponse
 from domain_exceptions.exceptions import NotFoundException, ApiException
-
 from core.utils.logging import log_info, log_error, log_warn
-
-
 from .get_manifest import GetManifestUseCase
-
-
-# --- Define the expected response model from our new internal endpoint ---
-class ManifestUrlsResponse(BaseModel):
-    manifest_urls: List[str]
+from core.pydantic.api.internals import ManifestUrlsResponse
 
 
 class SearchUseCase:
@@ -61,7 +42,6 @@ class SearchUseCase:
         )
 
         if not api_response.ok or api_response.data is None:
-            # This will correctly raise a 404 if the profile doesn't exist
             raise NotFoundException("Profile", profile_id)
 
         return api_response.data.manifest_urls
@@ -95,9 +75,7 @@ class SearchUseCase:
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )
 
-        task_to_metadata: Dict[asyncio.Task, Dict[str, Any]] = (
-            {}
-        )  # Use asyncio.Task as key
+        task_to_metadata: Dict[asyncio.Task, Dict[str, Any]] = {}
         encoded_query = quote(search_query)
 
         for manifest in manifests:
@@ -126,7 +104,7 @@ class SearchUseCase:
                     task = asyncio.create_task(
                         self.addon_provider.get(url, response_model=CatalogResponse)
                     )
-                    task_to_metadata[task] = {  # Store the Task object as the key
+                    task_to_metadata[task] = {
                         "manifest_id": manifest.id,
                         "addon_name": manifest.name,
                         "item_type": catalog.type,
@@ -140,26 +118,19 @@ class SearchUseCase:
             return
 
         tasks_to_await = list(task_to_metadata.keys())
-
-        # Initialize metadata and addon_name outside the loop's try-except
-        # to ensure they are always defined for the outer exception handler.
         metadata: Dict[str, Any] = {}
         addon_name = "Unknown Addon"
 
         try:
-            # Use asyncio.wait to manage tasks explicitly
-            # We'll process them as they complete
             while tasks_to_await:
                 done, pending = await asyncio.wait(
                     tasks_to_await, return_when=asyncio.FIRST_COMPLETED
                 )
 
                 for future_task in done:
-                    # future_task is guaranteed to be one of the original Task objects
                     metadata = task_to_metadata[future_task]
                     addon_name = metadata.get("addon_name", "Unknown Addon")
 
-                    # Log detailed info about the future_task object and its resolved metadata
                     log_info(
                         f"Processing future_task: type={type(future_task)}, id={id(future_task)}, repr={repr(future_task)}, addon={addon_name}",
                         context="search_use_case_future_debug",
@@ -210,7 +181,6 @@ class SearchUseCase:
                         )
                         yield error_result
 
-                # Update tasks_to_await to include only pending tasks for the next iteration
                 tasks_to_await = list(pending)
 
         except Exception as e:
