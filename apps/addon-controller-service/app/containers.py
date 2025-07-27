@@ -1,8 +1,20 @@
 from dependency_injector import containers, providers
+from fastapi_factory.config import BaseAppSettings
 from http_client_factory.public_client import PublicApiClient
-from http_client_factory.client import ApiClient  # Import ApiClient
-from app.settings import settings  # Import settings
-
+from http_client_factory.client import ApiClient
+from redis_factory.client import create_redis_client
+from app.adapters.caching_external_addon_provider import CachingExternalAddonProvider
+from app.adapters.redis_manifest_cache import RedisManifestCache
+from app.domain.cache.i_manifest_cache import IManifestCache
+from app.domain.cache.i_profile_manifest_cache import IProfileManifestCache
+from app.adapters.redis_profile_manifest_cache import RedisProfileManifestCache
+from app.use_cases.event_handlers.handle_addon_installed import (
+    HandleAddonInstalledEventUseCase,
+)
+from app.use_cases.event_handlers.handle_addon_uninstalled import (
+    HandleAddonUninstalledEventUseCase,
+)
+from app.subscribers.redis_event_subscriber import RedisEventSubscriber
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from app.adapters.external_addon_provider import ExternalAddonProvider
 from app.use_cases.get_manifest import GetManifestUseCase
@@ -14,6 +26,14 @@ from app.use_cases.search_use_case import SearchUseCase
 
 
 class Container(containers.DeclarativeContainer):
+    # --- FIX: Revert to the correct Dependency pattern ---
+    settings: providers.Dependency[BaseAppSettings] = providers.Dependency(
+        instance_of=BaseAppSettings
+    )
+
+    # --- All factories now correctly reference the `settings` provider ---
+    redis_client = providers.Singleton(create_redis_client, settings=settings)
+
     api_client: providers.Factory[ApiClient] = providers.Factory(
         ApiClient, verify_ssl=False
     )
@@ -21,14 +41,46 @@ class Container(containers.DeclarativeContainer):
         PublicApiClient, verify=False
     )
 
-    # Adapters
-    addon_provider: providers.Factory[IExternalAddonProvider] = providers.Factory(
-        ExternalAddonProvider, public_api_client=public_api_client
+    profile_manifest_cache: providers.Factory[IProfileManifestCache] = (
+        providers.Factory(RedisProfileManifestCache, redis_client=redis_client)
+    )
+    manifest_cache: providers.Factory[IManifestCache] = providers.Factory(
+        RedisManifestCache, redis_client=redis_client
+    )
+    base_addon_provider: providers.Singleton[IExternalAddonProvider] = (
+        providers.Singleton(ExternalAddonProvider, public_api_client=public_api_client)
     )
 
-    # Use Cases (Single-purpose tools)
+    addon_provider: providers.Factory[IExternalAddonProvider] = providers.Factory(
+        CachingExternalAddonProvider,
+        decorated_provider=base_addon_provider,
+        redis_client=redis_client,
+    )
+
+    handle_addon_installed_use_case: providers.Factory[
+        HandleAddonInstalledEventUseCase
+    ] = providers.Factory(
+        HandleAddonInstalledEventUseCase, cache=profile_manifest_cache
+    )
+    handle_addon_uninstalled_use_case: providers.Factory[
+        HandleAddonUninstalledEventUseCase
+    ] = providers.Factory(
+        HandleAddonUninstalledEventUseCase, cache=profile_manifest_cache
+    )
+
+    redis_event_subscriber: providers.Singleton[RedisEventSubscriber] = (
+        providers.Singleton(
+            RedisEventSubscriber,
+            redis_client=redis_client,
+            handle_addon_installed_use_case=handle_addon_installed_use_case,
+            handle_addon_uninstalled_use_case=handle_addon_uninstalled_use_case,
+        )
+    )
+
     get_manifest_use_case: providers.Factory[GetManifestUseCase] = providers.Factory(
-        GetManifestUseCase, addon_provider=addon_provider
+        GetManifestUseCase,
+        addon_provider=addon_provider,
+        manifest_cache=manifest_cache,
     )
     get_meta_use_case: providers.Factory[GetMetaUseCase] = providers.Factory(
         GetMetaUseCase,
@@ -59,6 +111,5 @@ class Container(containers.DeclarativeContainer):
         SearchUseCase,
         get_manifest_use_case=get_manifest_use_case,
         addon_provider=addon_provider,
-        api_client=api_client,  # Change to api_client
-        account_service_url=settings.ACCOUNT_PROFILE_SERVICE_URL,  # Add account_service_url
+        profile_manifest_cache=profile_manifest_cache,
     )

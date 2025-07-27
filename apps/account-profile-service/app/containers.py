@@ -1,12 +1,15 @@
 from dependency_injector import containers, providers
 from fastapi_factory.config import BaseAppSettings
 from database_factory.db import create_db_engine, create_db_session_factory
+from redis_factory.client import create_redis_client
 from security_factory.password import BcryptPasswordHasher
 from http_client_factory.client import ApiClient
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.providers.i_addon_provider import IAddonProvider
 from app.domain.policies.i_authorization_policy import IAuthorizationPolicy
 from app.policies.account_authorization_policy import AccountAuthorizationPolicy
+from app.domain.events.i_event_publisher import IEventPublisher
+from app.adapters.redis_event_publisher import RedisEventPublisher
 from security_factory.services.passwordservice import IPasswordHasher
 from app.infrastructure.sqlalchemy_uow.session_manager import SqlAlchemyUnitOfWork
 from app.adapters.addon_provider import AddonProvider
@@ -25,14 +28,18 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
-
 from security.jwt_service import IJwtService, JwtService
 
 
 class Container(containers.DeclarativeContainer):
+    # --- FIX: Revert to the correct Dependency pattern ---
+    # This declares that the container MUST be provided with a BaseAppSettings object upon creation.
     settings: providers.Dependency[BaseAppSettings] = providers.Dependency(
         instance_of=BaseAppSettings
     )
+
+    # --- All factories now correctly reference the `settings` provider ---
+    redis_client = providers.Singleton(create_redis_client, settings=settings)
 
     db_engine = providers.Singleton(create_db_engine, settings=settings)
     db_session_factory = providers.Singleton(
@@ -60,25 +67,36 @@ class Container(containers.DeclarativeContainer):
         uow_factory=uow.provider,
     )
 
+    event_publisher: providers.Factory[IEventPublisher] = providers.Factory(
+        RedisEventPublisher,
+        redis_client=redis_client,
+    )
+
     jwt_service: providers.Factory[IJwtService] = providers.Factory(
         JwtService,
         secret_key=settings.provided.JWT_SECRET_KEY,
         algorithm=settings.provided.JWT_ALGORITHM,
-        access_token_expire_minutes=0,
-        refresh_token_expire_days=0,
+        access_token_expire_minutes=settings.provided.JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+        refresh_token_expire_days=settings.provided.JWT_REFRESH_TOKEN_EXPIRE_DAYS,
     )
 
+    # All use case providers remain the same.
     create_account_use_case: providers.Factory[CreateAccountUseCase] = (
         providers.Factory(
             CreateAccountUseCase,
             uow_factory=uow.provider,
             password_hasher=password_hasher,
+            event_publisher=event_publisher,
         )
     )
 
     find_or_create_by_social_use_case: providers.Factory[
         FindOrCreateBySocialUseCase
-    ] = providers.Factory(FindOrCreateBySocialUseCase, uow_factory=uow.provider)
+    ] = providers.Factory(
+        FindOrCreateBySocialUseCase,
+        uow_factory=uow.provider,
+        event_publisher=event_publisher,
+    )
 
     get_account_use_case: providers.Factory[GetAccountUseCase] = providers.Factory(
         GetAccountUseCase, uow_factory=uow.provider
@@ -101,6 +119,7 @@ class Container(containers.DeclarativeContainer):
             CreateProfileUseCase,
             uow_factory=uow.provider,
             password_hasher=password_hasher,
+            event_publisher=event_publisher,
         )
     )
 
@@ -110,6 +129,7 @@ class Container(containers.DeclarativeContainer):
             uow_factory=uow.provider,
             password_hasher=password_hasher,
             authorization_policy=authorization_policy,
+            event_publisher=event_publisher,
         )
     )
 
@@ -118,16 +138,16 @@ class Container(containers.DeclarativeContainer):
         uow_factory=uow.provider,
         addon_provider=addon_provider,
         authorization_policy=authorization_policy,
+        event_publisher=event_publisher,
     )
-
     uninstall_addon_use_case: providers.Factory[UninstallAddonUseCase] = (
         providers.Factory(
             UninstallAddonUseCase,
             uow_factory=uow.provider,
             authorization_policy=authorization_policy,
+            event_publisher=event_publisher,
         )
     )
-
     install_addon_for_all_profiles_use_case: providers.Factory[
         InstallAddonForAllProfilesUseCase
     ] = providers.Factory(
@@ -138,5 +158,7 @@ class Container(containers.DeclarativeContainer):
     uninstall_addon_from_all_profiles_use_case: providers.Factory[
         UninstallAddonFromAllProfilesUseCase
     ] = providers.Factory(
-        UninstallAddonFromAllProfilesUseCase, uow_factory=uow.provider
+        UninstallAddonFromAllProfilesUseCase,
+        uow_factory=uow.provider,
+        uninstall_addon_use_case=uninstall_addon_use_case,
     )
