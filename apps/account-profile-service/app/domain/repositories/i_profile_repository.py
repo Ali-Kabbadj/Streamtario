@@ -11,6 +11,24 @@ class IProfileRepository(ABC):
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
         pass
 
+    # --- NEW METHOD ---
+    @abstractmethod
+    async def create(
+        self,
+        account_id: str,
+        name: str,
+        avatar: Optional[str],
+        is_private: bool,
+        pin_hash: Optional[str],
+    ) -> Profile:
+        """Creates a new profile for an account."""
+        pass
+
+    @abstractmethod
+    async def update(self, profile: Profile) -> Profile:
+        """Updates an existing profile."""
+        pass
+
     @abstractmethod
     async def add_addon(
         self, profile_id: str, manifest_url: str, manifest_id: str
@@ -23,9 +41,4 @@ class IProfileRepository(ABC):
 
     @abstractmethod
     async def remove_addons_by_account(self, account_id: str, manifest_id: str) -> int:
-        pass
-
-    @abstractmethod
-    async def create_default_for_account(self, account_id: str) -> Profile:
-        """Creates a default profile for a new account."""
         pass

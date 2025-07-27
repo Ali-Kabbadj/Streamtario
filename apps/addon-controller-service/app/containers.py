@@ -1,7 +1,7 @@
 from dependency_injector import containers, providers
 from http_client_factory.public_client import PublicApiClient
-from http_client_factory.client import ApiClient # Import ApiClient
-from app.settings import settings # Import settings
+from http_client_factory.client import ApiClient  # Import ApiClient
+from app.settings import settings  # Import settings
 
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from app.adapters.external_addon_provider import ExternalAddonProvider
@@ -14,11 +14,11 @@ from app.use_cases.search_use_case import SearchUseCase
 
 
 class Container(containers.DeclarativeContainer):
-    api_client: providers.Factory[ApiClient] = providers.Factory( # Change to ApiClient
-        ApiClient, verify_ssl=False # Instantiate with verify=False
+    api_client: providers.Factory[ApiClient] = providers.Factory(  # Change to ApiClient
+        ApiClient, verify_ssl=False  # Instantiate with verify=False
     )
     public_api_client: providers.Factory[PublicApiClient] = providers.Factory(
-        PublicApiClient, verify=False # Instantiate with verify=False
+        PublicApiClient, verify=False  # Instantiate with verify=False
     )
 
     # Adapters
@@ -60,5 +60,5 @@ class Container(containers.DeclarativeContainer):
         get_manifest_use_case=get_manifest_use_case,
         addon_provider=addon_provider,
         api_client=api_client,  # Change to api_client
-        account_service_url=settings.ACCOUNT_PROFILE_SERVICE,  # Add account_service_url
+        account_service_url=settings.ACCOUNT_PROFILE_SERVICE_URL,  # Add account_service_url
     )

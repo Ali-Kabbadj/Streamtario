@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete
+from sqlalchemy import Null, delete
 from sqlalchemy.orm import selectinload
 from core.database.models.auth.account import ProfileOrm
 from core.database.models.auth.addon import InstalledAddonOrm
@@ -8,6 +8,7 @@ from typing import Optional
 from app.domain.repositories.i_profile_repository import IProfileRepository
 from core.pydantic.domain.profile import Profile
 from core.pydantic.domain.addon import InstalledAddon
+from domain_exceptions.exceptions import NotFoundException
 
 
 class ProfileRepository(IProfileRepository):
@@ -16,11 +17,56 @@ class ProfileRepository(IProfileRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_default_for_account(self, account_id: str) -> ProfileOrm:
-        default_profile_orm = ProfileOrm(name="Default", account_id=account_id)
-        self.session.add(default_profile_orm)
+    # --- NEW IMPLEMENTATION ---
+
+    async def create(
+        self,
+        account_id: str,
+        name: str,
+        avatar: Optional[str],
+        is_private: bool,
+        pin_hash: Optional[str],
+    ) -> Profile:
+        """Creates a new profile for an account."""
+        new_profile_orm = ProfileOrm(
+            account_id=account_id,
+            name=name,
+            avatar=avatar,
+            is_private=is_private,
+            pin_hash=pin_hash,
+        )
+        self.session.add(new_profile_orm)
         await self.session.flush()
-        return default_profile_orm
+
+        # --- THE FIX ---
+        # Manually construct the Pydantic model instead of using model_validate.
+        # This avoids the lazy-loading issue on the 'installed_addons' relationship,
+        # which we know is empty for a new profile.
+        return Profile(
+            id=new_profile_orm.id,
+            name=new_profile_orm.name,
+            avatar=new_profile_orm.avatar,
+            isPrivate=new_profile_orm.is_private,
+            pinHash=new_profile_orm.pin_hash,
+            installedAddons=[],
+        )
+
+    async def update(self, profile: Profile) -> Profile:
+        """Updates a profile by merging the state of a Pydantic model."""
+        profile_orm = await self.session.get(ProfileOrm, profile.id)
+        if not profile_orm:
+            raise NotFoundException("Profile", profile.id)
+
+        profile_orm.name = profile.name or "Defautl"
+        profile_orm.avatar = (
+            profile.avatar
+            or "https://i.pinimg.com/736x/5b/50/e7/5b50e75d07c726d36f397f6359098f58.jpg"
+        )
+        profile_orm.is_private = profile.is_private
+        profile_orm.pin_hash = profile.pin_hash or ""
+
+        await self.session.flush()
+        return Profile.model_validate(profile_orm)
 
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
         """Fetches a single profile by its ID, eagerly loading its addons."""

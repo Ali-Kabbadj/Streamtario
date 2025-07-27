@@ -1,16 +1,23 @@
 # /apps/account-profile-service/app/graphql/resolvers.py
 
 from dependency_injector.wiring import inject, Provide
+from strawberry.types import Info
+
+from app.security.dependencies import get_current_user_payload
+from security.schemas import TokenPayload
 from app.containers import Container
 from app.use_cases.profile.get_profile import GetProfileUseCase
 from app.use_cases.account.create_account import CreateAccountUseCase
 from app.use_cases.profile.install_addon import InstallAddonUseCase
 from app.use_cases.profile.uninstall_addon import UninstallAddonUseCase
+from app.use_cases.profile.create_profile import CreateProfileUseCase
+from app.use_cases.profile.update_profile import UpdateProfileUseCase
 from domain_exceptions.exceptions import (
     ValidatorRuleException,
     NotFoundException,
     ConflictException,
     ApiException,
+    ValidationException,
 )
 from .types import (
     ProfileType,
@@ -25,6 +32,12 @@ from .types import (
     UninstallAddonInput,
     UninstallAddonSuccess,
     UninstallAddonError,
+    CreateProfileInput,
+    CreateProfileSuccess,
+    CreateProfileError,
+    UpdateProfileInput,
+    UpdateProfileSuccess,
+    UpdateProfileError,
 )
 import strawberry
 from core.utils.logging import log_info, log_error
@@ -35,15 +48,9 @@ async def resolve_profile(
     id: strawberry.ID,
     use_case: GetProfileUseCase = Provide[Container.get_profile_use_case],
 ) -> ProfileType | None:
-    log_info(f"GraphQL: Resolving profile with ID: {id}", context="graphql")
-    # The use case returns a Pydantic domain model.
     pydantic_profile = await use_case.execute(profile_id=str(id))
-
     if not pydantic_profile:
         return None
-
-    # We map the Pydantic model to the Strawberry GraphQL type.
-    # This is the boundary between your internal domain and your public API.
     return ProfileType.from_pydantic(pydantic_profile)
 
 
@@ -51,62 +58,111 @@ async def resolve_profile(
 async def resolve_create_account(
     input: CreateAccountInput,
     use_case: CreateAccountUseCase = Provide[Container.create_account_use_case],
-) -> (
-    CreateAccountSuccess | CreateAccountError
-):  # CORRECTED: Use a proper type hint union
-    log_info(
-        f"GraphQL: Attempting to create account for email: {input.email}",
-        context="graphql",
-    )
+) -> CreateAccountSuccess | CreateAccountError:
     try:
-        # The use case returns a Pydantic domain model.
         pydantic_account = await use_case.execute(
             email=input.email, password=input.password
         )
-
-        # Convert Pydantic model to Strawberry type for the response
         account_type = AccountType.from_pydantic(pydantic_account)
-
-        log_info(
-            f"GraphQL: Successfully created account for {input.email}",
-            context="graphql",
-        )
         return CreateAccountSuccess(account=account_type)
-
     except ValidatorRuleException as e:
-        log_info(
-            f"GraphQL: Account creation failed for {input.email}: {e.message}",
-            context="graphql",
-        )
-
-        # CORRECTED: Safely access the optional 'details' attribute.
-        field = None
-        if e.details and isinstance(e.details, dict):
-            field = e.details.get("field")
-
+        field = e.details.get("field") if isinstance(e.details, dict) else None
         return CreateAccountError(message=e.ui_message, field=field)
-
-    except Exception as e:
-        log_info(
-            f"GraphQL: An unexpected error occurred during account creation for {input.email}",
-            context="graphql",
-        )
-        # In a real app, you might want to log the full exception `e`
+    except Exception:
         return CreateAccountError(message="An unexpected server error occurred.")
 
 
 @inject
+async def resolve_create_profile(
+    info: Info,
+    input: CreateProfileInput,
+    use_case: CreateProfileUseCase = Provide[Container.create_profile_use_case],
+) -> CreateProfileSuccess | CreateProfileError:
+    try:
+        # --- THE FIX: Removed 'await' ---
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        account_id = current_user.sub
+
+        log_info(
+            f"GraphQL: Creating profile '{input.name}' for account {account_id}",
+            context="graphql",
+        )
+
+        pydantic_profile = await use_case.execute(
+            account_id=account_id,
+            name=input.name,
+            avatar=input.avatar,
+            is_private=input.is_private,
+            pin=input.pin,
+        )
+        profile_type = ProfileType.from_pydantic(pydantic_profile)
+        return CreateProfileSuccess(profile=profile_type)
+    except (
+        ValidationException,
+        NotFoundException,
+        ConflictException,
+        ApiException,
+    ) as e:
+        log_error(f"GraphQL: Profile creation failed: {e.message}", data=e.details)
+        field = e.details.get("field") if isinstance(e.details, dict) else None
+        return CreateProfileError(message=e.ui_message, field=field)
+    except Exception as e:
+        log_error(
+            "GraphQL: Unexpected error during profile creation", data={"error": str(e)}
+        )
+        return CreateProfileError(message="An unexpected server error occurred.")
+
+
+@inject
+async def resolve_update_profile(
+    info: Info,
+    input: UpdateProfileInput,
+    use_case: UpdateProfileUseCase = Provide[Container.update_profile_use_case],
+) -> UpdateProfileSuccess | UpdateProfileError:
+    try:
+        # --- THE FIX: Removed 'await' ---
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        log_info(f"GraphQL: Updating profile {input.profile_id}", context="graphql")
+
+        pydantic_profile = await use_case.execute(
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            name=input.name,
+            avatar=input.avatar,
+            is_private=input.is_private,
+            pin=input.pin,
+        )
+        profile_type = ProfileType.from_pydantic(pydantic_profile)
+        return UpdateProfileSuccess(profile=profile_type)
+    except (ValidationException, NotFoundException, ApiException) as e:
+        log_error(f"GraphQL: Profile update failed: {e.message}", data=e.details)
+        field = e.details.get("field") if isinstance(e.details, dict) else None
+        return UpdateProfileError(message=e.ui_message, field=field)
+    except Exception as e:
+        log_error(
+            "GraphQL: Unexpected error during profile update", data={"error": str(e)}
+        )
+        return UpdateProfileError(message="An unexpected server error occurred.")
+
+
+@inject
 async def resolve_install_addon(
+    info: Info,
     input: InstallAddonInput,
     use_case: InstallAddonUseCase = Provide[Container.install_addon_use_case],
 ) -> InstallAddonSuccess | InstallAddonError:
-    log_info(
-        f"GraphQL: Installing addon from {input.manifest_url} for profile {input.profile_id}",
-        context="graphql",
-    )
     try:
+        # --- THE FIX: Removed 'await' ---
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        log_info(
+            f"GraphQL: Installing addon from {input.manifest_url} for profile {input.profile_id}",
+            context="graphql",
+        )
+
         pydantic_addon = await use_case.execute(
-            profile_id=str(input.profile_id), manifest_url=input.manifest_url
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            manifest_url=input.manifest_url,
         )
         addon_type = InstalledAddonType.from_pydantic(pydantic_addon)
         return InstallAddonSuccess(addon=addon_type)
@@ -128,21 +184,27 @@ async def resolve_install_addon(
 
 @inject
 async def resolve_uninstall_addon(
+    info: Info,
     input: UninstallAddonInput,
     use_case: UninstallAddonUseCase = Provide[Container.uninstall_addon_use_case],
 ) -> UninstallAddonSuccess | UninstallAddonError:
-    log_info(
-        f"GraphQL: Uninstalling addon {input.manifest_id} from profile {input.profile_id}",
-        context="graphql",
-    )
     try:
+        # --- THE FIX: Removed 'await' ---
+        current_user: TokenPayload = get_current_user_payload(info.context["request"])
+        log_info(
+            f"GraphQL: Uninstalling addon {input.manifest_id} from profile {input.profile_id}",
+            context="graphql",
+        )
+
         await use_case.execute(
-            profile_id=str(input.profile_id), manifest_id=input.manifest_id
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            manifest_id=input.manifest_id,
         )
         return UninstallAddonSuccess(
             success=True, profile_id=input.profile_id, manifest_id=input.manifest_id
         )
-    except NotFoundException as e:
+    except (NotFoundException, ApiException) as e:
         log_error(
             f"GraphQL: Failed to uninstall addon {input.manifest_id} from profile {input.profile_id}",
             data={"error": e.message},

@@ -10,6 +10,12 @@ from core.pydantic.domain.addon import InstalledAddon as PydanticInstalledAddon
 
 
 @strawberry.input
+class LoginInput:
+    email: str
+    password: str
+
+
+@strawberry.input
 class CreateAccountInput:
     email: str
     password: str
@@ -27,6 +33,23 @@ class UninstallAddonInput:
     manifest_id: str
 
 
+@strawberry.input
+class CreateProfileInput:
+    name: str
+    avatar: Optional[str] = None
+    is_private: bool = False
+    pin: Optional[str] = None
+
+
+@strawberry.input
+class UpdateProfileInput:
+    profile_id: strawberry.ID
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    is_private: Optional[bool] = None
+    pin: Optional[str] = None
+
+
 # ========= OBJECT TYPES =========
 
 
@@ -36,6 +59,7 @@ class ProfileType:
     name: str
     avatar: Optional[str]
     manifest_urls: List[str]
+    is_private: bool
 
     # This is a 'factory' method to create a Strawberry type from a Pydantic model
     @classmethod
@@ -45,6 +69,7 @@ class ProfileType:
             name=model.name or "profile has no name",
             avatar=model.avatar,
             manifest_urls=model.manifest_urls,
+            is_private=model.is_private,
         )
 
 
@@ -96,6 +121,28 @@ class CreateAccountError:
 
 
 @strawberry.type
+class CreateProfileSuccess:
+    profile: ProfileType
+
+
+@strawberry.type
+class CreateProfileError:
+    message: str
+    field: Optional[str] = None
+
+
+@strawberry.type
+class UpdateProfileSuccess:
+    profile: ProfileType
+
+
+@strawberry.type
+class UpdateProfileError:
+    message: str
+    field: Optional[str] = None
+
+
+@strawberry.type
 class InstallAddonSuccess:
     addon: InstalledAddonType
 
@@ -118,3 +165,13 @@ class UninstallAddonError:
     message: str
     profile_id: strawberry.ID
     manifest_id: str
+
+
+@strawberry.type
+class LoginSuccess:
+    account: AccountType
+
+
+@strawberry.type
+class LoginError:
+    message: str

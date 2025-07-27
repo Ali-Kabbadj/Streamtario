@@ -33,10 +33,17 @@ class BaseAppSettings(BaseSettings):
 
     # --- Service‑to‑Service URLs
     ADDON_CONTROLLER_URL: Optional[str] = None
-    ACCOUNT_PROFILE_SERVICE: Optional[str] = None
+    ACCOUNT_PROFILE_SERVICE_URL: Optional[str] = None
+    AUTH_SERVICE_URL: Optional[str] = None
 
     # --- CORS
     ALLOWED_ORIGINS: Annotated[Sequence[str], NoDecode] = []
+
+    # --- Security JWT service
+    JWT_SECRET_KEY: Optional[str] = None
+    JWT_ALGORITHM: Optional[str] = None
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Optional[int] = None
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: Optional[int] = None
 
     model_config = SettingsConfigDict(
         env_file=[
