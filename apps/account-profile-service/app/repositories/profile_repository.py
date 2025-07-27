@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import Null, delete
+from sqlalchemy import delete
 from sqlalchemy.orm import selectinload
 from core.database.models.auth.account import ProfileOrm
 from core.database.models.auth.addon import InstalledAddonOrm
@@ -8,7 +8,8 @@ from typing import Optional
 from app.domain.repositories.i_profile_repository import IProfileRepository
 from core.pydantic.domain.profile import Profile
 from core.pydantic.domain.addon import InstalledAddon
-from domain_exceptions.exceptions import NotFoundException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 
 
 class ProfileRepository(IProfileRepository):
@@ -49,9 +50,12 @@ class ProfileRepository(IProfileRepository):
         """Updates a profile by merging the state of a Pydantic model."""
         profile_orm = await self.session.get(ProfileOrm, profile.id)
         if not profile_orm:
-            raise NotFoundException("Profile", profile.id)
+            # --- FIX: Raise correct, coded exception ---
+            raise ApiException(
+                ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile.id}
+            )
 
-        profile_orm.name = profile.name or "Defautl"
+        profile_orm.name = profile.name or "Default"
         profile_orm.avatar = (
             profile.avatar
             or "https://i.pinimg.com/736x/5b/50/e7/5b50e75d07c726d36f397f6359098f58.jpg"

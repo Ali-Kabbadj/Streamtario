@@ -2,6 +2,7 @@ from typing import Callable
 from core.pydantic.domain.account import Account
 from security_factory.services.passwordservice import IPasswordHasher
 from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from core.utils.logging import log_info, log_warn
 
@@ -29,11 +30,7 @@ class LoginUseCase:
 
             if not account or not account.hashed_password:
                 log_warn(f"Login failed: No account or password found for {email}.")
-                raise ApiException(
-                    status_code=401,
-                    message="Invalid credentials.",
-                    ui_message="The email or password you entered is incorrect.",
-                )
+                raise ApiException(ApiErrorCode.INVALID_CREDENTIALS)
 
             is_password_valid = self.password_hasher.verify(
                 account.hashed_password, password
@@ -41,11 +38,7 @@ class LoginUseCase:
 
             if not is_password_valid:
                 log_warn(f"Login failed: Invalid password for {email}.")
-                raise ApiException(
-                    status_code=401,
-                    message="Invalid credentials.",
-                    ui_message="The email or password you entered is incorrect.",
-                )
+                raise ApiException(ApiErrorCode.INVALID_CREDENTIALS)
 
         log_info(f"Successfully authenticated user {account.id} ({account.email})")
         return account

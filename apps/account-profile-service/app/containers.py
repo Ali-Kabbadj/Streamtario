@@ -5,6 +5,8 @@ from security_factory.password import BcryptPasswordHasher
 from http_client_factory.client import ApiClient
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.providers.i_addon_provider import IAddonProvider
+from app.domain.policies.i_authorization_policy import IAuthorizationPolicy
+from app.policies.account_authorization_policy import AccountAuthorizationPolicy
 from security_factory.services.passwordservice import IPasswordHasher
 from app.infrastructure.sqlalchemy_uow.session_manager import SqlAlchemyUnitOfWork
 from app.adapters.addon_provider import AddonProvider
@@ -53,6 +55,11 @@ class Container(containers.DeclarativeContainer):
         SqlAlchemyUnitOfWork, session_factory=db_session_factory
     )
 
+    authorization_policy: providers.Factory[IAuthorizationPolicy] = providers.Factory(
+        AccountAuthorizationPolicy,
+        uow_factory=uow.provider,
+    )
+
     jwt_service: providers.Factory[IJwtService] = providers.Factory(
         JwtService,
         secret_key=settings.provided.JWT_SECRET_KEY,
@@ -84,7 +91,9 @@ class Container(containers.DeclarativeContainer):
     )
 
     get_profile_use_case: providers.Factory[GetProfileUseCase] = providers.Factory(
-        GetProfileUseCase, uow_factory=uow.provider
+        GetProfileUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
     )
 
     create_profile_use_case: providers.Factory[CreateProfileUseCase] = (
@@ -100,15 +109,25 @@ class Container(containers.DeclarativeContainer):
             UpdateProfileUseCase,
             uow_factory=uow.provider,
             password_hasher=password_hasher,
+            authorization_policy=authorization_policy,
         )
     )
 
     install_addon_use_case: providers.Factory[InstallAddonUseCase] = providers.Factory(
-        InstallAddonUseCase, uow_factory=uow.provider, addon_provider=addon_provider
+        InstallAddonUseCase,
+        uow_factory=uow.provider,
+        addon_provider=addon_provider,
+        authorization_policy=authorization_policy,
     )
+
     uninstall_addon_use_case: providers.Factory[UninstallAddonUseCase] = (
-        providers.Factory(UninstallAddonUseCase, uow_factory=uow.provider)
+        providers.Factory(
+            UninstallAddonUseCase,
+            uow_factory=uow.provider,
+            authorization_policy=authorization_policy,
+        )
     )
+
     install_addon_for_all_profiles_use_case: providers.Factory[
         InstallAddonForAllProfilesUseCase
     ] = providers.Factory(

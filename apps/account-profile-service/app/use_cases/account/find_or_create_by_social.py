@@ -1,6 +1,7 @@
-from typing import Callable, Literal
+from typing import Callable
 from core.pydantic.domain.account import Account
-from domain_exceptions.exceptions import ConflictException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from core.utils.logging import log_info
 from core.pydantic.api.account_api import SocialProvider
@@ -33,9 +34,8 @@ class FindOrCreateBySocialUseCase:
             account_by_email = await uow.accounts.get_by_email(email)
             if account_by_email:
                 if account_by_email.hashed_password:
-                    raise ConflictException(
-                        "Email",
-                        email,
+                    raise ApiException(
+                        error_code=ApiErrorCode.ACCOUNT_EMAIL_EXISTS,
                         details={
                             "reason": "Email is already registered with a password."
                         },
@@ -51,6 +51,9 @@ class FindOrCreateBySocialUseCase:
             await uow.commit()
             created_account = await uow.accounts.get_by_id(orm_account.id)
             if not created_account:
-                raise RuntimeError("Failed to retrieve newly created social account.")
+                raise ApiException(
+                    ApiErrorCode.UNEXPECTED_ERROR,
+                    override_message="Failed to retrieve newly created social account.",
+                )
 
             return created_account

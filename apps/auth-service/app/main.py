@@ -20,6 +20,8 @@ app: Application = create_app(settings)
 container = Container(settings=settings)
 app.container = container
 router = APIRouter(tags=["Authentication"])
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 
 
 @router.post("/login", response_model=ApiResponse[TokenResponse])
@@ -32,25 +34,25 @@ async def login_for_access_token(
 ):
     account_service_url = settings.ACCOUNT_PROFILE_SERVICE_URL
     if not account_service_url:
-        raise ApiException("Authentication backend is not configured.", status_code=503)
+        raise ApiException(
+            ApiErrorCode.SERVICE_UNAVAILABLE,
+            details={"service": "account-profile-service"},
+        )
     validation_url = f"{account_service_url}/internal/v1/accounts/validate-credentials"
     validation_response = await api_client.post(
         url=validation_url, json_payload=form_data.model_dump(), response_model=Account
     )
     if not validation_response.ok or not validation_response.data:
-        raise ApiException(
-            message=(
-                validation_response.error.dev_message
-                if validation_response.error
-                else "Invalid credentials"
-            ),
-            ui_message=(
-                validation_response.error.ui_message
-                if validation_response.error
-                else "Invalid credentials"
-            ),
-            status_code=401,
-        )
+        if (
+            validation_response.error
+            and validation_response.error.type == "INVALID_CREDENTIALS"
+        ):
+            raise ApiException(ApiErrorCode.INVALID_CREDENTIALS)
+        else:
+            raise ApiException(
+                ApiErrorCode.AUTHENTICATION_REQUIRED,
+                override_message="Upstream validation failed.",
+            )
     account = validation_response.data
     token_payload = TokenPayload(sub=account.id, email=account.email)
     access_token = jwt_service.create_access_token(data=token_payload.model_dump())

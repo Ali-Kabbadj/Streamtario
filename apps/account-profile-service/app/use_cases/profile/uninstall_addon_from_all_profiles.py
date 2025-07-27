@@ -1,7 +1,8 @@
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
-from domain_exceptions.exceptions import NotFoundException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info
-from typing import Callable, Awaitable
+from typing import Callable
 
 
 class UninstallAddonFromAllProfilesUseCase:
@@ -11,13 +12,22 @@ class UninstallAddonFromAllProfilesUseCase:
     async def execute(self, account_id: str, manifest_id: str) -> dict:
         async with self.uow_factory() as uow:
             if not await uow.accounts.get_by_id(account_id):
-                raise NotFoundException("Account", account_id)
+                raise ApiException(
+                    ApiErrorCode.ACCOUNT_NOT_FOUND, details={"account_id": account_id}
+                )
 
             deleted_count = await uow.profiles.remove_addons_by_account(
                 account_id, manifest_id
             )
             if deleted_count == 0:
-                raise NotFoundException("Addon with manifest_id", manifest_id)
+                raise ApiException(
+                    ApiErrorCode.ADDON_NOT_FOUND,
+                    details={
+                        "account_id": account_id,
+                        "manifest_id": manifest_id,
+                        "reason": "Not found on any profile for this account.",
+                    },
+                )
             await uow.commit()
 
         summary = {"manifest_id": manifest_id, "deleted_from_profiles": deleted_count}

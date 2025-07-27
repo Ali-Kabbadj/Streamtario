@@ -129,6 +129,7 @@ class CreateAccountSuccess:
 
 @strawberry.type
 class CreateAccountError:
+    code: str
     message: str
     field: Optional[str] = None
 
@@ -140,6 +141,7 @@ class CreateProfileSuccess:
 
 @strawberry.type
 class CreateProfileError:
+    code: str
     message: str
     field: Optional[str] = None
 
@@ -151,6 +153,7 @@ class UpdateProfileSuccess:
 
 @strawberry.type
 class UpdateProfileError:
+    code: str
     message: str
     field: Optional[str] = None
 
@@ -162,6 +165,7 @@ class InstallAddonSuccess:
 
 @strawberry.type
 class InstallAddonError:
+    code: str
     message: str
     profile_id: strawberry.ID
 
@@ -175,6 +179,7 @@ class UninstallAddonSuccess:
 
 @strawberry.type
 class UninstallAddonError:
+    code: str
     message: str
     profile_id: strawberry.ID
     manifest_id: str
@@ -187,6 +192,7 @@ class LoginSuccess:
 
 @strawberry.type
 class LoginError:
+    code: str
     message: str
 
 
@@ -197,6 +203,7 @@ class InstallAddonForAllProfilesSuccess:
 
 @strawberry.type
 class InstallAddonForAllProfilesError:
+    code: str
     message: str
     error: Optional[JSON]  # type: ignore
 
@@ -208,4 +215,5 @@ class UninstallAddonFromAllProfilesSuccess:
 
 @strawberry.type
 class UninstallAddonFromAllProfilesError:
+    code: str
     message: str
