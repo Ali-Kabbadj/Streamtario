@@ -4,10 +4,9 @@ from typing import Dict, Any, Optional
 
 
 class ApiBaseRequest(BaseModel):
-    # A shared config for all request models
     class Config(ConfigDict):
-        alias_generator = to_camel
-        populate_by_name = True
+        alias_generator = to_camel  # type: ignore
+        populate_by_name = True  # type: ignore
 
 
 class CatalogRequest(ApiBaseRequest):

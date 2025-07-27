@@ -5,7 +5,6 @@ from typing import AsyncGenerator
 from strawberry.types import Info
 from core.utils.logging import log_info
 from typing import Dict, Any
-from app.containers import Container  # Import Container
 
 
 @strawberry.type
@@ -65,7 +64,6 @@ schema = strawberry.federation.Schema(
 
 
 async def get_context() -> Dict[str, Any]:
-    # Import app here to avoid circular dependency
     from app.main import app as fastapi_app
 
     return {"container": fastapi_app.container}

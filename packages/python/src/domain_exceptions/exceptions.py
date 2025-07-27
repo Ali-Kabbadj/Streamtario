@@ -5,26 +5,22 @@ from fastapi import status
 class ApiException(Exception):
     """Base exception for our API."""
 
-    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
-    message: str = "An internal server error occurred."
-    ui_message: str = "An unexpected error occurred. Please try again later."
-    details: Any | None = None
+    status_code: int
+    message: str
+    ui_message: str
+    details: Any | None
 
     def __init__(
         self,
-        message: str | None = None,
-        status_code: int | None = None,
+        message: str,
+        status_code: int,
         details: Any | None = None,
-        ui_message: str | None = None,  # Added ui_message
+        ui_message: str | None = None,
     ):
-        if message is not None:
-            self.message = message
-        if status_code is not None:
-            self.status_code = status_code
-        if details is not None:
-            self.details = details
-        if ui_message is not None:
-            self.ui_message = ui_message
+        self.message = message
+        self.status_code = status_code
+        self.details = details
+        self.ui_message = ui_message if ui_message is not None else message
         super().__init__(self.message)
 
 
@@ -42,9 +38,18 @@ class NotFoundException(ApiException):
 
 
 class ValidationException(ApiException):
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    message = "Validation failed."
-    ui_message = "The information you provided is invalid. Please check and try again."
+    def __init__(
+        self,
+        message: str = "Validation failed.",
+        details: Any | None = None,
+        ui_message: str = "The information you provided is invalid. Please check and try again.",
+    ):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            details=details,
+            ui_message=ui_message,
+        )
 
 
 class ConflictException(ApiException):
@@ -95,5 +100,4 @@ class ValidatorRuleException(ValidationException):
             "invalid_value": serializable_value,
             "reason": reason,
         }
-        # The parent ValidationException sets the status code
         super().__init__(message=message, ui_message=ui_message, details=details)

@@ -1,23 +1,19 @@
 import asyncio
 from typing import List, Dict, Any, AsyncGenerator
 from urllib.parse import quote
+from typing import List
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import (
     CatalogResponse,
-    CatalogItem,
     AddonSearchResult,
 )
-from core.pydantic.addons.manifest import AddonManifest
-from core.pydantic.domain.profile import Profile
 from core.pydantic.api.error import ErrorResponse
 from http_client_factory.client import ApiClient
 from api_contract.responses import ApiResponse
 from domain_exceptions.exceptions import NotFoundException, ApiException
-
 from core.utils.logging import log_info, log_error, log_warn
-
-
 from .get_manifest import GetManifestUseCase
+from core.pydantic.api.internals import ManifestUrlsResponse
 
 
 class SearchUseCase:
@@ -36,12 +32,14 @@ class SearchUseCase:
     async def _get_manifest_urls_for_profile(self, profile_id: str) -> List[str]:
         if not self.account_service_url:
             raise ApiException(
-                "ACCOUNT_PROFILE_SERVICE URL is not configured.", status_code=500
+                "ACCOUNT_PROFILE_SERVICE_URL URL is not configured.", status_code=500
             )
 
-        url = f"{self.account_service_url}/api/v1/profiles/{profile_id}"
+        url = f"{self.account_service_url}/internal/v1/profiles/{profile_id}/manifest-urls"
 
-        api_response: ApiResponse[Profile] = await self.api_client.get(url, response_model=Profile)
+        api_response: ApiResponse[ManifestUrlsResponse] = await self.api_client.get(
+            url, response_model=ManifestUrlsResponse
+        )
 
         if not api_response.ok or api_response.data is None:
             raise NotFoundException("Profile", profile_id)
@@ -77,7 +75,7 @@ class SearchUseCase:
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )
 
-        task_to_metadata: Dict[asyncio.Task, Dict[str, Any]] = {} # Use asyncio.Task as key
+        task_to_metadata: Dict[asyncio.Task, Dict[str, Any]] = {}
         encoded_query = quote(search_query)
 
         for manifest in manifests:
@@ -106,37 +104,33 @@ class SearchUseCase:
                     task = asyncio.create_task(
                         self.addon_provider.get(url, response_model=CatalogResponse)
                     )
-                    task_to_metadata[task] = { # Store the Task object as the key
+                    task_to_metadata[task] = {
                         "manifest_id": manifest.id,
                         "addon_name": manifest.name,
                         "item_type": catalog.type,
                     }
 
         if not task_to_metadata:
-            log_info("No searchable catalogs found, returning early.", context="search_use_case")
+            log_info(
+                "No searchable catalogs found, returning early.",
+                context="search_use_case",
+            )
             return
 
         tasks_to_await = list(task_to_metadata.keys())
-
-        # Initialize metadata and addon_name outside the loop's try-except
-        # to ensure they are always defined for the outer exception handler.
         metadata: Dict[str, Any] = {}
         addon_name = "Unknown Addon"
 
         try:
-            # Use asyncio.wait to manage tasks explicitly
-            # We'll process them as they complete
             while tasks_to_await:
                 done, pending = await asyncio.wait(
                     tasks_to_await, return_when=asyncio.FIRST_COMPLETED
                 )
 
                 for future_task in done:
-                    # future_task is guaranteed to be one of the original Task objects
                     metadata = task_to_metadata[future_task]
                     addon_name = metadata.get("addon_name", "Unknown Addon")
 
-                    # Log detailed info about the future_task object and its resolved metadata
                     log_info(
                         f"Processing future_task: type={type(future_task)}, id={id(future_task)}, repr={repr(future_task)}, addon={addon_name}",
                         context="search_use_case_future_debug",
@@ -144,7 +138,7 @@ class SearchUseCase:
 
                     try:
                         response: CatalogResponse | None = await future_task
-                        
+
                         if response and response.items:
                             manifest_id = metadata["manifest_id"]
                             item_type = metadata["item_type"]
@@ -154,35 +148,53 @@ class SearchUseCase:
                                 addonName=addon_name,
                                 resultsByType={item_type: response.items},
                             )
-                            log_info(f"Yielding successful search result: {search_result.model_dump_json()}", context="search_use_case")
+                            log_info(
+                                f"Yielding successful search result: {search_result.model_dump_json()}",
+                                context="search_use_case",
+                            )
                             yield search_result
                         else:
-                            log_info(f"No items found for addon: {addon_name}", context="search_use_case", data={"addon_metadata": metadata})
-                            yield AddonSearchResult(addonName=addon_name, resultsByType={})
+                            log_info(
+                                f"No items found for addon: {addon_name}",
+                                context="search_use_case",
+                                data={"addon_metadata": metadata},
+                            )
+                            yield AddonSearchResult(
+                                addonName=addon_name, resultsByType={}
+                            )
 
                     except Exception as e:
                         log_error(
                             f"Error during await or processing for addon: {addon_name}",
                             data={"error": repr(e), "addon_metadata": metadata},
-                            exc_info=True
+                            exc_info=True,
                         )
                         error_result = AddonSearchResult(
-                            addonName=addon_name, error=ErrorResponse(message=f"Addon request failed: {repr(e)}")
+                            addonName=addon_name,
+                            error=ErrorResponse(
+                                message=f"Addon request failed: {repr(e)}"
+                            ),
                         )
-                        log_info(f"Yielding error search result from inner catch: {error_result.model_dump_json()}", context="search_use_case")
+                        log_info(
+                            f"Yielding error search result from inner catch: {error_result.model_dump_json()}",
+                            context="search_use_case",
+                        )
                         yield error_result
-                
-                # Update tasks_to_await to include only pending tasks for the next iteration
+
                 tasks_to_await = list(pending)
 
         except Exception as e:
             log_error(
                 f"An unexpected error occurred during processing for addon: {addon_name}",
                 data={"error": repr(e), "addon_metadata": metadata},
-                exc_info=True
+                exc_info=True,
             )
             error_result = AddonSearchResult(
-                addonName=addon_name, error=ErrorResponse(message=f"Unexpected error: {repr(e)}")
+                addonName=addon_name,
+                error=ErrorResponse(message=f"Unexpected error: {repr(e)}"),
             )
-            log_info(f"Yielding unexpected error search result: {error_result.model_dump_json()}", context="search_use_case")
+            log_info(
+                f"Yielding unexpected error search result: {error_result.model_dump_json()}",
+                context="search_use_case",
+            )
             yield error_result

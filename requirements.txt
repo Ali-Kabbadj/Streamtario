@@ -25,3 +25,9 @@ bcrypt
 
 # Graphql
 strawberry-graphql[fastapi]
+
+# Security and login
+python-jose
+google-auth
+requests
+google-auth-oauthlib

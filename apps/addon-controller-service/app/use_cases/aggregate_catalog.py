@@ -22,7 +22,6 @@ class AggregateCatalogUseCase:
         self.addon_provider = addon_provider
 
     async def _get_fetch_tasks_for_manifest(
-        # ... (this helper function has no changes)
         self,
         manifest: AddonManifest,
         base_url: str,
@@ -77,7 +76,7 @@ class AggregateCatalogUseCase:
         manifest_urls: List[str],
         item_type: str,
         catalog_id: Optional[str],
-        manifest_id_filter: Optional[str],  # <-- NEW ARGUMENT
+        manifest_id_filter: Optional[str],
         extra_props: Dict[str, Any],
         filter_by_type: Optional[str] = None,
     ) -> List[CatalogItem]:
@@ -97,7 +96,6 @@ class AggregateCatalogUseCase:
                 return []
 
         tasks_with_prefixes: List[Tuple[asyncio.Task, str]] = []
-        # Use the potentially filtered list of manifests
         for manifest in manifests_to_process:
             if not manifest or not manifest.manifest_url:
                 continue
