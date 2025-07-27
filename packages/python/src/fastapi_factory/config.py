@@ -44,6 +44,7 @@ class BaseAppSettings(BaseSettings):
     JWT_ALGORITHM: Optional[str] = None
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Optional[int] = None
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: Optional[int] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=[

@@ -43,13 +43,16 @@ class AccountRepository(IAccountRepository):
         account_orm = result.scalars().first()
         return Account.model_validate(account_orm) if account_orm else None
 
-    # --- NEW IMPLEMENTATIONS ---
     async def get_by_google_id(self, google_id: str) -> Optional[Account]:
         """Fetches an account by Google ID."""
         stmt = (
             select(AccountOrm)
             .where(AccountOrm.google_id == google_id)
-            .options(selectinload(AccountOrm.profiles))
+            .options(
+                selectinload(AccountOrm.profiles).selectinload(
+                    ProfileOrm.installed_addons
+                )
+            )
         )
         result = await self.session.execute(stmt)
         account_orm = result.scalars().first()
@@ -60,7 +63,11 @@ class AccountRepository(IAccountRepository):
         stmt = (
             select(AccountOrm)
             .where(AccountOrm.facebook_id == facebook_id)
-            .options(selectinload(AccountOrm.profiles))
+            .options(
+                selectinload(AccountOrm.profiles).selectinload(
+                    ProfileOrm.installed_addons
+                )
+            )
         )
         result = await self.session.execute(stmt)
         account_orm = result.scalars().first()
@@ -81,6 +88,4 @@ class AccountRepository(IAccountRepository):
         )
         self.session.add(new_account_orm)
         await self.session.flush()
-        # We return the ORM object here, the use case will be responsible
-        # for fetching the full Account Pydantic model later.
         return new_account_orm

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Body
 from dependency_injector.wiring import inject, Provide
 from pydantic import BaseModel
+from app.settings import AuthSettings
 from google.oauth2 import id_token  # type: ignore
 from google.auth.transport import requests  # type: ignore
 
@@ -27,15 +28,16 @@ async def google_login(
     request: GoogleLoginRequest = Body(...),
     api_client: ApiClient = Depends(Provide[Container.api_client]),
     jwt_service: IJwtService = Depends(Provide[Container.jwt_service]),
-    settings=Depends(Provide[Container.settings]),
+    settings: AuthSettings = Depends(Provide[Container.settings]),
 ):
     """
     Authenticates a user with a Google ID token and issues local JWTs.
     """
     try:
-        # 1. Verify the Google ID token
-        id_info = id_token.verify_oauth2_token(request.token, requests.Request())
-        # In a real app, you'd also verify the 'aud' (audience) claim matches your Google Client ID.
+        # --- THE FIX: Add the audience parameter ---
+        id_info = id_token.verify_oauth2_token(
+            request.token, requests.Request(), settings.GOOGLE_CLIENT_ID
+        )
 
         google_user_id = id_info["sub"]
         email = id_info["email"]
@@ -48,7 +50,7 @@ async def google_login(
         )
 
     # 2. Call account-profile-service to find or create the account
-    account_service_url = settings.ACCOUNT_PROFILE_SERVICE
+    account_service_url = settings.ACCOUNT_PROFILE_SERVICE_URL
     if not account_service_url:
         raise ApiException("Authentication backend is not configured.", status_code=503)
 
