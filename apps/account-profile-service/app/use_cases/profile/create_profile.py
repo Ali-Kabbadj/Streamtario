@@ -3,8 +3,10 @@ from core.pydantic.domain.profile import Profile
 from security_factory.services.passwordservice import IPasswordHasher
 from domain_exceptions.exceptions import ApiException  # <-- Change imports
 from api_contract.errors import ApiErrorCode  # <-- Add this import
+from app.domain.events.i_event_publisher import IEventPublisher
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from core.utils.logging import log_info
+from core.pydantic.events.base import ProfileCreatedEvent
 
 MAX_PROFILES_PER_ACCOUNT = 5
 
@@ -16,9 +18,11 @@ class CreateProfileUseCase:
         self,
         uow_factory: Callable[[], IUnitOfWork],
         password_hasher: IPasswordHasher,
+        event_publisher: IEventPublisher,
     ):
         self.uow_factory = uow_factory
         self.password_hasher = password_hasher
+        self.event_publisher = event_publisher
 
     async def execute(
         self,
@@ -63,6 +67,14 @@ class CreateProfileUseCase:
                 pin_hash=pin_hash,
             )
             await uow.commit()
+
+        await self.event_publisher.publish(
+            ProfileCreatedEvent(
+                name=new_profile.name or "Default",
+                profile_id=new_profile.id,
+                account_id=account_id,
+            )
+        )
 
         log_info(
             f"Successfully created profile {new_profile.id} ('{name}') for account {account_id}"

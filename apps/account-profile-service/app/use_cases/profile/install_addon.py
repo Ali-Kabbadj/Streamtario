@@ -1,23 +1,28 @@
 from typing import Callable
 from core.pydantic.domain.addon import InstalledAddon
+from app.domain.events.i_event_publisher import IEventPublisher
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.providers.i_addon_provider import IAddonProvider
 from app.domain.policies.i_authorization_policy import IAuthorizationPolicy
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info
+from core.pydantic.events.base import AddonInstalledEvent
 
 
 class InstallAddonUseCase:
+
     def __init__(
         self,
         uow_factory: Callable[[], IUnitOfWork],
         addon_provider: IAddonProvider,
         authorization_policy: IAuthorizationPolicy,
+        event_publisher: IEventPublisher,
     ):
         self.uow_factory = uow_factory
         self.addon_provider = addon_provider
         self.authorization_policy = authorization_policy
+        self.event_publisher = event_publisher
 
     async def execute(
         self, requesting_account_id: str, profile_id: str, manifest_url: str
@@ -47,6 +52,14 @@ class InstallAddonUseCase:
                 manifest_id=validated_manifest.id,
             )
             await uow.commit()
+            await self.event_publisher.publish(
+                AddonInstalledEvent(
+                    account_id=requesting_account_id,
+                    profile_id=profile_id,
+                    manifest_url=manifest_url,
+                    manifest_id=validated_manifest.id,
+                )
+            )
             log_info(
                 f"Successfully installed addon '{validated_manifest.id}' for profile '{profile_id}'"
             )
