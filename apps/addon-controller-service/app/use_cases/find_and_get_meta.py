@@ -1,6 +1,5 @@
 import asyncio
 from typing import List, Tuple
-from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.addons.manifest import AddonManifest
 from core.pydantic.meta.meta import MetaItem
 from domain_exceptions.exceptions import AddonProviderException, ValidationException
@@ -66,15 +65,13 @@ class FindAndGetMetaUseCase:
                 },
             )
 
-        # Call the simpler use case with the correct, addon-specific ID
         meta_response = await self.get_meta_use_case.execute(
             manifest_url=responsible_manifest_url,
-            item_id=addon_specific_id,  # Pass the stripped ID
+            item_id=addon_specific_id,
             item_type=item_type,
         )
 
         if meta_response and meta_response.meta:
-            # Re-apply the full federated ID to the result for consistency.
             meta_response.meta.id = item_id
             return meta_response.meta
 

@@ -18,8 +18,6 @@ class InstalledAddonOrm(Base):
         DateTime, default=datetime.utcnow, nullable=False
     )
 
-    # --- THE CORRECTION ---
-    # The addon linked to a PROFILE, not an account.
     profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False)
     profile: Mapped["ProfileOrm"] = relationship(back_populates="installed_addons")
 

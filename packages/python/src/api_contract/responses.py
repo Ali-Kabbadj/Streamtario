@@ -37,6 +37,4 @@ class ApiResponse(BaseModel, Generic[T]):
     )
 
     class Config:
-        # Using by_alias for consistency is good, but let's stick to Python names internally
-        # and let FastAPI handle the camelCase conversion on the boundary.
         populate_by_name = True

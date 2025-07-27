@@ -29,9 +29,6 @@ class Catalog(BaseModel):
     page_size: Optional[int] = Field(None, alias="pageSize")
     extra_supported: Optional[List[str]] = Field(None, alias="extraSupported")
     extra_required: Optional[List[str]] = Field(None, alias="extraRequired")
-
-    # THE CHANGE: Make the field optional and provide a default.
-    # This is a safer pattern for boolean flags in complex nested models.
     is_search: Optional[bool] = Field(default=False, validation_alias="isSearch")
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
@@ -73,12 +70,11 @@ class AddonManifest(BaseModel):
     def normalize_resources(cls, v: List[Any]) -> List[Resource]:
         processed_resources = []
         if not isinstance(v, list):
-            return []  # Or raise a ValueError, depending on desired strictness
+            return []
         for res in v:
             if isinstance(res, str):
                 processed_resources.append(Resource(name=res))
             elif isinstance(res, dict):
-                # Manually handle camelCase for idPrefixes if it's a dict
                 resource_data = {
                     "name": res.get("name"),
                     "types": res.get("types"),

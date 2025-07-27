@@ -43,8 +43,49 @@ class AccountRepository(IAccountRepository):
         account_orm = result.scalars().first()
         return Account.model_validate(account_orm) if account_orm else None
 
-    async def create(self, email: str, hashed_password: str) -> AccountOrm:
-        new_account_orm = AccountOrm(email=email, hashed_password=hashed_password)
+    async def get_by_google_id(self, google_id: str) -> Optional[Account]:
+        """Fetches an account by Google ID."""
+        stmt = (
+            select(AccountOrm)
+            .where(AccountOrm.google_id == google_id)
+            .options(
+                selectinload(AccountOrm.profiles).selectinload(
+                    ProfileOrm.installed_addons
+                )
+            )
+        )
+        result = await self.session.execute(stmt)
+        account_orm = result.scalars().first()
+        return Account.model_validate(account_orm) if account_orm else None
+
+    async def get_by_facebook_id(self, facebook_id: str) -> Optional[Account]:
+        """Fetches an account by Facebook ID."""
+        stmt = (
+            select(AccountOrm)
+            .where(AccountOrm.facebook_id == facebook_id)
+            .options(
+                selectinload(AccountOrm.profiles).selectinload(
+                    ProfileOrm.installed_addons
+                )
+            )
+        )
+        result = await self.session.execute(stmt)
+        account_orm = result.scalars().first()
+        return Account.model_validate(account_orm) if account_orm else None
+
+    async def create(
+        self,
+        email: str,
+        hashed_password: Optional[str] = None,
+        google_id: Optional[str] = None,
+        facebook_id: Optional[str] = None,
+    ) -> AccountOrm:
+        new_account_orm = AccountOrm(
+            email=email,
+            hashed_password=hashed_password,
+            google_id=google_id,
+            facebook_id=facebook_id,
+        )
         self.session.add(new_account_orm)
         await self.session.flush()
         return new_account_orm

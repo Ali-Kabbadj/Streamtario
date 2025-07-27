@@ -9,7 +9,6 @@
       "path": "packages/python"
     },
     { "name": "typescript-lib", "path": "packages/typescript" },
-    { "name": "auth-service", "path": "apps/auth-service" },
     { "name": "frontend", "path": "apps/frontend" },
     { "name": "state-tracker-service", "path": "apps/state-tracker-service" },
     {
@@ -21,7 +20,8 @@
     { "name": "local_dev_deps", "path": "local_dev_deps" },
     { "name": "database", "path": "database" },
     { "name": "dev resources", "path": "dev_resources" },
-    { "name": "api-gateway", "path": "apps/api-gateway" }
+    { "name": "api-gateway", "path": "apps/api-gateway" },
+    { "name": "auth-service", "path": "apps/auth-service" }
   ],
   "tasks": {
     "version": "2.0.0",
@@ -162,6 +162,18 @@
         "presentation": { "hidden": false, "group": "services", "order": 3 }
       },
       {
+        "name": "➕ Auth Service",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder:build}/scripts/debug_runner.py",
+        "args": ["app.settings:settings"],
+        "cwd": "${workspaceFolder:auth-service}",
+        "justMyCode": false,
+        "console": "internalConsole",
+        "subProcess": false,
+        "presentation": { "hidden": false, "group": "services", "order": 3 }
+      },
+      {
         "name": "➕ Accounts Service",
         "type": "debugpy",
         "request": "launch",
@@ -191,9 +203,7 @@
         "outputCapture": "std",
         "localRoot": "${workspaceFolder:api-gateway}",
         "remoteRoot": "/app",
-        "presentation": {
-          "hidden": true
-        }
+        "presentation": { "hidden": false, "group": "services", "order": 4 }
       },
       {
         "name": "REACT_DEVTOOLS",
@@ -259,7 +269,8 @@
         "configurations": [
           "🚀 API Gateway",
           "➕ Addons Service",
-          "➕ Accounts Service"
+          "➕ Accounts Service",
+          "➕ Auth Service"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
         "stopAll": true,
@@ -276,6 +287,7 @@
         "configurations": [
           "➕ Addons Service",
           "➕ Accounts Service",
+          "➕ Auth Service",
           "WebView2",
           "DEBUG_FRONTEND"
         ],

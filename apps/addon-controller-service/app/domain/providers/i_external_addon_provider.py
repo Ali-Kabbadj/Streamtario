@@ -11,7 +11,6 @@ class IExternalAddonProvider(ABC):
         """Performs a GET request and returns the parsed model or None on failure."""
         pass
 
-    # --- NEW METHOD ---
     @abstractmethod
     async def get_raw_text(self, url: str) -> str | None:
         """Performs a GET request and returns the raw text content or None on failure."""

@@ -1,11 +1,10 @@
-from typing import List, Optional, Dict, Any, AsyncGenerator
+from typing import List, Optional, Dict, Any
 from dependency_injector.wiring import inject, Provide
 from app.containers import Container
 from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from .types import (
-    AddonSearchResultType,
     CatalogResult,
     ProfileExtension,
     CatalogItemType,
@@ -37,15 +36,12 @@ async def resolve_discoverable_catalogs(
         extra_props = [
             DiscoveredCatalogExtraProp(
                 name=prop["name"],
-                is_required=prop.get(
-                    "isRequired", False
-                ),  # Map camelCase to snake_case
+                is_required=prop.get("isRequired", False),
                 options=prop.get("options"),
                 options_limit=prop.get("optionsLimit"),
             )
             for prop in p_cat.extra_props
         ]
-        # --- END FIX ---
 
         strawberry_catalogs.append(
             DiscoveredCatalogType(
@@ -66,7 +62,7 @@ async def resolve_profile_catalog(
     profile: ProfileExtension,
     itemType: str,
     catalogId: Optional[str],
-    manifestId: Optional[str],  # <-- NEW ARGUMENT
+    manifestId: Optional[str],
     extraProps: Optional[Dict[str, Any]],
     filterByType: Optional[str],
     use_case: AggregateCatalogUseCase = Provide[Container.aggregate_catalog_use_case],
@@ -122,7 +118,6 @@ async def resolve_profile_meta(
     if not pydantic_meta:
         return None
 
-    # Map from Pydantic model to Strawberry type
     strawberry_meta = MetaItemType(
         id=strawberry.ID(pydantic_meta.id),
         type=pydantic_meta.type,
