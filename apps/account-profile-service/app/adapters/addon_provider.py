@@ -1,5 +1,6 @@
 from http_client_factory.client import ApiClient
-from domain_exceptions.exceptions import ValidationException
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from core.pydantic.addons.manifest import AddonManifest
 from app.domain.providers.i_addon_provider import IAddonProvider
 from urllib.parse import urlencode
@@ -21,8 +22,8 @@ class AddonProvider(IAddonProvider):
         response = await self.api_client.get(url=full_url, response_model=AddonManifest)
 
         if not response.ok or not response.data:
-            raise ValidationException(
-                message="The manifest URL is invalid or could not be reached.",
+            raise ApiException(
+                error_code=ApiErrorCode.VALIDATION_MANIFEST_URL_INVALID,
                 details=(
                     response.error.details
                     if response.error

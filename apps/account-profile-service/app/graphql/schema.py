@@ -1,45 +1,76 @@
 import strawberry
-from typing import List
+from typing import List, Dict, Any
 from strawberry.fastapi import GraphQLRouter
-from strawberry.types import Info
-from fastapi import Request
-
+from strawberry.types import Info, ExecutionResult
+from strawberry.http import GraphQLHTTPResponse
+from graphql import GraphQLError
+from fastapi import Request, Response
 from .types import (
     AccountType,
+    CreateAccountError,
+    CreateAccountInput,
+    CreateAccountSuccess,
+    CreateProfileError,
+    CreateProfileInput,
+    CreateProfileSuccess,
     InstallAddonForAllProfilesError,
     InstallAddonForAllProfilesInput,
     InstallAddonForAllProfilesSuccess,
-    ProfileType,
-    CreateAccountInput,
-    CreateAccountSuccess,
-    CreateAccountError,
+    InstallAddonError,
     InstallAddonInput,
     InstallAddonSuccess,
-    InstallAddonError,
+    ProfileType,
     UninstallAddonFromAllProfilesError,
     UninstallAddonFromAllProfilesInput,
     UninstallAddonFromAllProfilesSuccess,
+    UninstallAddonError,
     UninstallAddonInput,
     UninstallAddonSuccess,
-    UninstallAddonError,
-    CreateProfileInput,
-    CreateProfileSuccess,
-    CreateProfileError,
+    UpdateProfileError,
     UpdateProfileInput,
     UpdateProfileSuccess,
-    UpdateProfileError,
 )
 from .resolvers import (
-    resolve_install_addon_for_all_profiles,
     resolve_account,
-    resolve_profile,
     resolve_create_account,
-    resolve_install_addon,
-    resolve_uninstall_addon,
     resolve_create_profile,
+    resolve_install_addon,
+    resolve_install_addon_for_all_profiles,
+    resolve_profile,
+    resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
     resolve_update_profile,
 )
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
+
+
+def format_graphql_error(error: GraphQLError, debug: bool = False) -> Dict[str, Any]:
+    if isinstance(error.original_error, ApiException):
+        exc = error.original_error
+        return {
+            "message": exc.ui_message,
+            "path": error.path,
+            "locations": error.locations,
+            "extensions": {"code": exc.code, "details": exc.details},
+        }
+    if debug:
+        return {
+            "message": str(error.original_error),
+            "path": error.path,
+            "locations": error.locations,
+            "extensions": {
+                "code": "UNEXPECTED_PYTHON_ERROR",
+                "exception_type": type(error.original_error).__name__,
+            },
+        }
+    e_code = ApiErrorCode.UNEXPECTED_ERROR
+    return {
+        "message": e_code.value.ui_message,
+        "path": error.path,
+        "locations": error.locations,
+        "extensions": {"code": e_code.name},
+    }
 
 
 @strawberry.input
@@ -51,22 +82,21 @@ class ProfileRepresentation:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def profile(self, id: strawberry.ID) -> ProfileType | None:
-        return await resolve_profile(id=id)
+    async def profile(self, id: strawberry.ID, info: Info) -> ProfileType | None:
+        return await resolve_profile(id=id, info=info)
 
     @strawberry.field
     async def account(self, info: Info) -> AccountType | None:
-        """Fetches the complete account details for the currently authenticated user."""
         return await resolve_account(info)
 
     @strawberry.field(name="_entities")
     async def resolve_entities(
-        self, representations: List[ProfileRepresentation]
+        self, representations: List[ProfileRepresentation], info: Info
     ) -> List[ProfileType | None]:
         results: List[ProfileType | None] = []
         for rep in representations:
             if rep.__typename == "Profile":
-                profile = await resolve_profile(id=rep.id)
+                profile = await resolve_profile(id=rep.id, info=info)
                 results.append(profile)
         return results
 
@@ -116,14 +146,6 @@ class Mutation:
         return await resolve_uninstall_addon_from_all_profiles(info, input)
 
 
-async def get_context(request: Request) -> dict:
-    """
-    This function creates the `info.context` dictionary.
-    The `request` object is now correctly imported from `fastapi`.
-    """
-    return {"request": request}
-
-
 schema = strawberry.federation.Schema(
     query=Query,
     mutation=Mutation,
@@ -139,8 +161,6 @@ schema = strawberry.federation.Schema(
         CreateProfileError,
         UpdateProfileSuccess,
         UpdateProfileError,
-        UpdateProfileSuccess,
-        UpdateProfileError,
         InstallAddonForAllProfilesSuccess,
         InstallAddonForAllProfilesError,
         UninstallAddonFromAllProfilesSuccess,
@@ -148,4 +168,20 @@ schema = strawberry.federation.Schema(
     ],
 )
 
-graphql_app = GraphQLRouter(schema, context_getter=get_context)
+
+class CustomGraphQLRouter(GraphQLRouter):
+    async def get_context(self, request: Request, response: Response) -> Any:
+        return {"request": request}
+
+    async def process_result(
+        self, request: Request, result: ExecutionResult
+    ) -> GraphQLHTTPResponse:
+        data: GraphQLHTTPResponse = {"data": result.data}
+        if result.errors:
+            data["errors"] = [
+                format_graphql_error(err, debug=self.debug) for err in result.errors
+            ]
+        return data
+
+
+graphql_app = CustomGraphQLRouter(schema, debug=True)

@@ -7,11 +7,10 @@ from api_contract.responses import ApiResponse, ErrorDetail
 
 async def api_exception_handler(request: Request, exc: ApiException):
     """
-    Handles our custom, domain-specific exceptions and formats them
-    into the standard ApiResponse envelope.
+    Handles our custom ApiException and formats it into the standard ApiResponse envelope.
     """
     error_payload = ErrorDetail(
-        type=exc.__class__.__name__,
+        type=exc.code,  # Now using the code, e.g., "PROFILE_NOT_FOUND"
         dev_message=exc.message,
         ui_message=exc.ui_message,
         details=exc.details,
@@ -24,7 +23,7 @@ async def api_exception_handler(request: Request, exc: ApiException):
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Handles generic FastAPI/Starlette HTTP exceptions."""
+    # This handler remains the same but is included for completeness
     error_payload = ErrorDetail(
         type="HttpException",
         dev_message=exc.detail,

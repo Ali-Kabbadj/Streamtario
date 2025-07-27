@@ -5,6 +5,7 @@ from app.containers import Container
 from security.jwt_service import IJwtService
 from security.schemas import TokenPayload
 from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 
 
 @inject
@@ -16,29 +17,16 @@ def get_current_user_payload(
     A FastAPI dependency that extracts, validates, and decodes the JWT
     from the Authorization header, returning the token payload.
 
-    Raises an ApiException if the token is missing, invalid, or expired.
+    Raises an ApiException(AUTHENTICATION_REQUIRED) if the token is missing or invalid.
     """
     auth_header = request.headers.get("Authorization")
     if not auth_header:
-        raise ApiException(
-            status_code=401,
-            message="Authorization header missing",
-            ui_message="Authentication required.",
-        )
+        raise ApiException(error_code=ApiErrorCode.AUTHENTICATION_REQUIRED)
 
     try:
         scheme, token = auth_header.split()
         if scheme.lower() != "bearer":
-            raise ApiException(
-                status_code=401,
-                message="Invalid authentication scheme.",
-                ui_message="Authentication required.",
-            )
+            raise ApiException(error_code=ApiErrorCode.AUTHENTICATION_REQUIRED)
     except ValueError:
-        raise ApiException(
-            status_code=401,
-            message="Invalid authorization header format.",
-            ui_message="Authentication required.",
-        )
-
+        raise ApiException(error_code=ApiErrorCode.AUTHENTICATION_REQUIRED)
     return jwt_service.decode_token(token)

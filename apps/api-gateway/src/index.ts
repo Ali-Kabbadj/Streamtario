@@ -14,7 +14,7 @@ import { createClient } from 'graphql-ws';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { Server } from 'http';
 import { createHash } from 'crypto';
-import { ExecutionArgs, getOperationAST, print, introspectionFromSchema } from 'graphql';
+import { ExecutionArgs, getOperationAST, print, introspectionFromSchema, GraphQLError, GraphQLFormattedError } from 'graphql';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 
@@ -139,6 +139,24 @@ async function startGateway() {
   const server = new ApolloServer({
     gateway,
     introspection: true,
+    formatError: (formattedError: GraphQLFormattedError, error: unknown) => {
+      const unexpectedErrorCodes = [
+        'DOWNSTREAM_SERVICE_ERROR',
+        'INTERNAL_SERVER_ERROR',
+        'GRAPHQL_PARSE_FAILED',
+        'GRAPHQL_VALIDATION_FAILED',
+      ];
+
+      const extensions = formattedError.extensions || {};
+      const errorCode = extensions.code;
+      if (errorCode && !unexpectedErrorCodes.includes(String(errorCode))) {
+        if (extensions.stacktrace) {
+          delete extensions.stacktrace;
+        }
+      }
+
+      return formattedError;
+    },
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       { async serverWillStart() { return { async drainServer() { if (serverCleanup) { await serverCleanup.dispose(); } }, }; }, },
