@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 from core.pydantic.domain.account import Account
 from security_factory.services.passwordservice import IPasswordHasher
 from validation_factory.validators import run_validators
@@ -21,15 +21,14 @@ class CreateAccountUseCase:
         self.password_hasher = password_hasher
 
     async def execute(self, email: str, password: str) -> Account:
-        account_id = None
         async with self.uow_factory() as uow:
             try:
+                # We still validate password strength for direct sign-ups
                 await run_validators(password, [PasswordStrengthValidator()])
                 await run_validators(
                     email, [UniqueEmailValidator()], account_repository=uow.accounts
                 )
             except ValidatorRuleException as e:
-                await uow.rollback()
                 log_error(
                     f"Account creation validation failed for {email}: {e.message}",
                     data=e.details,
@@ -37,18 +36,14 @@ class CreateAccountUseCase:
                 raise
 
             hashed_password = self.password_hasher.hash(password)
+
+            # The create method now returns the ORM object.
             new_account_orm = await uow.accounts.create(
                 email=email, hashed_password=hashed_password
             )
-            await uow.profiles.create_default_for_account(new_account_orm.id)
+
             await uow.commit()
-            account_id = new_account_orm.id
-
-        if not account_id:
-            raise RuntimeError("Failed to create account and get an ID.")
-
-        async with self.uow_factory() as uow:
-            created_account = await uow.accounts.get_by_id(account_id)
+            created_account = await uow.accounts.get_by_id(new_account_orm.id)
 
         if not created_account:
             raise RuntimeError(

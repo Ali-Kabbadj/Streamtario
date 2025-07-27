@@ -19,7 +19,24 @@ class IAccountRepository(ABC):
         """Fetches an account by its email."""
         pass
 
+    # --- NEW METHODS ---
     @abstractmethod
-    async def create(self, email: str, hashed_password: str) -> Account:
+    async def get_by_google_id(self, google_id: str) -> Optional[Account]:
+        """Fetches an account by its Google ID."""
+        pass
+
+    @abstractmethod
+    async def get_by_facebook_id(self, facebook_id: str) -> Optional[Account]:
+        """Fetches an account by its Facebook ID."""
+        pass
+
+    @abstractmethod
+    async def create(
+        self,
+        email: str,
+        hashed_password: Optional[str] = None,
+        google_id: Optional[str] = None,
+        facebook_id: Optional[str] = None,
+    ) -> Account:
         """Creates a new account and returns the complete domain model."""
         pass

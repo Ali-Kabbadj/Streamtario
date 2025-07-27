@@ -11,6 +11,12 @@ warnings.filterwarnings(
     module="strawberry.utils.deprecations",
 )
 
+warnings.filterwarnings(
+    "ignore",
+    message=r".*`util._extend` API is deprecated.*",
+    category=UserWarning,
+)
+
 sys.path.insert(0, os.getcwd())
 
 
