@@ -1,5 +1,5 @@
 /* eslint-disable */
-import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -47,6 +47,7 @@ export type CatalogResult = {
 
 export type CreateAccountError = {
   __typename?: 'CreateAccountError';
+  code: Scalars['String']['output'];
   field?: Maybe<Scalars['String']['output']>;
   message: Scalars['String']['output'];
 };
@@ -62,6 +63,27 @@ export type CreateAccountSuccess = {
 };
 
 export type CreateAccountSuccessCreateAccountError = CreateAccountError | CreateAccountSuccess;
+
+export type CreateProfileError = {
+  __typename?: 'CreateProfileError';
+  code: Scalars['String']['output'];
+  field?: Maybe<Scalars['String']['output']>;
+  message: Scalars['String']['output'];
+};
+
+export type CreateProfileInput = {
+  avatar?: InputMaybe<Scalars['String']['input']>;
+  isPrivate?: Scalars['Boolean']['input'];
+  name: Scalars['String']['input'];
+  pin?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateProfileSuccess = {
+  __typename?: 'CreateProfileSuccess';
+  profile: Profile;
+};
+
+export type CreateProfileSuccessCreateProfileError = CreateProfileError | CreateProfileSuccess;
 
 export type DiscoveredCatalogExtraProp = {
   __typename?: 'DiscoveredCatalogExtraProp';
@@ -84,9 +106,28 @@ export type DiscoveredCatalogType = {
 
 export type InstallAddonError = {
   __typename?: 'InstallAddonError';
+  code: Scalars['String']['output'];
   message: Scalars['String']['output'];
   profileId: Scalars['ID']['output'];
 };
+
+export type InstallAddonForAllProfilesError = {
+  __typename?: 'InstallAddonForAllProfilesError';
+  code: Scalars['String']['output'];
+  error?: Maybe<Scalars['JSON']['output']>;
+  message: Scalars['String']['output'];
+};
+
+export type InstallAddonForAllProfilesInput = {
+  manifestUrl: Scalars['String']['input'];
+};
+
+export type InstallAddonForAllProfilesSuccess = {
+  __typename?: 'InstallAddonForAllProfilesSuccess';
+  summary: Scalars['JSON']['output'];
+};
+
+export type InstallAddonForAllProfilesSuccessInstallAddonForAllProfilesError = InstallAddonForAllProfilesError | InstallAddonForAllProfilesSuccess;
 
 export type InstallAddonInput = {
   manifestUrl: Scalars['String']['input'];
@@ -126,8 +167,12 @@ export type MetaItemType = {
 export type Mutation = {
   __typename?: 'Mutation';
   createAccount: CreateAccountSuccessCreateAccountError;
+  createProfile: CreateProfileSuccessCreateProfileError;
   installAddon: InstallAddonSuccessInstallAddonError;
+  installAddonForAllProfiles: InstallAddonForAllProfilesSuccessInstallAddonForAllProfilesError;
   uninstallAddon: UninstallAddonSuccessUninstallAddonError;
+  uninstallAddonFromAllProfiles: UninstallAddonFromAllProfilesSuccessUninstallAddonFromAllProfilesError;
+  updateProfile: UpdateProfileSuccessUpdateProfileError;
 };
 
 
@@ -136,13 +181,33 @@ export type MutationCreateAccountArgs = {
 };
 
 
+export type MutationCreateProfileArgs = {
+  input: CreateProfileInput;
+};
+
+
 export type MutationInstallAddonArgs = {
   input: InstallAddonInput;
 };
 
 
+export type MutationInstallAddonForAllProfilesArgs = {
+  input: InstallAddonForAllProfilesInput;
+};
+
+
 export type MutationUninstallAddonArgs = {
   input: UninstallAddonInput;
+};
+
+
+export type MutationUninstallAddonFromAllProfilesArgs = {
+  input: UninstallAddonFromAllProfilesInput;
+};
+
+
+export type MutationUpdateProfileArgs = {
+  input: UpdateProfileInput;
 };
 
 export type Profile = {
@@ -151,6 +216,8 @@ export type Profile = {
   catalog: CatalogResult;
   discoverableCatalogs: Array<DiscoveredCatalogType>;
   id: Scalars['ID']['output'];
+  installedAddons: Array<InstalledAddonType>;
+  isPrivate: Scalars['Boolean']['output'];
   manifestUrls: Array<Scalars['String']['output']>;
   meta?: Maybe<MetaItemType>;
   name: Scalars['String']['output'];
@@ -178,6 +245,7 @@ export type ProfileRepresentation = {
 
 export type Query = {
   __typename?: 'Query';
+  account?: Maybe<AccountType>;
   profile?: Maybe<Profile>;
 };
 
@@ -199,10 +267,28 @@ export type SubscriptionSearchArgs = {
 
 export type UninstallAddonError = {
   __typename?: 'UninstallAddonError';
+  code: Scalars['String']['output'];
   manifestId: Scalars['String']['output'];
   message: Scalars['String']['output'];
   profileId: Scalars['ID']['output'];
 };
+
+export type UninstallAddonFromAllProfilesError = {
+  __typename?: 'UninstallAddonFromAllProfilesError';
+  code: Scalars['String']['output'];
+  message: Scalars['String']['output'];
+};
+
+export type UninstallAddonFromAllProfilesInput = {
+  manifestId: Scalars['String']['input'];
+};
+
+export type UninstallAddonFromAllProfilesSuccess = {
+  __typename?: 'UninstallAddonFromAllProfilesSuccess';
+  summary: Scalars['JSON']['output'];
+};
+
+export type UninstallAddonFromAllProfilesSuccessUninstallAddonFromAllProfilesError = UninstallAddonFromAllProfilesError | UninstallAddonFromAllProfilesSuccess;
 
 export type UninstallAddonInput = {
   manifestId: Scalars['String']['input'];
@@ -218,6 +304,28 @@ export type UninstallAddonSuccess = {
 
 export type UninstallAddonSuccessUninstallAddonError = UninstallAddonError | UninstallAddonSuccess;
 
+export type UpdateProfileError = {
+  __typename?: 'UpdateProfileError';
+  code: Scalars['String']['output'];
+  field?: Maybe<Scalars['String']['output']>;
+  message: Scalars['String']['output'];
+};
+
+export type UpdateProfileInput = {
+  avatar?: InputMaybe<Scalars['String']['input']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  pin?: InputMaybe<Scalars['String']['input']>;
+  profileId: Scalars['ID']['input'];
+};
+
+export type UpdateProfileSuccess = {
+  __typename?: 'UpdateProfileSuccess';
+  profile: Profile;
+};
+
+export type UpdateProfileSuccessUpdateProfileError = UpdateProfileError | UpdateProfileSuccess;
+
 export type VideoType = {
   __typename?: 'VideoType';
   id: Scalars['ID']['output'];
@@ -231,7 +339,22 @@ export type GetFullProfileQueryVariables = Exact<{
 }>;
 
 
-export type GetFullProfileQuery = { __typename?: 'Query', profile?: { __typename?: 'Profile', id: string, name: string, avatar?: string | null, manifestUrls: Array<string>, discoverableCatalogs: Array<{ __typename?: 'DiscoveredCatalogType', addonName: string, manifestId: string, catalogId: string, catalogName: string, catalogType: string, supportedItemTypes: Array<string>, extraProps: Array<{ __typename?: 'DiscoveredCatalogExtraProp', name: string, isRequired: boolean, options?: Array<string> | null, optionsLimit?: number | null }> }>, catalog: { __typename?: 'CatalogResult', items: Array<{ __typename?: 'CatalogItemType', id: string, type: string, name: string, poster?: string | null }> }, meta?: { __typename?: 'MetaItemType', id: string, type: string, name: string, genres?: Array<string> | null, poster?: string | null, background?: string | null, logo?: string | null, description?: string | null, releaseInfo?: string | null, imdbRating?: string | null, videos?: Array<{ __typename?: 'VideoType', id: string, title: string, released?: string | null, thumbnail?: string | null }> | null } | null } | null };
+export type GetFullProfileQuery = { __typename?: 'Query', profile?: { __typename?: 'Profile', id: string, name: string, avatar?: string | null, isPrivate: boolean, installedAddons: Array<{ __typename?: 'InstalledAddonType', id: string, manifestId: string, manifestUrl: string }> } | null };
+
+export type AccountQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type AccountQuery = { __typename?: 'Query', account?: { __typename?: 'AccountType', id: string, email: string, profiles: Array<{ __typename?: 'Profile', id: string, name: string, avatar?: string | null }> } | null };
+
+export type CreateProfileMutationVariables = Exact<{
+  name: Scalars['String']['input'];
+  avatar?: InputMaybe<Scalars['String']['input']>;
+  isPrivate: Scalars['Boolean']['input'];
+  pin?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type CreateProfileMutation = { __typename?: 'Mutation', createProfile: { __typename: 'CreateProfileError', code: string, message: string, field?: string | null } | { __typename: 'CreateProfileSuccess', profile: { __typename?: 'Profile', id: string, name: string, avatar?: string | null } } };
 
 export type CreateAccountMutationVariables = Exact<{
   email: Scalars['String']['input'];
@@ -239,7 +362,7 @@ export type CreateAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateAccountMutation = { __typename?: 'Mutation', createAccount: { __typename?: 'CreateAccountError', message: string, field?: string | null } | { __typename?: 'CreateAccountSuccess', account: { __typename?: 'AccountType', id: string, email: string } } };
+export type CreateAccountMutation = { __typename?: 'Mutation', createAccount: { __typename: 'CreateAccountError', code: string, message: string, field?: string | null } | { __typename: 'CreateAccountSuccess', account: { __typename?: 'AccountType', id: string, email: string } } };
 
 export type InstallAddonMutationVariables = Exact<{
   profileId: Scalars['ID']['input'];
@@ -247,7 +370,7 @@ export type InstallAddonMutationVariables = Exact<{
 }>;
 
 
-export type InstallAddonMutation = { __typename?: 'Mutation', installAddon: { __typename?: 'InstallAddonError', message: string } | { __typename?: 'InstallAddonSuccess', addon: { __typename?: 'InstalledAddonType', id: string, manifestId: string } } };
+export type InstallAddonMutation = { __typename?: 'Mutation', installAddon: { __typename: 'InstallAddonError', code: string, message: string } | { __typename: 'InstallAddonSuccess', addon: { __typename?: 'InstalledAddonType', id: string, manifestId: string, manifestUrl: string } } };
 
 export type UninstallAddonMutationVariables = Exact<{
   profileId: Scalars['ID']['input'];
@@ -255,10 +378,12 @@ export type UninstallAddonMutationVariables = Exact<{
 }>;
 
 
-export type UninstallAddonMutation = { __typename?: 'Mutation', uninstallAddon: { __typename?: 'UninstallAddonError', message: string } | { __typename?: 'UninstallAddonSuccess', success: boolean } };
+export type UninstallAddonMutation = { __typename?: 'Mutation', uninstallAddon: { __typename: 'UninstallAddonError', code: string, message: string } | { __typename: 'UninstallAddonSuccess', success: boolean } };
 
 
-export const GetFullProfileDocument = { "kind": "Document", "definitions": [{ "kind": "OperationDefinition", "operation": "query", "name": { "kind": "Name", "value": "GetFullProfile" }, "variableDefinitions": [{ "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "profileId" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "ID" } } } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "profile" }, "arguments": [{ "kind": "Argument", "name": { "kind": "Name", "value": "id" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "profileId" } } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "id" } }, { "kind": "Field", "name": { "kind": "Name", "value": "name" } }, { "kind": "Field", "name": { "kind": "Name", "value": "avatar" } }, { "kind": "Field", "name": { "kind": "Name", "value": "manifestUrls" } }, { "kind": "Field", "name": { "kind": "Name", "value": "discoverableCatalogs" }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "addonName" } }, { "kind": "Field", "name": { "kind": "Name", "value": "manifestId" } }, { "kind": "Field", "name": { "kind": "Name", "value": "catalogId" } }, { "kind": "Field", "name": { "kind": "Name", "value": "catalogName" } }, { "kind": "Field", "name": { "kind": "Name", "value": "catalogType" } }, { "kind": "Field", "name": { "kind": "Name", "value": "supportedItemTypes" } }, { "kind": "Field", "name": { "kind": "Name", "value": "extraProps" }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "name" } }, { "kind": "Field", "name": { "kind": "Name", "value": "isRequired" } }, { "kind": "Field", "name": { "kind": "Name", "value": "options" } }, { "kind": "Field", "name": { "kind": "Name", "value": "optionsLimit" } }] } }] } }, { "kind": "Field", "name": { "kind": "Name", "value": "catalog" }, "arguments": [{ "kind": "Argument", "name": { "kind": "Name", "value": "itemType" }, "value": { "kind": "StringValue", "value": "movie", "block": false } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "items" }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "id" } }, { "kind": "Field", "name": { "kind": "Name", "value": "type" } }, { "kind": "Field", "name": { "kind": "Name", "value": "name" } }, { "kind": "Field", "name": { "kind": "Name", "value": "poster" } }] } }] } }, { "kind": "Field", "name": { "kind": "Name", "value": "meta" }, "arguments": [{ "kind": "Argument", "name": { "kind": "Name", "value": "itemType" }, "value": { "kind": "StringValue", "value": "series", "block": false } }, { "kind": "Argument", "name": { "kind": "Name", "value": "itemId" }, "value": { "kind": "StringValue", "value": "community.anime.kitsu:kitsu:856", "block": false } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "id" } }, { "kind": "Field", "name": { "kind": "Name", "value": "type" } }, { "kind": "Field", "name": { "kind": "Name", "value": "name" } }, { "kind": "Field", "name": { "kind": "Name", "value": "genres" } }, { "kind": "Field", "name": { "kind": "Name", "value": "poster" } }, { "kind": "Field", "name": { "kind": "Name", "value": "background" } }, { "kind": "Field", "name": { "kind": "Name", "value": "logo" } }, { "kind": "Field", "name": { "kind": "Name", "value": "description" } }, { "kind": "Field", "name": { "kind": "Name", "value": "releaseInfo" } }, { "kind": "Field", "name": { "kind": "Name", "value": "imdbRating" } }, { "kind": "Field", "name": { "kind": "Name", "value": "videos" }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "id" } }, { "kind": "Field", "name": { "kind": "Name", "value": "title" } }, { "kind": "Field", "name": { "kind": "Name", "value": "released" } }, { "kind": "Field", "name": { "kind": "Name", "value": "thumbnail" } }] } }] } }] } }] } }] } as unknown as DocumentNode<GetFullProfileQuery, GetFullProfileQueryVariables>;
-export const CreateAccountDocument = { "kind": "Document", "definitions": [{ "kind": "OperationDefinition", "operation": "mutation", "name": { "kind": "Name", "value": "CreateAccount" }, "variableDefinitions": [{ "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "email" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } } } }, { "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "password" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } } } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "createAccount" }, "arguments": [{ "kind": "Argument", "name": { "kind": "Name", "value": "input" }, "value": { "kind": "ObjectValue", "fields": [{ "kind": "ObjectField", "name": { "kind": "Name", "value": "email" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "email" } } }, { "kind": "ObjectField", "name": { "kind": "Name", "value": "password" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "password" } } }] } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "InlineFragment", "typeCondition": { "kind": "NamedType", "name": { "kind": "Name", "value": "CreateAccountSuccess" } }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "account" }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "id" } }, { "kind": "Field", "name": { "kind": "Name", "value": "email" } }] } }] } }, { "kind": "InlineFragment", "typeCondition": { "kind": "NamedType", "name": { "kind": "Name", "value": "CreateAccountError" } }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "message" } }, { "kind": "Field", "name": { "kind": "Name", "value": "field" } }] } }] } }] } }] } as unknown as DocumentNode<CreateAccountMutation, CreateAccountMutationVariables>;
-export const InstallAddonDocument = { "kind": "Document", "definitions": [{ "kind": "OperationDefinition", "operation": "mutation", "name": { "kind": "Name", "value": "InstallAddon" }, "variableDefinitions": [{ "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "profileId" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "ID" } } } }, { "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "manifestUrl" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } } } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "installAddon" }, "arguments": [{ "kind": "Argument", "name": { "kind": "Name", "value": "input" }, "value": { "kind": "ObjectValue", "fields": [{ "kind": "ObjectField", "name": { "kind": "Name", "value": "profileId" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "profileId" } } }, { "kind": "ObjectField", "name": { "kind": "Name", "value": "manifestUrl" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "manifestUrl" } } }] } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "InlineFragment", "typeCondition": { "kind": "NamedType", "name": { "kind": "Name", "value": "InstallAddonSuccess" } }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "addon" }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "id" } }, { "kind": "Field", "name": { "kind": "Name", "value": "manifestId" } }] } }] } }, { "kind": "InlineFragment", "typeCondition": { "kind": "NamedType", "name": { "kind": "Name", "value": "InstallAddonError" } }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "message" } }] } }] } }] } }] } as unknown as DocumentNode<InstallAddonMutation, InstallAddonMutationVariables>;
-export const UninstallAddonDocument = { "kind": "Document", "definitions": [{ "kind": "OperationDefinition", "operation": "mutation", "name": { "kind": "Name", "value": "UninstallAddon" }, "variableDefinitions": [{ "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "profileId" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "ID" } } } }, { "kind": "VariableDefinition", "variable": { "kind": "Variable", "name": { "kind": "Name", "value": "manifestId" } }, "type": { "kind": "NonNullType", "type": { "kind": "NamedType", "name": { "kind": "Name", "value": "String" } } } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "uninstallAddon" }, "arguments": [{ "kind": "Argument", "name": { "kind": "Name", "value": "input" }, "value": { "kind": "ObjectValue", "fields": [{ "kind": "ObjectField", "name": { "kind": "Name", "value": "profileId" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "profileId" } } }, { "kind": "ObjectField", "name": { "kind": "Name", "value": "manifestId" }, "value": { "kind": "Variable", "name": { "kind": "Name", "value": "manifestId" } } }] } }], "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "InlineFragment", "typeCondition": { "kind": "NamedType", "name": { "kind": "Name", "value": "UninstallAddonSuccess" } }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "success" } }] } }, { "kind": "InlineFragment", "typeCondition": { "kind": "NamedType", "name": { "kind": "Name", "value": "UninstallAddonError" } }, "selectionSet": { "kind": "SelectionSet", "selections": [{ "kind": "Field", "name": { "kind": "Name", "value": "message" } }] } }] } }] } }] } as unknown as DocumentNode<UninstallAddonMutation, UninstallAddonMutationVariables>;
+export const GetFullProfileDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetFullProfile"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"profileId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"profile"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"profileId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}},{"kind":"Field","name":{"kind":"Name","value":"isPrivate"}},{"kind":"Field","name":{"kind":"Name","value":"installedAddons"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestUrl"}}]}}]}}]}}]} as unknown as DocumentNode<GetFullProfileQuery, GetFullProfileQueryVariables>;
+export const AccountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Account"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"account"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"profiles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}}]}}]}}]}}]} as unknown as DocumentNode<AccountQuery, AccountQueryVariables>;
+export const CreateProfileDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateProfile"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"avatar"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isPrivate"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"pin"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createProfile"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"avatar"},"value":{"kind":"Variable","name":{"kind":"Name","value":"avatar"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"isPrivate"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isPrivate"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"pin"},"value":{"kind":"Variable","name":{"kind":"Name","value":"pin"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CreateProfileSuccess"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"profile"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}}]}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CreateProfileError"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"field"}}]}}]}}]}}]} as unknown as DocumentNode<CreateProfileMutation, CreateProfileMutationVariables>;
+export const CreateAccountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateAccount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"email"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"password"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createAccount"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"email"},"value":{"kind":"Variable","name":{"kind":"Name","value":"email"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"password"},"value":{"kind":"Variable","name":{"kind":"Name","value":"password"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CreateAccountSuccess"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"account"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CreateAccountError"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"field"}}]}}]}}]}}]} as unknown as DocumentNode<CreateAccountMutation, CreateAccountMutationVariables>;
+export const InstallAddonDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InstallAddon"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"profileId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"manifestUrl"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"installAddon"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"profileId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"profileId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"manifestUrl"},"value":{"kind":"Variable","name":{"kind":"Name","value":"manifestUrl"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"InstallAddonSuccess"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"addon"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestUrl"}}]}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"InstallAddonError"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}}]}}]}}]} as unknown as DocumentNode<InstallAddonMutation, InstallAddonMutationVariables>;
+export const UninstallAddonDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UninstallAddon"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"profileId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"manifestId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"uninstallAddon"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"profileId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"profileId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"manifestId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"manifestId"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UninstallAddonSuccess"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"success"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UninstallAddonError"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}}]}}]}}]} as unknown as DocumentNode<UninstallAddonMutation, UninstallAddonMutationVariables>;
