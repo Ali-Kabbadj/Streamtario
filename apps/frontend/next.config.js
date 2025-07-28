@@ -1,16 +1,28 @@
 /**
- * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
- * for Docker builds.
+ * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.
+ * This is especially useful for Docker builds.
  */
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  output: "export",
+  // output: "export",
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   devIndicators: false,
+  // (headers() is ignored in export mode, so you can remove or leave it)
+  // async headers() {
+  //   return [
+  //     {
+  //       source: "/:path*",
+  //       headers: [
+  //         { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  //         { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+  //       ],
+  //     },
+  //   ];
+  // },
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       config.watchOptions = {
@@ -23,7 +35,6 @@ const nextConfig = {
           "C:/DumpStack.log.tmp",
         ],
       };
-
       config.plugins.push(
         new webpack.WatchIgnorePlugin({
           paths: [

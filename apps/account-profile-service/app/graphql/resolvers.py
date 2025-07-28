@@ -1,6 +1,5 @@
 from dependency_injector.wiring import inject, Provide
 from strawberry.types import Info
-
 from app.security.dependencies import get_current_user_payload
 from security.schemas import TokenPayload
 from app.containers import Container
@@ -17,6 +16,7 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
+from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
 from .types import (
@@ -44,6 +44,9 @@ from .types import (
     UpdateProfileInput,
     UpdateProfileSuccess,
     UpdateProfileError,
+    VerifyProfilePinInput,
+    VerifyProfilePinSuccess,
+    VerifyProfilePinError,
 )
 import strawberry
 from core.utils.logging import log_info, log_error
@@ -146,6 +149,31 @@ async def resolve_update_profile(
             "GraphQL: Unexpected error during profile update", data={"error": str(e)}
         )
         return UpdateProfileError(code=e_code.name, message=e_code.value.ui_message)
+
+
+@inject
+async def resolve_verify_profile_pin(
+    info: Info,
+    input: VerifyProfilePinInput,
+    use_case: VerifyProfilePinUseCase = Provide[Container.verify_profile_pin_use_case],
+) -> VerifyProfilePinSuccess | VerifyProfilePinError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+
+    try:
+        success = await use_case.execute(
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            pin=input.pin,
+        )
+        return VerifyProfilePinSuccess(success=success)
+    except ApiException as e:
+        return VerifyProfilePinError(code=e.code, message=e.ui_message)
+    except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
+        log_error(
+            "GraphQL: Unexpected error during PIN verification", data={"error": str(e)}
+        )
+        return VerifyProfilePinError(code=e_code.name, message=e_code.value.ui_message)
 
 
 @inject

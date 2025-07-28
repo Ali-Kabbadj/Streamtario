@@ -3,10 +3,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useCreateProfile } from "@/features/profile/hooks/use-create-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Form,
@@ -18,29 +16,28 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useEffect } from "react";
-import { AvatarPicker } from "./avatar-picker"; // <-- IMPORT
+import { AvatarPicker } from "./avatar-picker";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useCreateProfile } from "../hooks/use-create-profile";
+import { AvatarUploader } from "@/components/features/profile/AvatarUploader";
 
-// The validation schema remains the same.
 const profileFormSchema = z
   .object({
     name: z
       .string()
       .min(2, { message: "Name must be at least 2 characters." })
       .max(50),
-    avatar: z.string().optional(), // We now have a way to set this value
-    isPrivate: z.boolean().default(false),
+    avatar: z.string().optional(),
+    isPrivate: z.boolean(), // No .default() here
     pin: z.string().optional(),
+    avatarSource: z.enum(["default", "upload"]), // No .default() here
   })
-  .refine(
-    (data) => {
-      return !data.isPrivate || (data.pin && /^\d{4}$/.test(data.pin));
-    },
-    {
-      message: "A 4-digit PIN is required for private profiles.",
-      path: ["pin"],
-    },
-  );
+  .refine((data) => !data.isPrivate || (data.pin && /^\d{4}$/.test(data.pin)), {
+    message: "A 4-digit PIN is required for private profiles.",
+    path: ["pin"],
+  });
 
+// This type is now correctly and simply inferred from the schema above.
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 interface CreateProfileFormProps {
@@ -50,20 +47,27 @@ interface CreateProfileFormProps {
 export const CreateProfileForm = ({ onSuccess }: CreateProfileFormProps) => {
   const { mutate, isPending, isSuccess, error } = useCreateProfile();
 
+  // We explicitly type `useForm` with our clean `ProfileFormValues` type.
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
+    // All defaults are now handled in one place, which is cleaner.
     defaultValues: {
       name: "",
-      avatar: "/avatars/avatar1.png", // Set a default avatar
+      avatar:
+        "https://i.pinimg.com/736x/a4/c6/5f/a4c65f709d4c0cb1b4329c12beb9cd78.jpg",
       isPrivate: false,
       pin: "",
+      avatarSource: "default",
     },
   });
 
   const isPrivate = form.watch("isPrivate");
+  const avatarSource = form.watch("avatarSource");
 
   const onSubmit = (data: ProfileFormValues) => {
-    mutate(data);
+    // We still strip the UI-only field before submission.
+    const { avatarSource, ...submissionData } = data;
+    mutate(submissionData);
   };
 
   useEffect(() => {
@@ -78,21 +82,6 @@ export const CreateProfileForm = ({ onSuccess }: CreateProfileFormProps) => {
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-8 p-4 pt-6"
       >
-        {/* --- ADD THE AVATAR PICKER FIELD --- */}
-        <FormField
-          control={form.control}
-          name="avatar"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Choose an Avatar</FormLabel>
-              <FormControl>
-                <AvatarPicker value={field.value} onChange={field.onChange} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <FormField
           control={form.control}
           name="name"
@@ -102,6 +91,64 @@ export const CreateProfileForm = ({ onSuccess }: CreateProfileFormProps) => {
               <FormControl>
                 <Input placeholder="e.g., Kids" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="avatarSource"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel>Profile Avatar</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue("avatar", "");
+                  }}
+                  value={field.value}
+                  className="flex space-x-4"
+                >
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <RadioGroupItem value="default" id="r1" />
+                    </FormControl>
+                    <FormLabel htmlFor="r1" className="cursor-pointer">
+                      Choose Default
+                    </FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <RadioGroupItem value="upload" id="r2" />
+                    </FormControl>
+                    <FormLabel htmlFor="r2" className="cursor-pointer">
+                      Upload Custom
+                    </FormLabel>
+                  </FormItem>
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="avatar"
+          render={({ field }) => (
+            <FormItem>
+              <div className="pt-2">
+                {avatarSource === "default" ? (
+                  <AvatarPicker value={field.value} onChange={field.onChange} />
+                ) : (
+                  <AvatarUploader
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              </div>
               <FormMessage />
             </FormItem>
           )}

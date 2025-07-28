@@ -4,24 +4,23 @@ import { graphql } from './gen/gql';
 // QUERIES
 // ============================================================================
 
-export const GET_FULL_PROFILE_QUERY = graphql(`
+export const GetFullProfileDocument = graphql(`
   query GetFullProfile($profileId: ID!) {
     profile(id: $profileId) {
       id
       name
       avatar
-      isPrivate # <-- Add isPrivate
-      installedAddons { # <-- Add installedAddons
+      isPrivate
+      installedAddons {
         id
         manifestId
         manifestUrl
       }
-      # You can add discoverableCatalogs, etc., here as needed
     }
   }
 `);
 
-export const ACCOUNT_QUERY = graphql(`
+export const AccountDocument = graphql(`
   query Account {
     account {
       id
@@ -30,6 +29,7 @@ export const ACCOUNT_QUERY = graphql(`
         id
         name
         avatar
+        isPrivate # <--- THIS IS THE FIX. We must request this field.
       }
     }
   }
@@ -38,7 +38,23 @@ export const ACCOUNT_QUERY = graphql(`
 // ============================================================================
 // MUTATIONS
 // ============================================================================
-export const CREATE_PROFILE_MUTATION = graphql(`
+
+export const VerifyProfilePinDocument = graphql(`
+  mutation VerifyProfilePin($profileId: ID!, $pin: String!) {
+    verifyProfilePin(input: { profileId: $profileId, pin: $pin }) {
+      __typename
+      ... on VerifyProfilePinSuccess {
+        success
+      }
+      ... on VerifyProfilePinError {
+        code
+        message
+      }
+    }
+  }
+`);
+
+export const CreateProfileDocument = graphql(`
   mutation CreateProfile(
     $name: String!
     $avatar: String
@@ -70,7 +86,7 @@ export const CREATE_PROFILE_MUTATION = graphql(`
   }
 `);
 
-export const CREATE_ACCOUNT_MUTATION = graphql(`
+export const CreateAccountDocument = graphql(`
   mutation CreateAccount($email: String!, $password: String!) {
     createAccount(input: { email: $email, password: $password }) {
       __typename
@@ -89,7 +105,7 @@ export const CREATE_ACCOUNT_MUTATION = graphql(`
   }
 `);
 
-export const INSTALL_ADDON_MUTATION = graphql(`
+export const InstallAddonDocument = graphql(`
   mutation InstallAddon($profileId: ID!, $manifestUrl: String!) {
     installAddon(input: { profileId: $profileId, manifestUrl: $manifestUrl }) {
       __typename
@@ -108,7 +124,7 @@ export const INSTALL_ADDON_MUTATION = graphql(`
   }
 `);
 
-export const UNINSTALL_ADDON_MUTATION = graphql(`
+export const UninstallAddonDocument = graphql(`
   mutation UninstallAddon($profileId: ID!, $manifestId: String!) {
     uninstallAddon(input: { profileId: $profileId, manifestId: $manifestId }) {
       __typename

@@ -1,9 +1,16 @@
 "use client";
 
-import { useProfile } from "@/api/hooks/use-profile";
 import { ProfileHeader } from "./components/profile-header";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useProfile } from "./hooks/use-profile";
 
-export const ProfileFeature = ({ profileId }: { profileId: string }) => {
+interface ProfileFeatureProps {
+  profileId: string;
+  onBack: () => void;
+}
+
+export const ProfileFeature = ({ profileId, onBack }: ProfileFeatureProps) => {
   const { data, isLoading, isError, error } = useProfile(profileId);
 
   if (isError) {
@@ -15,13 +22,18 @@ export const ProfileFeature = ({ profileId }: { profileId: string }) => {
 
   return (
     <div className="container mx-auto space-y-8 p-4">
-      <ProfileHeader
-        name={profileData?.name}
-        avatar={profileData?.avatar}
-        isLoading={isLoading}
-      />
+      <div className="flex items-center gap-4">
+        <Button onClick={onBack} variant="ghost" size="icon">
+          <ArrowLeft className="h-6 w-6" />
+        </Button>
+        <ProfileHeader
+          name={profileData?.name}
+          avatar={profileData?.avatar}
+          isLoading={isLoading}
+        />
+      </div>
 
-      <pre className="overflow-x-auto rounded-lg bg-slate-800 p-4 text-white">
+      <pre className="bg-accent-foreground overflow-x-auto rounded-lg p-4 text-white">
         {isLoading ? "Loading..." : JSON.stringify(data, null, 2)}
       </pre>
     </div>

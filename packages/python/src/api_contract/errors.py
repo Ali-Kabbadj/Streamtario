@@ -44,6 +44,18 @@ class ApiErrorCode(Enum):
         "The email or password you entered is incorrect.",
     )
 
+    INVALID_PROFILE_CREDENTIALS = ErrorCodeDetail(
+        status.HTTP_401_UNAUTHORIZED,
+        "The Pin you provided for this profile does is not correct.",
+        "The Pin is not correct, try again.",
+    )
+    # --- ADD THIS NEW ERROR ---
+    GOOGLE_LOGIN_FAILED = ErrorCodeDetail(
+        status.HTTP_401_UNAUTHORIZED,
+        "The Google ID token could not be verified.",
+        "Google authentication failed. Please try again.",
+    )
+
     # --- Resource Not Found Errors (200-299) ---
     ACCOUNT_NOT_FOUND = ErrorCodeDetail(
         status.HTTP_404_NOT_FOUND,

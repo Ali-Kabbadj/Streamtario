@@ -35,8 +35,16 @@ async def google_login(
     Authenticates a user with a Google ID token and issues local JWTs.
     """
     try:
+        # --- THIS IS THE FIX ---
+        # We add the `clock_skew_in_seconds` parameter to the verification call.
+        # This tells the library to tolerate a small difference (e.g., up to 10 seconds)
+        # between the token's timestamp and the server's clock. This is a robust
+        # way to handle minor clock drift in distributed systems.
         id_info = id_token.verify_oauth2_token(
-            request.token, requests.Request(), settings.GOOGLE_CLIENT_ID
+            request.token,
+            requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+            clock_skew_in_seconds=10,
         )
 
         google_user_id = id_info["sub"]
@@ -44,7 +52,7 @@ async def google_login(
 
     except ValueError as e:
         raise ApiException(
-            ApiErrorCode.INVALID_CREDENTIALS,
+            ApiErrorCode.GOOGLE_LOGIN_FAILED,
             details={"reason": "Invalid Google token", "error": str(e)},
         )
 

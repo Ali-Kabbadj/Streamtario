@@ -8,7 +8,7 @@ from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from core.utils.logging import log_info
 from core.pydantic.events.base import ProfileCreatedEvent
 
-MAX_PROFILES_PER_ACCOUNT = 5
+MAX_PROFILES_PER_ACCOUNT = 10
 
 
 class CreateProfileUseCase:
@@ -50,7 +50,6 @@ class CreateProfileUseCase:
                 raise ApiException(error_code=ApiErrorCode.ACCOUNT_NOT_FOUND)
 
             if len(account.profiles) >= MAX_PROFILES_PER_ACCOUNT:
-                # --- And another example ---
                 raise ApiException(
                     error_code=ApiErrorCode.ACCOUNT_PROFILE_LIMIT_REACHED,
                     details={

@@ -63,11 +63,13 @@ class FindOrCreateBySocialUseCase:
                     override_message="Failed to retrieve newly created social account.",
                 )
 
+            # --- THIS IS THE FIX ---
+            # The event now correctly states the social provider.
             await self.event_publisher.publish(
                 AccountCreatedEvent(
                     account_id=created_account.id,
                     email=created_account.email,
-                    provider="password",
+                    provider=provider,
                 )
             )
 
