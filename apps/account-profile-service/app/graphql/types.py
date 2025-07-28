@@ -61,6 +61,13 @@ class UninstallAddonFromAllProfilesInput:
     manifest_id: str
 
 
+# --- ADD THIS NEW INPUT TYPE ---
+@strawberry.input
+class VerifyProfilePinInput:
+    profile_id: strawberry.ID
+    pin: str
+
+
 # ========= OBJECT TYPES =========
 
 
@@ -215,5 +222,16 @@ class UninstallAddonFromAllProfilesSuccess:
 
 @strawberry.type
 class UninstallAddonFromAllProfilesError:
+    code: str
+    message: str
+
+
+@strawberry.type
+class VerifyProfilePinSuccess:
+    success: bool
+
+
+@strawberry.type
+class VerifyProfilePinError:
     code: str
     message: str

@@ -12,11 +12,9 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { useServer } from 'graphql-ws/use/ws';
 import { createClient } from 'graphql-ws';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
-import { Server } from 'http';
-import { createHash } from 'crypto';
-import { ExecutionArgs, getOperationAST, print, introspectionFromSchema, GraphQLFormattedError } from 'graphql';
+import { Server, IncomingMessage } from 'http';
+import { introspectionFromSchema, GraphQLFormattedError, ExecutionArgs, getOperationAST, print } from 'graphql';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-
 
 class AuthenticatedDataSource extends RemoteGraphQLDataSource {
   willSendRequest({ request, context }: any) {
@@ -26,33 +24,20 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
   }
 }
 
-// ... (interfaces for AddonSearchResult etc. remain the same) ...
-
 const localhostHttpsAgent = new https.Agent({
   rejectUnauthorized: false,
   checkServerIdentity: () => undefined,
 });
 
-// Monkey-patching https for localhost SSL a- a necessary evil for local dev
 const originalHttpsRequest = https.request;
-const originalHttpsGet = https.get;
 https.request = function (options: any, callback?: any) {
   if (typeof options === 'string') { options = new URL(options); }
-  const isLocalhost = options.hostname === 'localhost' || options.host === 'localhost' || options.hostname?.includes('localhost');
+  const isLocalhost = options.hostname === 'localhost' || options.hostname?.includes('localhost');
   if (isLocalhost) {
     options.agent = localhostHttpsAgent;
     options.rejectUnauthorized = false;
   }
   return originalHttpsRequest(options, callback);
-};
-https.get = function (options: any, callback?: any) {
-  if (typeof options === 'string') { options = new URL(options); }
-  const isLocalhost = options.hostname === 'localhost' || options.host === 'localhost' || options.hostname?.includes('localhost');
-  if (isLocalhost) {
-    options.agent = localhostHttpsAgent;
-    options.rejectUnauthorized = false;
-  }
-  return originalHttpsGet(options, callback);
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -67,7 +52,6 @@ async function startGateway() {
 
   const app = express();
 
-  // --- THIS IS THE CORRECTED CORS CONFIGURATION ---
   const allowedOrigins = ['https://localhost:3000', 'http://localhost:3000'];
   const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
@@ -79,11 +63,7 @@ async function startGateway() {
     },
     credentials: true,
   };
-  // Apply CORS middleware to the entire application.
-  // This will handle all preflight OPTIONS requests automatically.
   app.use(cors(corsOptions));
-  // --- END OF CORS CONFIGURATION ---
-
 
   let httpServer: Server;
   try {
@@ -96,11 +76,10 @@ async function startGateway() {
     httpServer = http.createServer(app);
   }
 
-  // Define and apply the auth proxy
   const authProxy = createProxyMiddleware({
     target: serviceMap.auth.url,
     changeOrigin: true,
-    secure: false, // Important for self-signed certs
+    secure: false,
   });
   app.use('/api/v1/auth', authProxy);
 
@@ -117,11 +96,20 @@ async function startGateway() {
     },
   });
 
+  const wsServerCleanupPlugin = {
+    async serverWillStart() {
+      return {
+        async drainServer() {
+          await serverCleanup.dispose();
+        },
+      };
+    },
+  };
+
   const server = new ApolloServer({
     gateway,
     introspection: true,
     formatError: (formattedError: GraphQLFormattedError) => {
-      // This logic remains correct.
       const unexpectedErrorCodes = ['INTERNAL_SERVER_ERROR', 'GRAPHQL_PARSE_FAILED', 'GRAPHQL_VALIDATION_FAILED'];
       const extensions = formattedError.extensions || {};
       const errorCode = extensions.code;
@@ -134,21 +122,24 @@ async function startGateway() {
     },
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
+      wsServerCleanupPlugin,
     ],
   });
 
   await server.start();
 
-  // Apply the GraphQL middleware
+  // --- THIS IS THE FIX for the 413 Error ---
+  // We increase the JSON body limit before applying the GraphQL middleware.
+  // '10mb' is a generous limit for base64-encoded images.
+  app.use('/graphql', express.json({ limit: '10mb' }));
+
   app.use(
     '/graphql',
-    express.json(),
     expressMiddleware(server, {
       context: async ({ req }) => ({ headers: req.headers }),
     })
   );
 
-  // Health check and schema endpoints
   app.get('/', (req, res) => { res.send(`API Gateway is running.`); });
   app.get('/graphql/schema.json', (req, res) => {
     if (gateway.schema) {
@@ -159,15 +150,47 @@ async function startGateway() {
     }
   });
 
-  // WebSocket server for subscriptions
   const wsServer = new WebSocketServer({ server: httpServer, path: '/graphql' });
+
   class CustomWebSocket extends WebSocket {
     constructor(url: string | URL, protocols: string | string[] | undefined) {
       super(url, protocols, { agent: localhostHttpsAgent, rejectUnauthorized: false });
     }
   }
-  // This logic also remains correct for subscription handling
-  // ... (useServer logic with forwardSubscription) ...
+
+  const serverCleanup = useServer({
+    execute: (args: ExecutionArgs) => (args.contextValue as any).gateway.execute(args),
+    subscribe: async (args: ExecutionArgs) => {
+      const { gateway, ...context } = args.contextValue as any;
+      const document = args.document;
+      const operationName = args.operationName!;
+      const operationAst = getOperationAST(document, operationName);
+      if (operationAst?.operation === 'subscription') {
+        const forwardClient = createClient({
+          url: serviceMap.addons.url,
+          webSocketImpl: CustomWebSocket,
+          connectionParams: {
+            Authorization: context.headers?.authorization,
+          },
+        });
+        return forwardClient.iterate({
+          query: print(document),
+          variables: args.variableValues,
+          operationName: operationName,
+        });
+      }
+      return gateway.execute(args);
+    },
+    context: (ctx) => {
+      const { request } = ctx.extra as { request: IncomingMessage };
+      return {
+        headers: {
+          authorization: ctx.connectionParams?.Authorization || request.headers['authorization'],
+        },
+        gateway,
+      };
+    },
+  }, wsServer);
 
   const PORT = 4000;
   httpServer.listen({ port: PORT }, () => {

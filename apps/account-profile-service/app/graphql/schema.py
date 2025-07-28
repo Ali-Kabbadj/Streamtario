@@ -29,6 +29,9 @@ from .types import (
     UpdateProfileError,
     UpdateProfileInput,
     UpdateProfileSuccess,
+    VerifyProfilePinError,
+    VerifyProfilePinInput,
+    VerifyProfilePinSuccess,
 )
 from .resolvers import (
     resolve_account,
@@ -40,6 +43,8 @@ from .resolvers import (
     resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
     resolve_update_profile,
+    # --- IMPORT THE NEW RESOLVER ---
+    resolve_verify_profile_pin,
 )
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
@@ -121,6 +126,13 @@ class Mutation:
     ) -> UpdateProfileSuccess | UpdateProfileError:
         return await resolve_update_profile(info, input)
 
+    # --- ADD THE NEW MUTATION ---
+    @strawberry.mutation
+    async def verify_profile_pin(
+        self, info: Info, input: VerifyProfilePinInput
+    ) -> VerifyProfilePinSuccess | VerifyProfilePinError:
+        return await resolve_verify_profile_pin(info, input)
+
     @strawberry.mutation
     async def install_addon(
         self, info: Info, input: InstallAddonInput
@@ -165,6 +177,8 @@ schema = strawberry.federation.Schema(
         InstallAddonForAllProfilesError,
         UninstallAddonFromAllProfilesSuccess,
         UninstallAddonFromAllProfilesError,
+        VerifyProfilePinSuccess,
+        VerifyProfilePinError,
     ],
 )
 

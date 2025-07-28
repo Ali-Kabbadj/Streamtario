@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql-client';
-import { GET_FULL_PROFILE_QUERY } from '@/orchestrators/graphql-query-orchestrator/queries';
-
+import { GetFullProfileDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
 import {
     type GetFullProfileQuery,
     type GetFullProfileQueryVariables,
@@ -11,7 +10,8 @@ export const useProfile = (profileId: string) => {
     return useQuery<GetFullProfileQuery, Error>({
         queryKey: ['profile', profileId],
         queryFn: async () => {
-            return graphqlClient.request<GetFullProfileQuery, GetFullProfileQueryVariables>(GET_FULL_PROFILE_QUERY, { profileId });
+            // --- FIX: Use the correctly named DocumentNode ---
+            return graphqlClient.request<GetFullProfileQuery, GetFullProfileQueryVariables>(GetFullProfileDocument, { profileId });
         },
         enabled: !!profileId,
     });

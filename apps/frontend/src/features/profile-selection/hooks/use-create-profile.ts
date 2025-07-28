@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql-client';
-import { CREATE_PROFILE_MUTATION } from '@/orchestrators/graphql-query-orchestrator/queries';
+import { CreateProfileDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
 import type {
     CreateProfileMutation,
     CreateProfileMutationVariables,
@@ -10,7 +10,8 @@ export const useCreateProfile = () => {
     const queryClient = useQueryClient();
 
     return useMutation<CreateProfileMutation, Error, CreateProfileMutationVariables>({
-        mutationFn: (variables) => graphqlClient.request(CREATE_PROFILE_MUTATION, variables),
+        // --- FIX: Use the correctly named DocumentNode ---
+        mutationFn: (variables) => graphqlClient.request(CreateProfileDocument, variables),
 
         onSuccess: (data) => {
             if (data.createProfile.__typename === 'CreateProfileSuccess') {
