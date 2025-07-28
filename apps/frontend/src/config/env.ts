@@ -1,4 +1,3 @@
-
 type EnvVars = {
     NEXT_PUBLIC_API_GATEWAY_URL: string;
 }
@@ -8,7 +7,7 @@ export function getEnv(): EnvVars {
 
     if (!gatewayUrl) {
         throw new Error(
-            "ERROR: NEXT_PUBLIC_ACCOUNT_PROFILE_SERVICE_URL is not defined in the environment."
+            "ERROR: NEXT_PUBLIC_API_GATEWAY_URL is not defined in the environment."
         );
     }
 
