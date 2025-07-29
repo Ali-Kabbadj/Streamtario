@@ -7,9 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useLogin } from "../hooks/useLogin";
 import { useGoogleLogin } from "../hooks/useGoogleLogin";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
-import { fa } from "zod/v4/locales";
 
-// Define the form data type
 type LoginFormInputs = {
   email: string;
   password: string;

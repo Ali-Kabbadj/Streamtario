@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, type ChangeEvent } from "react";
-import { Button } from "@/components/ui/button";
 import { UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -95,13 +94,13 @@ export const AvatarUploader = ({ value, onChange }: AvatarUploaderProps) => {
         // Ensure GIF is in the accept list for the file dialog
         accept="image/png, image/jpeg, image/gif, image/webp"
       />
-      <Button
+      {/* <Button
         type="button"
         variant="outline"
         onClick={() => fileInputRef.current?.click()}
       >
         Choose Image
-      </Button>
+      </Button> */}
     </div>
   );
 };

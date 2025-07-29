@@ -66,7 +66,7 @@ export const CreateProfileForm = ({ onSuccess }: CreateProfileFormProps) => {
 
   const onSubmit = (data: ProfileFormValues) => {
     // We still strip the UI-only field before submission.
-    const { avatarSource, ...submissionData } = data;
+    const { ...submissionData } = data;
     mutate(submissionData);
   };
 

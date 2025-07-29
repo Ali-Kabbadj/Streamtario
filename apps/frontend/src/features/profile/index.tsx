@@ -1,16 +1,13 @@
 "use client";
 
 import { ProfileHeader } from "./components/profile-header";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import { useProfile } from "./hooks/use-profile";
 
 interface ProfileFeatureProps {
   profileId: string;
-  onBack: () => void;
 }
 
-export const ProfileFeature = ({ profileId, onBack }: ProfileFeatureProps) => {
+export const ProfileFeature = ({ profileId }: ProfileFeatureProps) => {
   const { data, isLoading, isError, error } = useProfile(profileId);
 
   if (isError) {
@@ -20,20 +17,16 @@ export const ProfileFeature = ({ profileId, onBack }: ProfileFeatureProps) => {
   }
   const profileData = data?.profile;
 
+  // The component is now much simpler. It just renders its specific content.
   return (
-    <div className="container mx-auto space-y-8 p-4">
-      <div className="flex items-center gap-4">
-        <Button onClick={onBack} variant="ghost" size="icon">
-          <ArrowLeft className="h-6 w-6" />
-        </Button>
-        <ProfileHeader
-          name={profileData?.name}
-          avatar={profileData?.avatar}
-          isLoading={isLoading}
-        />
-      </div>
+    <div className="space-y-8">
+      <ProfileHeader
+        name={profileData?.name}
+        avatar={profileData?.avatar}
+        isLoading={isLoading}
+      />
 
-      <pre className="bg-accent-foreground overflow-x-auto rounded-lg p-4 text-white">
+      <pre className="overflow-x-auto rounded-lg bg-slate-800 p-4 text-white">
         {isLoading ? "Loading..." : JSON.stringify(data, null, 2)}
       </pre>
     </div>
