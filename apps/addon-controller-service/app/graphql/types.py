@@ -34,9 +34,11 @@ class CatalogItemType:
 @strawberry.type
 class VideoType:
     id: strawberry.ID
-    title: str
+    title: Optional[str]
     released: Optional[str] = None
     thumbnail: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
 
 
 @strawberry.type

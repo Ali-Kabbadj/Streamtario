@@ -44,7 +44,7 @@ export function Header() {
   };
 
   return (
-    <header className="bg-background/95 sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-700 px-4 backdrop-blur-sm md:px-6">
+    <header className="bg-background/95 sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-slate-700 px-4 backdrop-blur-sm md:px-6">
       <div className="flex-1">
         <form onSubmit={handleSearchSubmit}>
           <div className="relative">
@@ -52,7 +52,7 @@ export function Header() {
             <Input
               type="search"
               name="search"
-              placeholder="Search for movies, series..."
+              placeholder="Search for ..."
               className="w-full appearance-none bg-slate-800 pl-8 shadow-none md:w-2/3 lg:w-1/3"
               defaultValue={router.query.q ?? ""}
             />

@@ -42,7 +42,7 @@ class FindOrCreateBySocialUseCase:
             if account_by_email:
                 if account_by_email.hashed_password:
                     raise ApiException(
-                        error_code=ApiErrorCode.ACCOUNT_EMAIL_EXISTS,
+                        error_code=ApiErrorCode.ACCOUNT_EMAIL_IN_USE_BY_SOCIAL,
                         details={
                             "reason": "Email is already registered with a password."
                         },
@@ -63,8 +63,6 @@ class FindOrCreateBySocialUseCase:
                     override_message="Failed to retrieve newly created social account.",
                 )
 
-            # --- THIS IS THE FIX ---
-            # The event now correctly states the social provider.
             await self.event_publisher.publish(
                 AccountCreatedEvent(
                     account_id=created_account.id,

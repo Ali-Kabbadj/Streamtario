@@ -1,6 +1,5 @@
-import { fetchClient } from "@/api/api-client";
+import { fetchClient, ClientError } from "@/api/api-client";
 
-// Define clear types for what our service functions need and return.
 type LoginCredentials = {
     email: string;
     password: string;
@@ -11,18 +10,11 @@ type TokenResponseType = {
     refreshToken: string;
 };
 
-/**
- * Stores tokens in localStorage after a successful login or refresh.
- */
 function persistTokens(tokens: TokenResponseType): void {
     localStorage.setItem("accessToken", tokens.accessToken);
     localStorage.setItem("refreshToken", tokens.refreshToken);
 }
 
-/**
- * Handles the login request to the auth-service.
- * @throws An error with a user-friendly message on failure.
- */
 export async function loginWithCredentials(
     credentials: LoginCredentials,
 ): Promise<void> {
@@ -32,16 +24,11 @@ export async function loginWithCredentials(
             method: "POST",
             body: JSON.stringify(credentials),
         },
-        "An unknown error occurred.",
+        "An unknown error occurred during login.",
     );
     persistTokens(tokens);
 }
 
-/**
- * Sends the Google ID token to the backend for validation and session creation.
- * @param token The ID token received from Google Sign-In.
- * @throws An error with a user-friendly message on failure.
- */
 export async function loginWithGoogle(token: string): Promise<void> {
     try {
         const tokens = await fetchClient<TokenResponseType>(
@@ -54,22 +41,13 @@ export async function loginWithGoogle(token: string): Promise<void> {
         );
         persistTokens(tokens);
     } catch (error) {
-        if (
-            error instanceof Error &&
-            error.message.includes("email address already exists")
-        ) {
-            throw new Error(
-                "This email is registered with a password. Please log in with your password.",
-            );
+        if (error instanceof ClientError && error.errorData.type === 'ACCOUNT_EMAIL_IN_USE_BY_SOCIAL') {
+            throw new Error(error.errorData.ui_message);
         }
-        throw error; // Re-throw the original error if it's not the specific case we're handling.
+        throw error;
     }
 }
 
-/**
- * Handles the token refresh request to the auth-service.
- * @throws An error if the refresh token is missing or the request fails.
- */
 export async function refreshSession(): Promise<void> {
     const refreshToken = localStorage.getItem("refreshToken");
     if (!refreshToken) {
@@ -82,7 +60,7 @@ export async function refreshSession(): Promise<void> {
             method: "POST",
             body: JSON.stringify({ refresh_token: refreshToken }),
         },
-        "Session expired.",
+        "Session expired. Please log in again.",
     );
     persistTokens(tokens);
 }

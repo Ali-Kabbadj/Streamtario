@@ -2,7 +2,6 @@ from enum import Enum
 from collections import namedtuple
 from fastapi import status
 
-# A structured object for our error details, making them easy to unpack.
 ErrorCodeDetail = namedtuple(
     "ErrorCodeDetail", ["status_code", "dev_message", "ui_message"]
 )
@@ -15,7 +14,6 @@ class ApiErrorCode(Enum):
     (HTTP Status Code, Developer-facing Message, UI-facing Message)
     """
 
-    # --- General Errors (000-099) ---
     UNEXPECTED_ERROR = ErrorCodeDetail(
         status.HTTP_500_INTERNAL_SERVER_ERROR,
         "An unexpected and unhandled error occurred.",
@@ -26,8 +24,6 @@ class ApiErrorCode(Enum):
         "A required downstream service was unavailable.",
         "A required service is temporarily unavailable. Please try again later.",
     )
-
-    # --- Authentication / Authorization Errors (100-199) ---
     AUTHENTICATION_REQUIRED = ErrorCodeDetail(
         status.HTTP_401_UNAUTHORIZED,
         "Request is missing a valid bearer token.",
@@ -43,20 +39,16 @@ class ApiErrorCode(Enum):
         "The email or password provided did not match our records.",
         "The email or password you entered is incorrect.",
     )
-
     INVALID_PROFILE_CREDENTIALS = ErrorCodeDetail(
         status.HTTP_401_UNAUTHORIZED,
         "The Pin you provided for this profile does is not correct.",
         "The Pin is not correct, try again.",
     )
-    # --- ADD THIS NEW ERROR ---
     GOOGLE_LOGIN_FAILED = ErrorCodeDetail(
         status.HTTP_401_UNAUTHORIZED,
         "The Google ID token could not be verified.",
         "Google authentication failed. Please try again.",
     )
-
-    # --- Resource Not Found Errors (200-299) ---
     ACCOUNT_NOT_FOUND = ErrorCodeDetail(
         status.HTTP_404_NOT_FOUND,
         "The requested account could not be found.",
@@ -72,12 +64,15 @@ class ApiErrorCode(Enum):
         "The requested addon could not be found for the given profile.",
         "The requested addon could not be found.",
     )
-
-    # --- Conflict/Duplicate Errors (300-399) ---
     ACCOUNT_EMAIL_EXISTS = ErrorCodeDetail(
         status.HTTP_409_CONFLICT,
         "An account with the provided email address already exists.",
         "An account with this email address already exists.",
+    )
+    ACCOUNT_EMAIL_IN_USE_BY_SOCIAL = ErrorCodeDetail(
+        status.HTTP_409_CONFLICT,
+        "An account with this email is already registered, but with a password.",
+        "This email is registered with a password. Please sign in with your password instead.",
     )
     ADDON_ALREADY_INSTALLED = ErrorCodeDetail(
         status.HTTP_409_CONFLICT,
@@ -89,8 +84,6 @@ class ApiErrorCode(Enum):
         "The account has reached the maximum number of profiles allowed.",
         "You have reached the maximum number of profiles for this account.",
     )
-
-    # --- Validation Errors (400-499) ---
     VALIDATION_ERROR = ErrorCodeDetail(
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         "Input validation failed.",

@@ -39,18 +39,10 @@ export const useSearch = (profileId: string, query: string) => {
 
         const client = createClient({
             url: wsUrl,
-            // --- THIS IS THE DEFINITIVE FIX ---
-            // The original gateway's `onSubscribe` hook expects a `request` object inside `ctx.extra`.
-            // By structuring our connection parameters this way, we are making our client
-            // perfectly compatible with the server's expectation.
             connectionParams: () => {
                 const token = localStorage.getItem('accessToken');
                 return {
-                    request: {
-                        headers: {
-                            authorization: token ? `Bearer ${token}` : '',
-                        },
-                    },
+                    authorization: token ? `Bearer ${token}` : '',
                 };
             },
         });

@@ -9,8 +9,8 @@ from .get_manifest import GetManifestUseCase
 
 class AggregateCatalogUseCase:
     """
-    Orchestrates fetching catalog data. If a manifest_id_filter is provided,
-    it will only query that specific addon. Otherwise, it aggregates from all.
+    Orchestrates fetching catalog data. It intelligently filters addons
+    based on the selected criteria before making any external requests.
     """
 
     def __init__(
@@ -20,6 +20,50 @@ class AggregateCatalogUseCase:
     ):
         self.get_manifest_use_case = get_manifest_use_case
         self.addon_provider = addon_provider
+
+    def _is_manifest_relevant(
+        self,
+        manifest: AddonManifest,
+        item_type: str,
+        catalog_id: Optional[str],
+        extra_props: Dict[str, Any],
+    ) -> bool:
+        """
+        Checks if a manifest has catalogs that can satisfy the given filter criteria.
+        It deliberately ignores pagination properties like 'skip'.
+        """
+        filtering_props = extra_props.copy()
+        filtering_props.pop("skip", None)
+
+        for catalog in manifest.catalogs:
+            if catalog.type != item_type:
+                continue
+            if catalog_id and catalog.id != catalog_id:
+                continue
+
+            if not filtering_props:
+                return True
+
+            all_props_supported = True
+            for key, value in filtering_props.items():
+                prop_is_supported_in_catalog = False
+                if catalog.extra:
+                    for extra_option in catalog.extra:
+                        if extra_option.name == key:
+                            if (
+                                extra_option.options is None
+                                or value in extra_option.options
+                            ):
+                                prop_is_supported_in_catalog = True
+                                break
+                if not prop_is_supported_in_catalog:
+                    all_props_supported = False
+                    break
+
+            if all_props_supported:
+                return True
+
+        return False
 
     async def _get_fetch_tasks_for_manifest(
         self,
@@ -84,16 +128,41 @@ class AggregateCatalogUseCase:
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )
 
-        manifests_to_process = manifests
+        manifests_to_process: List[AddonManifest] = []
+
         if manifest_id_filter:
             manifests_to_process = [
                 m for m in manifests if m and m.id == manifest_id_filter
             ]
-            if not manifests_to_process:
-                log_warn(
-                    f"Provider filter applied, but no installed addon with ID '{manifest_id_filter}' was found."
-                )
-                return []
+        else:
+            for m in manifests:
+                if not m:
+                    continue
+                # When "All Providers", we must find relevant manifests
+                if catalog_id:
+                    # If a specific sub-catalog is chosen, only check manifests that contain it.
+                    if any(
+                        c.id == catalog_id and c.type == item_type for c in m.catalogs
+                    ):
+                        manifests_to_process.append(m)
+                elif self._is_manifest_relevant(m, item_type, catalog_id, extra_props):
+                    manifests_to_process.append(m)
+
+        if not manifests_to_process:
+            log_warn(
+                "No installed addons match the specified filter criteria.",
+                data={
+                    "item_type": item_type,
+                    "catalog_id": catalog_id,
+                    "extra_props": extra_props,
+                },
+            )
+            return []
+
+        log_info(
+            f"Filtered to {len(manifests_to_process)} relevant addons for query.",
+            data={"addon_ids": [m.id for m in manifests_to_process]},
+        )
 
         tasks_with_prefixes: List[Tuple[asyncio.Task, str]] = []
         for manifest in manifests_to_process:

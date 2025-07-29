@@ -13,7 +13,7 @@ import { useServer } from 'graphql-ws/use/ws';
 import { createClient } from 'graphql-ws';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { Server, IncomingMessage } from 'http';
-import { introspectionFromSchema, GraphQLFormattedError, ExecutionArgs, getOperationAST, print } from 'graphql';
+import { ExecutionArgs, getOperationAST, print } from 'graphql';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 class AuthenticatedDataSource extends RemoteGraphQLDataSource {
@@ -52,19 +52,6 @@ async function startGateway() {
 
   const app = express();
 
-  const allowedOrigins = ['https://localhost:3000', 'http://localhost:3000'];
-  const corsOptions: cors.CorsOptions = {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  };
-  app.use(cors(corsOptions));
-
   let httpServer: Server;
   try {
     const keyPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2-key.pem');
@@ -76,12 +63,10 @@ async function startGateway() {
     httpServer = http.createServer(app);
   }
 
-  const authProxy = createProxyMiddleware({
-    target: serviceMap.auth.url,
-    changeOrigin: true,
-    secure: false,
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: '/graphql',
   });
-  app.use('/api/v1/auth', authProxy);
 
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
@@ -96,101 +81,84 @@ async function startGateway() {
     },
   });
 
-  const wsServerCleanupPlugin = {
-    async serverWillStart() {
-      return {
-        async drainServer() {
-          await serverCleanup.dispose();
-        },
-      };
-    },
-  };
+  let serverCleanup: { dispose: () => void | Promise<void> } | null = null;
 
   const server = new ApolloServer({
     gateway,
     introspection: true,
-    formatError: (formattedError: GraphQLFormattedError) => {
-      const unexpectedErrorCodes = ['INTERNAL_SERVER_ERROR', 'GRAPHQL_PARSE_FAILED', 'GRAPHQL_VALIDATION_FAILED'];
-      const extensions = formattedError.extensions || {};
-      const errorCode = extensions.code;
-      if (errorCode && !unexpectedErrorCodes.includes(String(errorCode))) {
-        if (extensions.stacktrace) {
-          delete extensions.stacktrace;
-        }
-      }
-      return formattedError;
-    },
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
-      wsServerCleanupPlugin,
+      {
+        async serverWillStart() {
+          serverCleanup = useServer(
+            {
+              schema: gateway.schema,
+              context: (ctx) => {
+                const { connectionParams, extra } = ctx;
+                const { request } = extra as { request: IncomingMessage };
+                return {
+                  headers: {
+                    authorization: connectionParams?.Authorization || request.headers['authorization'],
+                  },
+                  gateway
+                };
+              },
+              execute: (args: ExecutionArgs) => (args.contextValue as any).gateway.execute(args),
+              subscribe: async (args: ExecutionArgs) => {
+                const { gateway, ...context } = args.contextValue as any;
+                const document = args.document;
+                const operationName = args.operationName!;
+                const operationAst = getOperationAST(document, operationName);
+                if (operationAst?.operation === 'subscription') {
+                  const forwardClient = createClient({
+                    url: serviceMap.addons.url,
+                    webSocketImpl: class extends WebSocket {
+                      constructor(url: string | URL, protocols: string | string[] | undefined) {
+                        super(url, protocols, { agent: localhostHttpsAgent, rejectUnauthorized: false });
+                      }
+                    },
+                    connectionParams: {
+                      Authorization: context.headers?.authorization,
+                    },
+                  });
+                  return forwardClient.iterate({
+                    query: print(document),
+                    variables: args.variableValues,
+                    operationName: operationName,
+                  });
+                }
+                return gateway.execute(args);
+              }
+            },
+            wsServer,
+          );
+          return {
+            async drainServer() {
+              await serverCleanup?.dispose();
+            },
+          };
+        },
+      },
     ],
   });
 
   await server.start();
 
-  // --- THIS IS THE FIX for the 413 Error ---
-  // We increase the JSON body limit before applying the GraphQL middleware.
-  // '10mb' is a generous limit for base64-encoded images.
-  app.use('/graphql', express.json({ limit: '10mb' }));
+  const authProxy = createProxyMiddleware({
+    target: serviceMap.auth.url,
+    changeOrigin: true,
+    secure: false,
+  });
+  app.use('/api/v1/auth', authProxy);
 
   app.use(
     '/graphql',
+    cors<cors.CorsRequest>(),
+    express.json({ limit: '10mb' }),
     expressMiddleware(server, {
       context: async ({ req }) => ({ headers: req.headers }),
     })
   );
-
-  app.get('/', (req, res) => { res.send(`API Gateway is running.`); });
-  app.get('/graphql/schema.json', (req, res) => {
-    if (gateway.schema) {
-      const schemaJson = introspectionFromSchema(gateway.schema);
-      res.json(schemaJson);
-    } else {
-      res.status(503).send('Gateway schema is not available yet.');
-    }
-  });
-
-  const wsServer = new WebSocketServer({ server: httpServer, path: '/graphql' });
-
-  class CustomWebSocket extends WebSocket {
-    constructor(url: string | URL, protocols: string | string[] | undefined) {
-      super(url, protocols, { agent: localhostHttpsAgent, rejectUnauthorized: false });
-    }
-  }
-
-  const serverCleanup = useServer({
-    execute: (args: ExecutionArgs) => (args.contextValue as any).gateway.execute(args),
-    subscribe: async (args: ExecutionArgs) => {
-      const { gateway, ...context } = args.contextValue as any;
-      const document = args.document;
-      const operationName = args.operationName!;
-      const operationAst = getOperationAST(document, operationName);
-      if (operationAst?.operation === 'subscription') {
-        const forwardClient = createClient({
-          url: serviceMap.addons.url,
-          webSocketImpl: CustomWebSocket,
-          connectionParams: {
-            Authorization: context.headers?.authorization,
-          },
-        });
-        return forwardClient.iterate({
-          query: print(document),
-          variables: args.variableValues,
-          operationName: operationName,
-        });
-      }
-      return gateway.execute(args);
-    },
-    context: (ctx) => {
-      const { request } = ctx.extra as { request: IncomingMessage };
-      return {
-        headers: {
-          authorization: ctx.connectionParams?.Authorization || request.headers['authorization'],
-        },
-        gateway,
-      };
-    },
-  }, wsServer);
 
   const PORT = 4000;
   httpServer.listen({ port: PORT }, () => {
