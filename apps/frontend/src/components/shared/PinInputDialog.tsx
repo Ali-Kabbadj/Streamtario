@@ -12,7 +12,6 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { Button } from "@/components/ui/button";
 import { LoaderIcon } from "lucide-react";
 interface PinInputDialogProps {
   isOpen: boolean;

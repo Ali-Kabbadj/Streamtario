@@ -1,22 +1,28 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
 import type { Profile } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
 
-type ProfileContextType = {
-  selectedProfile: Pick<Profile, "id" | "name" | "avatar"> | null;
-  selectProfile: (profile: Pick<Profile, "id" | "name" | "avatar">) => void;
-};
-
+interface ProfileContextType {
+  selectedProfile: SelectableProfile | null;
+  selectProfile: (profile: SelectableProfile | null) => void;
+}
+export type SelectableProfile = Pick<
+  Profile,
+  "id" | "name" | "avatar" | "isPrivate"
+>;
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [selectedProfile, setSelectedProfile] = useState<Pick<
-    Profile,
-    "id" | "name" | "avatar"
-  > | null>(null);
+  const [selectedProfile, setSelectedProfile] =
+    useState<SelectableProfile | null>(null);
 
-  const selectProfile = (profile: Pick<Profile, "id" | "name" | "avatar">) => {
+  const selectProfile = (profile: SelectableProfile | null) => {
     setSelectedProfile(profile);
   };
 

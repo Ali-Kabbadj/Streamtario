@@ -29,7 +29,52 @@ export const AccountDocument = graphql(`
         id
         name
         avatar
-        isPrivate # <--- THIS IS THE FIX. We must request this field.
+        isPrivate
+      }
+    }
+  }
+`);
+
+export const DiscoverableCatalogsDocument = graphql(`
+  query DiscoverableCatalogs($profileId: ID!) {
+    profile(id: $profileId) {
+      discoverableCatalogs {
+        addonName
+        manifestId
+        catalogId
+        catalogName
+        catalogType
+        extraProps {
+          name
+          isRequired
+          options
+        }
+      }
+    }
+  }
+`);
+
+export const CatalogDocument = graphql(`
+  query Catalog(
+    $profileId: ID!
+    $itemType: String!
+    $catalogId: String!
+    $manifestId: String
+    $extraProps: JSON
+  ) {
+    profile(id: $profileId) {
+      catalog(
+        itemType: $itemType
+        catalogId: $catalogId
+        manifestId: $manifestId
+        extraProps: $extraProps
+      ) {
+        items {
+          id
+          name
+          type
+          poster
+        }
       }
     }
   }
@@ -135,6 +180,20 @@ export const UninstallAddonDocument = graphql(`
         code
         message
       }
+    }
+  }
+`);
+
+// ============================================================================
+// SUBSCRIPTIONS
+// ============================================================================
+
+export const SearchDocument = graphql(`
+  subscription Search($profileId: String!, $query: String!) {
+    search(profileId: $profileId, query: $query) {
+      addonName
+      resultsByType
+      error
     }
   }
 `);
