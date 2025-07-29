@@ -1,13 +1,28 @@
 import { APP_CONFIG } from "@/config/env";
 
-// A generic type for API responses
+type ApiError = {
+    type: string;
+    dev_message: string;
+    ui_message: string;
+    details?: unknown;
+};
+
 type ApiResponse<T> = {
     ok: boolean;
     data?: T;
-    error?: { ui_message: string };
+    error?: ApiError;
 };
 
-// A generic fetch client to handle API requests
+export class ClientError extends Error {
+    public readonly errorData: ApiError;
+
+    constructor(errorData: ApiError) {
+        super(errorData.ui_message);
+        this.name = "ClientError";
+        this.errorData = errorData;
+    }
+}
+
 export async function fetchClient<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -27,6 +42,15 @@ export async function fetchClient<T>(
     if (body.ok && body.data) {
         return body.data;
     } else {
-        throw new Error(body.error?.ui_message ?? errorMessage);
+        const errorDetail = body.error ?? {
+            type: "UNKNOWN_CLIENT_ERROR",
+            dev_message: "The API response was not 'ok' but contained no error body.",
+            ui_message: errorMessage,
+        };
+        console.error("API Client Error:", {
+            endpoint: endpoint,
+            ...errorDetail,
+        });
+        throw new ClientError(errorDetail);
     }
 }

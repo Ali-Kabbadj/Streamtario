@@ -4,6 +4,33 @@ import { graphql } from './gen/gql';
 // QUERIES
 // ============================================================================
 
+export const GetMetaDetailsDocument = graphql(`
+  query GetMetaDetails($profileId: ID!, $itemType: String!, $itemId: String!) {
+    profile(id: $profileId) {
+      meta(itemType: $itemType, itemId: $itemId) {
+        id
+        name
+        type
+        poster
+        background
+        logo
+        description
+        releaseInfo
+        imdbRating
+        genres
+        videos {
+          id
+          title
+          released
+          thumbnail
+          season
+          episode
+        }
+      }
+    }
+  }
+`);
+
 export const GetFullProfileDocument = graphql(`
   query GetFullProfile($profileId: ID!) {
     profile(id: $profileId) {
