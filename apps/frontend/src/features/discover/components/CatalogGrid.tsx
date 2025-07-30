@@ -16,6 +16,8 @@ interface CatalogGridProps {
   fetchNextPage: () => void;
 }
 
+const PREFETCH_THRESHOLD = 8;
+
 export function CatalogGrid({
   pages,
   isLoading,
@@ -23,10 +25,7 @@ export function CatalogGrid({
   hasNextPage,
   fetchNextPage,
 }: CatalogGridProps) {
-  const { ref, inView } = useInView({
-    rootMargin: "800px 0px",
-    triggerOnce: false,
-  });
+  const { ref, inView } = useInView();
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
@@ -64,13 +63,21 @@ export function CatalogGrid({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-        {allItems.map((item) => (
-          <CatalogItemCard key={item.id} item={item} />
-        ))}
-        {isFetchingNextPage && renderSkeletons(6)}
-      </div>
+        {allItems.map((item, index) => {
+          const isPrefetchTrigger =
+            allItems.length > PREFETCH_THRESHOLD &&
+            index === allItems.length - PREFETCH_THRESHOLD;
 
-      <div ref={ref} className="h-1" />
+          return (
+            <CatalogItemCard
+              key={item.id}
+              item={item}
+              ref={isPrefetchTrigger ? ref : null}
+            />
+          );
+        })}
+        {isFetchingNextPage && renderSkeletons(10)}
+      </div>
 
       {!hasNextPage && !isLoading && allItems.length > 0 && (
         <p className="mt-4 text-center text-slate-400">

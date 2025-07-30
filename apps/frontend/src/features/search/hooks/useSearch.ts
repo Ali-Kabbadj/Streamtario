@@ -5,15 +5,11 @@ import { createClient } from 'graphql-ws';
 import { print } from 'graphql';
 import { APP_CONFIG } from '@/config/env';
 import { SearchDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
+import type { SearchSubscription } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
 const wsUrl = APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('https', 'wss');
 
-export interface SearchResultItem {
-    id: string;
-    name: string;
-    type: string;
-    poster?: string | null;
-}
+export type SearchResultItem = NonNullable<NonNullable<SearchSubscription['search']>['resultsByType']>[string][0];
 
 export interface AddonResults {
     addonName: string;
@@ -53,22 +49,19 @@ export const useSearch = (profileId: string, query: string) => {
                 variables: { profileId, query },
             },
             {
-                next: ({ data }) => {
+                next: (data) => {
                     setIsLoading(false);
-                    const searchResult = data?.search;
+                    const searchResult = data.data?.search as SearchSubscription['search'];
                     if (searchResult) {
                         setResults(prev => {
                             const newResults = new Map(prev);
                             const addonName = searchResult.addonName;
 
-                            let addonEntry = newResults.get(addonName);
-                            if (!addonEntry) {
-                                addonEntry = { addonName, resultsByType: new Map(), error: searchResult.error };
-                            }
+                            const addonEntry = newResults.get(addonName) ?? { addonName, resultsByType: new Map(), error: searchResult.error };
 
                             if (searchResult.resultsByType) {
-                                for (const [type, items] of Object.entries(searchResult.resultsByType)) {
-                                    addonEntry.resultsByType.set(type, items as SearchResultItem[]);
+                                for (const [type, items] of Object.entries(searchResult.resultsByType as Record<string, SearchResultItem[]>)) {
+                                    addonEntry.resultsByType.set(type, items);
                                 }
                             }
 

@@ -2,6 +2,7 @@ import strawberry
 from typing import List, Optional, AsyncGenerator
 from strawberry.federation.schema_directives import Requires
 from strawberry.scalars import JSON
+from core.pydantic.catalog.catalog import CatalogItem
 
 
 @strawberry.type
@@ -29,6 +30,15 @@ class CatalogItemType:
     type: str
     name: str
     poster: Optional[str] = None
+
+    @classmethod
+    def from_pydantic(cls, model: CatalogItem) -> "CatalogItemType":
+        return cls(
+            id=strawberry.ID(model.id),
+            type=model.type,
+            name=model.name,
+            poster=model.poster,
+        )
 
 
 @strawberry.type
@@ -66,7 +76,18 @@ class AddonSearchResultType:
     addon_name: str
     results_by_type: JSON  # type: ignore
     error: Optional[str] = None
-    error: Optional[str] = None
+
+
+@strawberry.type
+class HomeContentRowType:
+    title: str
+    items: List[CatalogItemType]
+
+
+@strawberry.type
+class HomeAddonSectionType:
+    addon_name: str
+    content: List[HomeContentRowType]
 
 
 @strawberry.federation.type(name="Profile", keys=["id"], extend=True)
@@ -100,3 +121,9 @@ class ProfileExtension:
         from .resolvers import resolve_profile_meta
 
         return await resolve_profile_meta(self, itemType, itemId)
+
+    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    async def home_catalogs(self) -> List["HomeAddonSectionType"]:
+        from .resolvers import resolve_home_catalogs
+
+        return await resolve_home_catalogs(self)

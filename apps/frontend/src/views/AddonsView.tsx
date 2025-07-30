@@ -11,12 +11,11 @@ import { useInstallAddon } from "@/features/addons/hooks/useInstallAddon";
 import { useUninstallAddon } from "@/features/addons/hooks/useUninstallAddon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/features/profile/hooks/use-profile";
-import { MainAppLayout } from "@/features/layout";
 import { useProfileContext } from "@/providers/profile-provider";
 
 type TabValue = "installed" | "official" | "community";
 
-export default function AddonsPage() {
+export function AddonsView() {
   const { selectedProfile } = useProfileContext();
   const [activeTab, setActiveTab] = useState<TabValue>("official");
   const [pendingAddonId, setPendingAddonId] = useState<string | null>(null);
@@ -105,7 +104,6 @@ export default function AddonsPage() {
   };
 
   return (
-    // The MainAppLayout wrapper is GONE.
     <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Add-on Management</h1>

@@ -1,9 +1,5 @@
 import { graphql } from './gen/gql';
 
-// ============================================================================
-// QUERIES
-// ============================================================================
-
 export const GetMetaDetailsDocument = graphql(`
   query GetMetaDetails($profileId: ID!, $itemType: String!, $itemId: String!) {
     profile(id: $profileId) {
@@ -107,9 +103,24 @@ export const CatalogDocument = graphql(`
   }
 `);
 
-// ============================================================================
-// MUTATIONS
-// ============================================================================
+export const HomeCatalogsDocument = graphql(`
+  query HomeCatalogs($profileId: ID!) {
+    profile(id: $profileId) {
+      homeCatalogs {
+        addonName
+        content {
+          title
+          items {
+            id
+            name
+            type
+            poster
+          }
+        }
+      }
+    }
+  }
+`);
 
 export const VerifyProfilePinDocument = graphql(`
   mutation VerifyProfilePin($profileId: ID!, $pin: String!) {
@@ -210,10 +221,6 @@ export const UninstallAddonDocument = graphql(`
     }
   }
 `);
-
-// ============================================================================
-// SUBSCRIPTIONS
-// ============================================================================
 
 export const SearchDocument = graphql(`
   subscription Search($profileId: String!, $query: String!) {

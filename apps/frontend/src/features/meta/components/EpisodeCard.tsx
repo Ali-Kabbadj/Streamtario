@@ -4,10 +4,11 @@ import { motion } from "framer-motion";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import type { GetMetaDetailsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
 
 type Episode = NonNullable<
-  NonNullable<GetMetaDetailsQuery["profile"]>["meta"]
->["videos"][0];
+  NonNullable<NonNullable<GetMetaDetailsQuery["profile"]>["meta"]>["videos"]
+>[0];
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -22,10 +23,11 @@ export function EpisodeCard({ episode }: EpisodeCardProps) {
       }}
     >
       <AspectRatio ratio={16 / 9} className="flex-shrink-0">
-        <Image
-          src={episode.thumbnail ?? "/placeholder-poster.png"}
-          alt={episode.title}
+        <ImageWithFallback
           className="h-full w-full rounded-md object-cover"
+          fallbackSrc={"/images/NoImageLandscape.png"}
+          alt={"Episode thumbnail"}
+          src={episode.thumbnail ?? ""}
           width={320}
           height={180}
         />

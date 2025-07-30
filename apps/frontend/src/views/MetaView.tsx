@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
-import { useRouter } from "next/router";
 import { useProfileContext } from "@/providers/profile-provider";
+import { useView } from "@/providers/view-provider";
 import { useMetaDetails } from "@/features/meta/hooks/useMetaDetails";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
@@ -8,18 +8,23 @@ import { Badge } from "@/components/ui/badge";
 import { Star, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { GetMetaDetailsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type {
+  GetMetaDetailsQuery,
+  VideoType,
+} from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { EpisodeCard } from "@/features/meta/components/EpisodeCard";
 
-type Video = NonNullable<
-  NonNullable<GetMetaDetailsQuery["profile"]>["meta"]
->["videos"][0];
-type GroupedVideos = Record<number, Video[]>;
+interface MetaViewProps {
+  itemType: string;
+  itemId: string;
+}
 
-export default function MetaDetailsPage() {
-  const router = useRouter();
+type Video = VideoType;
+type GroupedVideos = Record<string, Video[]>;
+
+export function MetaView({ itemType, itemId }: MetaViewProps) {
+  const { navigateTo } = useView();
   const { selectedProfile } = useProfileContext();
-  const { type: itemType, id: itemId } = router.query;
 
   const {
     data: meta,
@@ -28,19 +33,17 @@ export default function MetaDetailsPage() {
     error,
   } = useMetaDetails({
     profileId: selectedProfile?.id ?? "",
-    itemType: itemType as string,
-    itemId: itemId as string,
+    itemType: itemType,
+    itemId: itemId,
   });
 
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
 
   const seasons = useMemo(() => {
     if (!meta?.videos) return {};
-    return meta.videos.reduce((acc: GroupedVideos, video) => {
-      const seasonNum = video.season ?? 1;
-      if (!acc[seasonNum]) {
-        acc[seasonNum] = [];
-      }
+    return (meta.videos ?? []).reduce((acc: GroupedVideos, video) => {
+      const seasonNum = (video.season ?? 1).toString();
+      acc[seasonNum] ??= [];
       acc[seasonNum].push(video);
       return acc;
     }, {});
@@ -75,7 +78,7 @@ export default function MetaDetailsPage() {
 
   if (isError) {
     return (
-      <div className="text-center text-red-500">Error: {error.message}</div>
+      <div className="text-center text-red-500">Error: {error?.message}</div>
     );
   }
 
@@ -88,7 +91,7 @@ export default function MetaDetailsPage() {
       <div className="container mt-8">
         <Button
           variant="outline"
-          onClick={() => router.back()}
+          onClick={() => navigateTo({ name: "discover" })}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -167,10 +170,10 @@ export default function MetaDetailsPage() {
                   </TabsTrigger>
                 ))}
               </TabsList>
-              {selectedSeason && seasons[parseInt(selectedSeason)] && (
+              {selectedSeason && seasons[selectedSeason] && (
                 <TabsContent value={selectedSeason} className="mt-4">
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    {seasons[parseInt(selectedSeason)].map((episode) => (
+                    {(seasons[selectedSeason] as Video[]).map((episode) => (
                       <EpisodeCard key={episode.id} episode={episode} />
                     ))}
                   </div>

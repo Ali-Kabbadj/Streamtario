@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
 import { useDiscover } from "@/features/discover/hooks/useDiscover";
 import { useCatalog } from "@/features/discover/hooks/useCatalog";
@@ -8,7 +8,7 @@ import { DiscoverFilters } from "@/features/discover/components/DiscoverFilters"
 import { CatalogGrid } from "@/features/discover/components/CatalogGrid";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function DiscoverPage() {
+export function DiscoverView() {
   const { selectedProfile } = useProfileContext();
 
   const [selectedType, setSelectedType] = useState("");
@@ -66,13 +66,50 @@ export default function DiscoverPage() {
     isEnabled: isQueryEnabled,
   });
 
+  const handleTypeChange = useCallback(
+    (type: string) => {
+      setSelectedType(type);
+      setSelectedProvider("all");
+      setExtraFilters({});
+      const firstCatalogForType = discoverData?.find(
+        (c) => c.catalogType === type,
+      );
+      setSelectedCatalogId(firstCatalogForType?.catalogId ?? "");
+    },
+    [discoverData],
+  );
+
+  const handleProviderChange = useCallback(
+    (providerId: string) => {
+      setSelectedProvider(providerId);
+      setExtraFilters({});
+      const firstCatalogForProvider = discoverData?.find(
+        (c) =>
+          c.catalogType === selectedType &&
+          (providerId === "all" || c.manifestId === providerId),
+      );
+      setSelectedCatalogId(firstCatalogForProvider?.catalogId ?? "");
+    },
+    [discoverData, selectedType],
+  );
+
+  const handleCatalogChange = useCallback((catalogId: string) => {
+    setSelectedCatalogId(catalogId);
+    setExtraFilters({});
+  }, []);
+
+  const handleExtraFilterChange = useCallback((key: string, value: string) => {
+    setExtraFilters((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   useEffect(() => {
     if (discoverData && discoverData.length > 0 && !selectedType) {
-      const firstType = discoverData[0].catalogType;
-      handleTypeChange(firstType);
+      const firstType = discoverData[0]?.catalogType;
+      if (firstType) {
+        handleTypeChange(firstType);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discoverData, selectedType]);
+  }, [discoverData, selectedType, handleTypeChange]);
 
   useEffect(() => {
     if (selectedCatalogData) {
@@ -81,7 +118,7 @@ export default function DiscoverPage() {
       );
       const updates: Record<string, string> = {};
       requiredFilters.forEach((filter) => {
-        if (!extraFilters[filter.name] && filter.options) {
+        if (!extraFilters[filter.name] && filter.options?.[0]) {
           updates[filter.name] = filter.options[0];
         }
       });
@@ -90,36 +127,6 @@ export default function DiscoverPage() {
       }
     }
   }, [selectedCatalogData, extraFilters]);
-
-  const handleTypeChange = (type: string) => {
-    setSelectedType(type);
-    setSelectedProvider("all");
-    setExtraFilters({});
-    const firstCatalogForType = discoverData?.find(
-      (c) => c.catalogType === type,
-    );
-    setSelectedCatalogId(firstCatalogForType?.catalogId ?? "");
-  };
-
-  const handleProviderChange = (providerId: string) => {
-    setSelectedProvider(providerId);
-    setExtraFilters({});
-    const firstCatalogForProvider = discoverData?.find(
-      (c) =>
-        c.catalogType === selectedType &&
-        (providerId === "all" || c.manifestId === providerId),
-    );
-    setSelectedCatalogId(firstCatalogForProvider?.catalogId ?? "");
-  };
-
-  const handleCatalogChange = (catalogId: string) => {
-    setSelectedCatalogId(catalogId);
-    setExtraFilters({});
-  };
-
-  const handleExtraFilterChange = (key: string, value: string) => {
-    setExtraFilters((prev) => ({ ...prev, [key]: value }));
-  };
 
   return (
     <div className="container mx-auto">

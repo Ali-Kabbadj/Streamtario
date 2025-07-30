@@ -4,6 +4,7 @@ from app.containers import Container
 from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
+from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
 from .types import (
     CatalogResult,
     ProfileExtension,
@@ -12,6 +13,8 @@ from .types import (
     VideoType,
     DiscoveredCatalogType,
     DiscoveredCatalogExtraProp,
+    HomeAddonSectionType,
+    HomeContentRowType,
 )
 import strawberry
 from core.utils.logging import log_info
@@ -139,3 +142,30 @@ async def resolve_profile_meta(
         ),
     )
     return strawberry_meta
+
+
+@inject
+async def resolve_home_catalogs(
+    profile: ProfileExtension,
+    use_case: GetHomeCatalogsUseCase = Provide[Container.get_home_catalogs_use_case],
+) -> List[HomeAddonSectionType]:
+    log_info(
+        f"GraphQL: Resolving federated field 'homeCatalogs' for profile {profile.id}",
+        context="graphql",
+    )
+    pydantic_sections = await use_case.execute(manifest_urls=profile.manifest_urls)
+
+    strawberry_sections = []
+    for section in pydantic_sections:
+        strawberry_rows = []
+        for row in section.content:
+            strawberry_items = [
+                CatalogItemType.from_pydantic(item) for item in row.items
+            ]
+            strawberry_rows.append(
+                HomeContentRowType(title=row.title, items=strawberry_items)
+            )
+        strawberry_sections.append(
+            HomeAddonSectionType(addon_name=section.addon_name, content=strawberry_rows)
+        )
+    return strawberry_sections

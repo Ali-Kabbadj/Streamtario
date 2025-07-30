@@ -3,7 +3,9 @@
 import { CatalogItemCard } from "@/components/features/discover/CatalogItemCard";
 import type { CatalogQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 
-type CatalogItem = CatalogQuery["profile"]["catalog"]["items"][0];
+type CatalogItem = NonNullable<
+  NonNullable<CatalogQuery["profile"]>["catalog"]
+>["items"][0];
 
 interface ContentTypeRowProps {
   title: string;
