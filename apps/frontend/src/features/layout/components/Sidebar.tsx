@@ -24,7 +24,7 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="bg-background fixed inset-y-0 left-0 z-10 flex w-20 flex-col border-r border-slate-700">
+      <aside className="bg-background-primary fixed inset-y-0 left-0 z-10 flex w-20 flex-col">
         <nav className="flex flex-col items-center gap-4 px-2 py-4">
           <div className="h-10 w-10" />
           {navLinks.map(({ href, label, icon: Icon }) => {

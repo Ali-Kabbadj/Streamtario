@@ -85,7 +85,7 @@ export default function MetaDetailsPage() {
 
   return (
     <div className="w-full">
-      <div className="container mx-auto mt-8">
+      <div className="container mt-8">
         <Button
           variant="outline"
           onClick={() => router.back()}
@@ -94,7 +94,6 @@ export default function MetaDetailsPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
-
       <div className="relative h-[40vh] w-full">
         {meta.background && (
           <Image
@@ -102,7 +101,7 @@ export default function MetaDetailsPage() {
             alt={`${meta.name} background`}
             layout="fill"
             objectFit="cover"
-            className="opacity-30"
+            className="rounded-2xl opacity-80"
           />
         )}
         <div className="from-background via-background/80 absolute inset-0 bg-gradient-to-t to-transparent" />

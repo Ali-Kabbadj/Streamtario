@@ -44,7 +44,7 @@ export function Header() {
   };
 
   return (
-    <header className="bg-background/95 sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-slate-700 px-4 backdrop-blur-sm md:px-6">
+    <header className="bg-background-primary sticky top-0 z-30 flex h-16 items-center justify-between gap-4 px-4 backdrop-blur-sm md:px-6">
       <div className="flex-1">
         <form onSubmit={handleSearchSubmit}>
           <div className="relative">
