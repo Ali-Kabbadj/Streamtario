@@ -10,44 +10,66 @@ import {
   ProfileProvider,
   useProfileContext,
 } from "@/providers/profile-provider";
+import { ViewProvider, useView } from "@/providers/view-provider";
 import { GlobalLoader } from "@/components/shared/GlobalLoader";
 import { AuthFeature } from "@/features/auth";
 import { ProfileSelectionFeature } from "@/features/profile-selection";
 import { MainAppLayout } from "@/features/layout";
+import { HomeView } from "@/views/HomeView";
+import { DiscoverView } from "@/views/DiscoverView";
+import { AddonsView } from "@/views/AddonsView";
+import { SearchView } from "@/views/SearchView";
+import { MetaView } from "@/views/MetaView";
 
-// This component is the new "brain" of the application's UI.
-// It receives the page component as its child.
-const AppContent = ({ children }: { children: React.ReactNode }) => {
+const RenderActiveView = () => {
+  const { currentView } = useView();
+
+  switch (currentView.name) {
+    case "home":
+      return <HomeView />;
+    case "discover":
+      return <DiscoverView />;
+    case "addons":
+      return <AddonsView />;
+    case "search":
+      return <SearchView query={currentView.query} />;
+    case "meta":
+      return (
+        <MetaView itemId={currentView.itemId} itemType={currentView.itemType} />
+      );
+    default:
+      return <HomeView />;
+  }
+};
+
+const AppContent = () => {
   const { isAuthenticated, user, isLoading } = useAuth();
   const { selectedProfile, selectProfile } = useProfileContext();
 
-  // 1. While we're figuring out the auth state, show a global loader.
   if (isLoading) {
     return <GlobalLoader />;
   }
 
-  // 2. If the user is not authenticated, they can only see the login screen.
   if (!isAuthenticated) {
     return <AuthFeature />;
   }
 
-  // 3. If they are authenticated but haven't selected a profile, show the selection screen.
-  // This correctly passes the `onProfileSelect` prop.
   if (isAuthenticated && user && !selectedProfile) {
     return <ProfileSelectionFeature onProfileSelect={selectProfile} />;
   }
 
-  // 4. If they are authenticated AND have selected a profile, show the main app layout.
-  // The current page (passed as `children`) is rendered inside this persistent layout.
   if (isAuthenticated && selectedProfile) {
-    return <MainAppLayout>{children}</MainAppLayout>;
+    return (
+      <MainAppLayout>
+        <RenderActiveView />
+      </MainAppLayout>
+    );
   }
 
-  // Fallback case, should not normally be reached.
   return <GlobalLoader />;
 };
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App({ Component: _Component, pageProps: _pageProps }: AppProps) {
   if (!APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
     console.error("Google Client ID is not configured.");
     return <div>Error: Google authentication is not configured.</div>;
@@ -64,18 +86,14 @@ export default function App({ Component, pageProps }: AppProps) {
         <GraphqlProvider>
           <AuthProvider>
             <ProfileProvider>
-              <div className="relative">
-                <div className="fixed right-6 bottom-6 z-50">
-                  <ThemeToggle />
+              <ViewProvider>
+                <div className="relative">
+                  <div className="fixed right-6 bottom-6 z-50">
+                    <ThemeToggle />
+                  </div>
+                  <AppContent />
                 </div>
-                {/* 
-                  The AppContent component wraps the actual page component.
-                  This ensures the logic runs for every page change.
-                */}
-                <AppContent>
-                  <Component {...pageProps} />
-                </AppContent>
-              </div>
+              </ViewProvider>
             </ProfileProvider>
           </AuthProvider>
         </GraphqlProvider>

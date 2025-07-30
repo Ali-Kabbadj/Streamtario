@@ -21,9 +21,6 @@ interface UseCatalogProps {
 
 const PAGE_SIZE = 20;
 
-/**
- * Fetches paginated content for a selected catalog, including dynamic extra properties.
- */
 export const useCatalog = ({ profileId, itemType, catalogId, providerId, extraProps, isEnabled }: UseCatalogProps) => {
   return useInfiniteQuery<CatalogPage, Error>({
     queryKey: ['catalog', profileId, itemType, catalogId, providerId, extraProps],
@@ -50,7 +47,25 @@ export const useCatalog = ({ profileId, itemType, catalogId, providerId, extraPr
       };
     },
     initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.nextSkip,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.items.length < PAGE_SIZE) {
+        return null;
+      }
+
+      if (allPages.length > 1) {
+        const allPreviousItemIds = new Set(
+          allPages.slice(0, -1).flatMap(page => page.items.map(item => item.id))
+        );
+
+        const isDuplicatePage = lastPage.items.every(item => allPreviousItemIds.has(item.id));
+
+        if (isDuplicatePage) {
+          return null;
+        }
+      }
+
+      return lastPage.nextSkip;
+    },
     enabled: isEnabled,
   });
 };

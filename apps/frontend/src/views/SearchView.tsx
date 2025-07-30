@@ -1,15 +1,16 @@
 "use client";
 
-import { useRouter } from "next/router";
 import { useProfileContext } from "@/providers/profile-provider";
 import { useSearch } from "@/features/search/hooks/useSearch";
 import { AddonSearchResultSection } from "@/features/search/components/AddonSearchResultSection";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function SearchPage() {
-  const router = useRouter();
+interface SearchViewProps {
+  query: string;
+}
+
+export function SearchView({ query }: SearchViewProps) {
   const { selectedProfile } = useProfileContext();
-  const query = (router.query.q as string) || "";
 
   const { results, isLoading, error } = useSearch(
     selectedProfile?.id ?? "",

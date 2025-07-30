@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/router";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,25 +12,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { useProfileContext } from "@/providers/profile-provider"; // <-- IMPORT
-import { useAuth } from "@/providers/auth-provider"; // <-- IMPORT
+import { useProfileContext } from "@/providers/profile-provider";
+import { useAuth } from "@/providers/auth-provider";
+import { useView } from "@/providers/view-provider";
 import Image from "next/image";
 
-// This component no longer needs props passed down from the layout.
 export function Header() {
-  const router = useRouter();
   const { logout } = useAuth();
   const { selectedProfile, selectProfile } = useProfileContext();
+  const { navigateTo } = useView();
 
   const handleSwitchProfile = () => {
-    selectProfile(null); // This will trigger the state change in _app.tsx
-    void router.push("/"); // Navigate to the root to show profile selection
+    selectProfile(null);
   };
 
   const handleLogout = () => {
     logout();
     selectProfile(null);
-    void router.push("/"); // Navigate to the root to show the login screen
   };
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -39,7 +36,7 @@ export function Header() {
     const formData = new FormData(event.currentTarget);
     const searchQuery = formData.get("search") as string;
     if (searchQuery.trim()) {
-      void router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      navigateTo({ name: "search", query: searchQuery.trim() });
     }
   };
 
@@ -52,9 +49,8 @@ export function Header() {
             <Input
               type="search"
               name="search"
-              placeholder="Search for ..."
+              placeholder="Search for..."
               className="w-full appearance-none bg-slate-800 pl-8 shadow-none md:w-2/3 lg:w-1/3"
-              defaultValue={router.query.q ?? ""}
             />
           </div>
         </form>

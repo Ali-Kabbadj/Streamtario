@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { SearchResultItem } from "../hooks/useSearch";
 import { CatalogItemCard } from "@/components/features/discover/CatalogItemCard";

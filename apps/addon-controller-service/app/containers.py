@@ -23,15 +23,14 @@ from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.search_use_case import SearchUseCase
+from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
 
 
 class Container(containers.DeclarativeContainer):
-    # --- FIX: Revert to the correct Dependency pattern ---
     settings: providers.Dependency[BaseAppSettings] = providers.Dependency(
         instance_of=BaseAppSettings
     )
 
-    # --- All factories now correctly reference the `settings` provider ---
     redis_client = providers.Singleton(create_redis_client, settings=settings)
 
     api_client: providers.Factory[ApiClient] = providers.Factory(
@@ -112,4 +111,11 @@ class Container(containers.DeclarativeContainer):
         get_manifest_use_case=get_manifest_use_case,
         addon_provider=addon_provider,
         profile_manifest_cache=profile_manifest_cache,
+    )
+    get_home_catalogs_use_case: providers.Factory[GetHomeCatalogsUseCase] = (
+        providers.Factory(
+            GetHomeCatalogsUseCase,
+            get_manifest_use_case=get_manifest_use_case,
+            addon_provider=addon_provider,
+        )
     )

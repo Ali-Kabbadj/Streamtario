@@ -13,9 +13,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { CreateProfileForm } from "./components/create-profile-form";
-import type { SelectableProfile } from "@/pages/index"; // <-- IMPORT TYPE FROM PAGE
 import { useVerifyPin } from "./hooks/useVerifyPin";
 import { PinInputDialog } from "@/components/shared/PinInputDialog";
+import type { AccountQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+
+type SelectableProfile = NonNullable<AccountQuery["account"]>["profiles"][0];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -123,9 +125,7 @@ export const ProfileSelectionFeature = ({
               <motion.div key={profile.id} variants={itemVariants}>
                 <ProfileCard
                   profile={profile}
-                  onSelect={() =>
-                    handleProfileClick(profile as SelectableProfile)
-                  }
+                  onSelect={() => handleProfileClick(profile)}
                 />
               </motion.div>
             ))}

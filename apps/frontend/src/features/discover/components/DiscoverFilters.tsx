@@ -10,7 +10,15 @@ import {
 } from "@/components/ui/select";
 import type { DiscoverableCatalogsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 
-type Catalog = DiscoverableCatalogsQuery["profile"]["discoverableCatalogs"][0];
+type Catalog = NonNullable<
+  DiscoverableCatalogsQuery["profile"]
+>["discoverableCatalogs"][0];
+
+type ExtraProp = {
+  name: string;
+  options?: string[];
+  isRequired?: boolean;
+};
 
 interface DiscoverFiltersProps {
   catalogs: Catalog[];
@@ -37,12 +45,12 @@ export function DiscoverFilters({
   extraFilters,
   onExtraFilterChange,
 }: DiscoverFiltersProps) {
-  const contentTypes = useMemo(
-    () => [...new Set(catalogs.map((c) => c.catalogType))],
+  const contentTypes: string[] = useMemo(
+    () => [...new Set((catalogs ?? []).map((c) => c.catalogType))],
     [catalogs],
   );
 
-  const providers = useMemo(() => {
+  const providers: { id: string; name: string }[] = useMemo(() => {
     const uniqueProviders = new Map<string, string>();
     catalogs
       .filter((c) => c.catalogType === selectedType)
@@ -50,7 +58,7 @@ export function DiscoverFilters({
     return Array.from(uniqueProviders, ([id, name]) => ({ id, name }));
   }, [catalogs, selectedType]);
 
-  const availableCatalogs = useMemo(() => {
+  const availableCatalogs: Catalog[] = useMemo(() => {
     return catalogs.filter(
       (c) =>
         c.catalogType === selectedType &&
@@ -58,13 +66,13 @@ export function DiscoverFilters({
     );
   }, [catalogs, selectedType, selectedProvider]);
 
-  const selectedCatalogData = useMemo(() => {
+  const selectedCatalogData: Catalog | undefined = useMemo(() => {
     return availableCatalogs.find((c) => c.catalogId === selectedCatalogId);
   }, [availableCatalogs, selectedCatalogId]);
 
-  const dynamicFilters = useMemo(() => {
+  const dynamicFilters: ExtraProp[] = useMemo(() => {
     return (
-      selectedCatalogData?.extraProps.filter(
+      (selectedCatalogData?.extraProps as ExtraProp[] | undefined)?.filter(
         (p) => p.options && p.options.length > 0,
       ) ?? []
     );
@@ -123,7 +131,7 @@ export function DiscoverFilters({
         {dynamicFilters.map((filter) => (
           <Select
             key={filter.name}
-            value={extraFilters[filter.name] || ""}
+            value={extraFilters[filter.name] ?? ""}
             onValueChange={(value) => onExtraFilterChange(filter.name, value)}
           >
             <SelectTrigger className="w-auto min-w-[180px]">

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql-client';
 import { GetMetaDetailsDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
-import type { GetMetaDetailsQuery, GetMetaDetailsQueryVariables } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
+import type { GetMetaDetailsQuery, GetMetaDetailsQueryVariables, MetaItemType } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
 interface UseMetaDetailsProps {
     profileId: string;
@@ -10,7 +10,7 @@ interface UseMetaDetailsProps {
 }
 
 export const useMetaDetails = ({ profileId, itemId, itemType }: UseMetaDetailsProps) => {
-    return useQuery<GetMetaDetailsQuery, Error, GetMetaDetailsQuery['profile']['meta']>({
+    return useQuery<GetMetaDetailsQuery, Error, MetaItemType | null>({
         queryKey: ['metaDetails', profileId, itemType, itemId],
         queryFn: async () => {
             return graphqlClient.request<GetMetaDetailsQuery, GetMetaDetailsQueryVariables>(GetMetaDetailsDocument, {
@@ -19,7 +19,14 @@ export const useMetaDetails = ({ profileId, itemId, itemType }: UseMetaDetailsPr
                 itemId,
             });
         },
-        select: (data) => data.profile?.meta,
+        select: (data) => {
+            // If data.profile is null or undefined, return null for the meta details
+            if (!data.profile) {
+                return null;
+            }
+            // Otherwise, return data.profile.meta, ensuring it's either MetaItemType or null
+            return data.profile.meta ?? null;
+        },
         enabled: !!profileId && !!itemId && !!itemType,
     });
 };
