@@ -1,0 +1,53 @@
+interface SetWebViewVisibilityCommand {
+    command: "set-webview-visibility";
+    payload: {
+        visible: boolean;
+    };
+}
+
+interface PlayCommand {
+    command: "play";
+    payload: {
+        url: string; // Changed from infoHash/fileIndex to a direct URL
+    };
+}
+
+interface StopCommand {
+    command: "stop";
+}
+
+interface TogglePauseCommand {
+    command: "toggle-pause";
+}
+
+interface SeekCommand {
+    command: "seek";
+    payload: {
+        time: number;
+    };
+}
+
+interface SetVolumeCommand {
+    command: "set-volume";
+    payload: {
+        volume: number;
+    };
+}
+
+interface ToggleMuteCommand {
+    command: "toggle-mute";
+}
+
+interface ToggleFullscreenCommand {
+    command: "toggle-fullscreen";
+}
+
+export type WebViewCommand =
+    | PlayCommand
+    | StopCommand
+    | TogglePauseCommand
+    | SeekCommand
+    | SetVolumeCommand
+    | ToggleMuteCommand
+    | ToggleFullscreenCommand
+    | SetWebViewVisibilityCommand;

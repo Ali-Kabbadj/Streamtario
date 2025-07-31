@@ -29,6 +29,9 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
 )
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
 from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
+from app.use_cases.profile.get_manifest_urls_for_profile import (
+    GetManifestUrlsForProfileUseCase,
+)
 from security.jwt_service import IJwtService, JwtService
 
 
@@ -110,6 +113,10 @@ class Container(containers.DeclarativeContainer):
         uow_factory=uow.provider,
         authorization_policy=authorization_policy,
     )
+
+    get_manifest_urls_for_profile_use_case: providers.Factory[
+        GetManifestUrlsForProfileUseCase
+    ] = providers.Factory(GetManifestUrlsForProfileUseCase, uow_factory=uow.provider)
 
     create_profile_use_case: providers.Factory[CreateProfileUseCase] = (
         providers.Factory(

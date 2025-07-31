@@ -25,8 +25,8 @@ class MetaItem(BaseModel):
     logo: Optional[str] = None
     description: Optional[str] = None
     release_info: Optional[str] = Field(None, alias="releaseInfo")
-    imdb_rating: Optional[str] = Field(None, alias="imdbRating")
-    videos: Optional[List[Video]] = None
+    imdb_id: Optional[str] = Field(None, alias="imdb_id")
+    videos: Optional[List[Video]] = None  # <-- THIS IS THE CRITICAL FIX
 
     class Config:
         populate_by_name = True

@@ -7,26 +7,46 @@ import { AddonSection } from "@/features/home/components/AddonSection";
 
 export function HomeView() {
   const { selectedProfile } = useProfileContext();
-  const { data, isLoading } = useHomeData(selectedProfile?.id ?? "");
+  const { data, isLoading, isPending, isSuccess } = useHomeData(
+    selectedProfile?.id ?? "",
+  );
 
   const renderSkeletons = () => (
-    <div className="space-y-8">
-      {Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="space-y-4">
-          <Skeleton className="h-8 w-64" />
-          <div className="flex space-x-4">
-            {Array.from({ length: 5 }).map((_, j) => (
-              <Skeleton key={j} className="h-64 w-48 rounded-lg" />
-            ))}
-          </div>
+    <div className="space-y-12">
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-1/3" />
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {Array.from({ length: 6 }).map((_, j) => (
+            <div key={j} className="w-48 flex-shrink-0">
+              <Skeleton className="h-[270px] w-full rounded-lg" />
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-1/4" />
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {Array.from({ length: 6 }).map((_, j) => (
+            <div key={j} className="w-48 flex-shrink-0">
+              <Skeleton className="h-[270px] w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 
+  const hasContent =
+    isSuccess &&
+    data?.profile?.homeCatalogs &&
+    data.profile.homeCatalogs.length > 0;
+
   return (
     <div className="container mx-auto space-y-12">
-      <h1 className="mb-4 text-6xl font-bold tracking-tight">Home</h1>
+      <div className="flex items-baseline justify-between">
+        <h1 className="mb-4 text-6xl font-bold tracking-tight">Home</h1>
+      </div>
+
       <div>
         <h2 className="mb-4 pt-4 text-3xl font-bold tracking-tight">
           Continue Watching
@@ -36,11 +56,20 @@ export function HomeView() {
         </div>
       </div>
 
-      {isLoading
-        ? renderSkeletons()
-        : data?.profile?.homeCatalogs.map((addonData) => (
-            <AddonSection key={addonData.addonName} data={addonData} />
-          ))}
+      {(isLoading || isPending) && renderSkeletons()}
+
+      {isSuccess && !hasContent && (
+        <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50">
+          <p className="text-muted-foreground">
+            No content to display. Try installing some addons!
+          </p>
+        </div>
+      )}
+
+      {hasContent &&
+        data.profile.homeCatalogs.map((addonData) => (
+          <AddonSection key={addonData.addonName} data={addonData} />
+        ))}
     </div>
   );
 }

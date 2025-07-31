@@ -59,8 +59,7 @@ export function DiscoverFilters({
   const availableCatalogs: Catalog[] = useMemo(() => {
     return catalogs.filter(
       (c) =>
-        c.catalogType === selectedType &&
-        (selectedProvider === "all" || c.manifestId === selectedProvider),
+        c.catalogType === selectedType && c.manifestId === selectedProvider,
     );
   }, [catalogs, selectedType, selectedProvider]);
 
@@ -79,7 +78,6 @@ export function DiscoverFilters({
   return (
     <div className="mb-8 space-y-4">
       <div className="flex flex-wrap items-center gap-4">
-        {/* Type Selector */}
         <Select value={selectedType} onValueChange={onTypeChange}>
           <SelectTrigger className="w-auto min-w-[180px]">
             <SelectValue placeholder="Select Type" />
@@ -93,13 +91,11 @@ export function DiscoverFilters({
           </SelectContent>
         </Select>
 
-        {/* Provider Selector */}
         <Select value={selectedProvider} onValueChange={onProviderChange}>
           <SelectTrigger className="w-auto min-w-[180px]">
             <SelectValue placeholder="Select Provider" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Providers</SelectItem>
             {providers.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
@@ -108,7 +104,6 @@ export function DiscoverFilters({
           </SelectContent>
         </Select>
 
-        {/* Catalog Selector */}
         <Select value={selectedCatalogId} onValueChange={onCatalogChange}>
           <SelectTrigger className="w-auto min-w-[200px]">
             <SelectValue placeholder="Select Catalog" />
@@ -125,7 +120,6 @@ export function DiscoverFilters({
           </SelectContent>
         </Select>
 
-        {/* Dynamically Rendered Sub-filters */}
         {dynamicFilters.map((filter) => (
           <Select
             key={filter.name}

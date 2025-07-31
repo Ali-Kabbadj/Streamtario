@@ -5,20 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { graphqlClient } from "@/lib/graphql-client";
 import { AccountDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import type { AccountQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-import { Skeleton } from "@/components/ui/skeleton";
-import { refreshSession } from "@/features/auth/services/auth.service";
+import { GlobalLoader } from "@/components/shared/GlobalLoader";
+import { print } from "graphql";
 
 type UserAccount = AccountQuery["account"];
-
-interface AuthError extends Error {
-  response?: {
-    errors?: Array<{
-      extensions?: {
-        code?: string;
-      };
-    }>;
-  };
-}
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -35,55 +25,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-    void queryClient.resetQueries({ queryKey: ["Account"] });
+    void queryClient.resetQueries();
   };
 
-  const { data, isLoading, isSuccess } = useQuery<AccountQuery, AuthError>({
+  const { data, isLoading, isSuccess } = useQuery<AccountQuery, Error>({
     queryKey: ["Account"],
-    queryFn: async (): Promise<AccountQuery> => {
-      try {
-        if (
-          typeof window !== "undefined" &&
-          !localStorage.getItem("accessToken")
-        ) {
-          throw new Error("No access token found");
-        }
-        return await graphqlClient.request(AccountDocument);
-      } catch (error) {
-        const authError = error as AuthError;
-        const isAuthError =
-          authError?.response?.errors?.[0]?.extensions?.code ===
-          "AUTHENTICATION_REQUIRED";
-
-        if (isAuthError) {
-          try {
-            await refreshSession();
-            return await graphqlClient.request(AccountDocument);
-          } catch (refreshError) {
-            console.error("Token refresh failed, logging out:", refreshError);
-            logout();
-            throw refreshError;
-          }
-        }
-        throw error;
+    queryFn: async () => {
+      if (
+        typeof window !== "undefined" &&
+        !localStorage.getItem("refreshToken")
+      ) {
+        throw new Error("No refresh token found, user is not logged in.");
       }
+      return graphqlClient.request<AccountQuery, {}>(print(AccountDocument));
     },
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    onError: (err) => {
+      console.error("Account query failed permanently, logging out.", err);
+      logout();
+    },
   });
 
   if (isLoading) {
-    return (
-      <div className="bg-primary flex h-screen w-screen items-center justify-center">
-        <div className="flex items-center space-x-4">
-          <Skeleton className="h-12 w-12 rounded-full bg-slate-700" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-[250px] bg-slate-700" />
-            <Skeleton className="h-4 w-[200px] bg-slate-700" />
-          </div>
-        </div>
-      </div>
-    );
+    return <GlobalLoader />;
   }
 
   const value = {

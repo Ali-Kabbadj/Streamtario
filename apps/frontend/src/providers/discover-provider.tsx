@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
 
 interface DiscoverState {
   selectedType: string;
@@ -20,14 +25,14 @@ const DiscoverContext = createContext<DiscoverState | undefined>(undefined);
 
 export function DiscoverProvider({ children }: { children: ReactNode }) {
   const [selectedType, setSelectedType] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("all");
+  const [selectedProvider, setSelectedProvider] = useState("");
   const [selectedCatalogId, setSelectedCatalogId] = useState("");
   const [extraFilters, setExtraFilters] = useState<Record<string, string>>({});
   const [scrollPosition, setScrollPosition] = useState(0);
 
   const resetFilters = () => {
     setSelectedType("");
-    setSelectedProvider("all");
+    setSelectedProvider("");
     setSelectedCatalogId("");
     setExtraFilters({});
   };

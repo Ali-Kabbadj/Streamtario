@@ -12,7 +12,7 @@ export const GetMetaDetailsDocument = graphql(`
         logo
         description
         releaseInfo
-        imdbRating
+        imdbId 
         genres
         videos {
           id
@@ -35,6 +35,7 @@ export const GetStreamsDocument = graphql(`
         title
         url
         infoHash
+        fileIdx
         behaviorHints
         addonName
       }

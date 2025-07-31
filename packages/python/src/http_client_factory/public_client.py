@@ -3,6 +3,7 @@ import json
 import asyncio
 from typing import Type, Union, Optional
 from pydantic import BaseModel, ValidationError
+from core.utils.logging import log_error
 
 
 class PublicApiClient:
@@ -39,7 +40,10 @@ class PublicApiClient:
                 last_exception = e
                 await asyncio.sleep(0.5 * (attempt + 1))
                 continue
-        print(f"Failed to fetch public URL {url}. Last error: {last_exception}")
+        log_error(
+            f"Failed to fetch public URL {url}",
+            data={"last_exception": str(last_exception)},
+        )
         return None
 
     async def get[T: BaseModel](
@@ -52,7 +56,10 @@ class PublicApiClient:
         try:
             return response_model.model_validate(response.json())
         except (ValidationError, json.JSONDecodeError) as e:
-            print(f"Failed to validate public URL {url}. Error: {e}")
+            log_error(
+                "Failed to validate public URL",
+                data={"url": url, "error": str(e), "response_text": response.text},
+            )
             return None
 
     async def close(self):

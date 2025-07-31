@@ -14,12 +14,12 @@ extern bool g_isMpvPlaying;
 
 // App info
 const WCHAR g_szWindowClass[] = L"WebViewMPVWindowClass";
-const WCHAR g_szTitle[]       = L"GayTorrents";
+const WCHAR g_szTitle[] = L"Streamtario"; // Changed from GayTorrents
 
 // Globals
 extern HINSTANCE g_hInst;
-extern HWND      g_hWnd;
-extern HANDLE    g_jobHandle;
+extern HWND g_hWnd;
+extern HANDLE g_jobHandle;
 
 // Child Processes
 extern PROCESS_INFORMATION g_dataApiProcInfo;
@@ -31,15 +31,15 @@ extern std::thread g_mpvThread;
 
 // WebView2
 extern wil::com_ptr<ICoreWebView2Controller> g_webviewController;
-extern wil::com_ptr<ICoreWebView2>           g_webview;
+extern wil::com_ptr<ICoreWebView2> g_webview;
+// NEW: Player Overlay WebView
+extern wil::com_ptr<ICoreWebView2Controller> g_playerWebviewController;
+extern wil::com_ptr<ICoreWebView2> g_playerWebview;
 
 // Custom Messages
 #define WM_MPV_WAKEUP (WM_APP + 2)
 
 // Command Hander
 extern WebViewProtocol::CommandHandler g_commandHandler;
-
-// Custom Messages
-#define WM_MPV_WAKEUP (WM_APP + 2)
 
 #endif
