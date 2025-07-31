@@ -17,7 +17,6 @@ export const ProfileFeature = ({ profileId }: ProfileFeatureProps) => {
   }
   const profileData = data?.profile;
 
-  // The component is now much simpler. It just renders its specific content.
   return (
     <div className="space-y-8">
       <ProfileHeader

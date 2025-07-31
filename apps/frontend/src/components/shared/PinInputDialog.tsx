@@ -31,7 +31,6 @@ export const PinInputDialog = ({
   const [shouldShowError, setShouldShowError] = useState(true);
   const otpRef = useRef<HTMLInputElement>(null);
 
-  // Focus the OTP input when there's an error
   useEffect(() => {
     if (error && otpRef.current) {
       otpRef.current.focus();
@@ -41,7 +40,6 @@ export const PinInputDialog = ({
 
   const handlePinChange = (value: string) => {
     setPin(value);
-    // Clear error display when user starts typing again
     if (error && shouldShowError) {
       setShouldShowError(false);
     }
@@ -55,7 +53,7 @@ export const PinInputDialog = ({
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       onClose();
-      setPin(""); // Reset PIN on close
+      setPin("");
     }
   };
   return (

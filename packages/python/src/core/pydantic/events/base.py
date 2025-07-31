@@ -4,12 +4,10 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal, List
 
 
-# The base for all events in our system, ensuring consistency.
 class BaseEvent(BaseModel):
 
     model_config = ConfigDict(
         json_encoders={
-            # Teach Pydantic how to convert datetime to a string
             datetime: lambda v: v.isoformat(),
         }
     )
@@ -42,9 +40,8 @@ class ProfileCreatedEvent(BaseEvent):
 
 class ProfileUpdatedEvent(BaseEvent):
     event_name: Literal["profile.updated"] = "profile.updated"
-    # account_id: str
     profile_id: str
-    updated_fields: List[str]  # e.g., ["name", "avatar"]
+    updated_fields: List[str]
 
 
 class ProfileDeletedEvent(BaseEvent):

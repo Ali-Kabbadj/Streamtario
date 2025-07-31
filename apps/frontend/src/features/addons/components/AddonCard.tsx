@@ -16,7 +16,6 @@ import Image from "next/image";
 interface AddonCardProps {
   addon: AddonCatalogItem;
   isInstalled: boolean;
-  // --- FIX: Replaced action handlers with a single click handler ---
   onViewDetails: () => void;
 }
 
@@ -33,7 +32,6 @@ export function AddonCard({
   };
 
   return (
-    // --- FIX: Card is now clickable and has interactive styling ---
     <Card
       onClick={onViewDetails}
       className="relative flex h-full cursor-pointer flex-col bg-slate-900/50 transition-colors hover:bg-slate-800/80"

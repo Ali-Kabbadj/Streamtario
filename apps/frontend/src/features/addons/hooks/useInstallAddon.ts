@@ -14,8 +14,6 @@ export const useInstallAddon = (profileId: string) => {
             if (data.installAddon.__typename === 'InstallAddonError') {
                 throw new Error(data.installAddon.message);
             }
-            // When an install succeeds, invalidate the profile query.
-            // This will refetch the list of installed addons automatically.
             void queryClient.invalidateQueries({ queryKey: ['profile', profileId] });
         },
     });

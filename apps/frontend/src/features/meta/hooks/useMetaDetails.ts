@@ -20,11 +20,9 @@ export const useMetaDetails = ({ profileId, itemId, itemType }: UseMetaDetailsPr
             });
         },
         select: (data) => {
-            // If data.profile is null or undefined, return null for the meta details
             if (!data.profile) {
                 return null;
             }
-            // Otherwise, return data.profile.meta, ensuring it's either MetaItemType or null
             return data.profile.meta ?? null;
         },
         enabled: !!profileId && !!itemId && !!itemType,

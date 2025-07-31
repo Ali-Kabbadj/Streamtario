@@ -10,7 +10,6 @@ export const useProfile = (profileId: string) => {
     return useQuery<GetFullProfileQuery, Error>({
         queryKey: ['profile', profileId],
         queryFn: async () => {
-            // --- FIX: Use the correctly named DocumentNode ---
             return graphqlClient.request<GetFullProfileQuery, GetFullProfileQueryVariables>(GetFullProfileDocument, { profileId });
         },
         enabled: !!profileId,

@@ -28,16 +28,15 @@ const profileFormSchema = z
       .min(2, { message: "Name must be at least 2 characters." })
       .max(50),
     avatar: z.string().optional(),
-    isPrivate: z.boolean(), // No .default() here
+    isPrivate: z.boolean(),
     pin: z.string().optional(),
-    avatarSource: z.enum(["default", "upload"]), // No .default() here
+    avatarSource: z.enum(["default", "upload"]),
   })
   .refine((data) => !data.isPrivate || (data.pin && /^\d{4}$/.test(data.pin)), {
     message: "A 4-digit PIN is required for private profiles.",
     path: ["pin"],
   });
 
-// This type is now correctly and simply inferred from the schema above.
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 interface CreateProfileFormProps {
@@ -47,10 +46,8 @@ interface CreateProfileFormProps {
 export const CreateProfileForm = ({ onSuccess }: CreateProfileFormProps) => {
   const { mutate, isPending, isSuccess, error } = useCreateProfile();
 
-  // We explicitly type `useForm` with our clean `ProfileFormValues` type.
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    // All defaults are now handled in one place, which is cleaner.
     defaultValues: {
       name: "",
       avatar:
@@ -65,7 +62,6 @@ export const CreateProfileForm = ({ onSuccess }: CreateProfileFormProps) => {
   const avatarSource = form.watch("avatarSource");
 
   const onSubmit = (data: ProfileFormValues) => {
-    // We still strip the UI-only field before submission.
     const { ...submissionData } = data;
     mutate(submissionData);
   };

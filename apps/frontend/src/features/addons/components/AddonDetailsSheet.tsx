@@ -40,7 +40,6 @@ export function AddonDetailsSheet({
 
   const { manifest } = addon;
 
-  // Reset image error state when addon changes
   if (addon && imageError) {
     setImageError(false);
   }

@@ -22,14 +22,12 @@ type ExtraProp = {
 
 interface DiscoverFiltersProps {
   catalogs: Catalog[];
-  // State for each filter level
   selectedType: string;
   onTypeChange: (type: string) => void;
   selectedProvider: string;
   onProviderChange: (provider: string) => void;
   selectedCatalogId: string;
   onCatalogChange: (catalogId: string) => void;
-  // State for dynamic sub-filters
   extraFilters: Record<string, string>;
   onExtraFilterChange: (key: string, value: string) => void;
 }

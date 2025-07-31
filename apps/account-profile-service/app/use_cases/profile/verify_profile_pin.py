@@ -28,8 +28,6 @@ class VerifyProfilePinUseCase:
         Returns True on success, raises ApiException on failure.
         """
         log_info(f"Attempting to verify PIN for profile {profile_id}")
-
-        # Ensure the user owns the profile they are trying to unlock.
         await self.authorization_policy.check_profile_ownership(
             requesting_account_id=requesting_account_id, profile_id=profile_id
         )
@@ -43,7 +41,6 @@ class VerifyProfilePinUseCase:
                 )
 
             if not profile.is_private or not profile.pin_hash:
-                # This case should ideally not be hit if the frontend logic is correct.
                 log_warn(
                     f"PIN verification attempted on non-private profile {profile_id}"
                 )

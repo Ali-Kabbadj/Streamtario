@@ -49,7 +49,6 @@ export function AddonsView() {
     setPendingAddonId(null);
   };
 
-  // --- FIX: Close sheet after mutation for better UX ---
   const onMutationSuccess = () => {
     setPendingAddonId(null);
     setSelectedAddon(null);

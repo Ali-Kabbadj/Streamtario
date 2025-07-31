@@ -23,15 +23,11 @@ export function ContentTypeSearchResultRow({
         <Button variant="link">See More</Button>
       </div>
       <div className="flex space-x-4 overflow-x-auto pb-4">
-        {items.slice(0, 10).map(
-          (
-            item, // Show up to 10 items initially
-          ) => (
-            <div key={item.id} className="w-48 flex-shrink-0">
-              <CatalogItemCard item={item} />
-            </div>
-          ),
-        )}
+        {items.slice(0, 10).map((item) => (
+          <div key={item.id} className="w-48 flex-shrink-0">
+            <CatalogItemCard item={item} />
+          </div>
+        ))}
       </div>
     </div>
   );
