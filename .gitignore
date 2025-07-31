@@ -7,3 +7,5 @@ certs
 TREE.md
 dev_resources
 .vscode
+.env
+.env.local

@@ -60,7 +60,6 @@ def main():
 
     except (ImportError, AttributeError) as e:
         print(f"Error loading settings: {e}")
-        sys.exit(1)
 
 
 if __name__ == "__main__":

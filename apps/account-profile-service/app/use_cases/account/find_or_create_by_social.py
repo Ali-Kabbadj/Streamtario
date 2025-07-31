@@ -42,7 +42,7 @@ class FindOrCreateBySocialUseCase:
             if account_by_email:
                 if account_by_email.hashed_password:
                     raise ApiException(
-                        error_code=ApiErrorCode.ACCOUNT_EMAIL_EXISTS,
+                        error_code=ApiErrorCode.ACCOUNT_EMAIL_IN_USE_BY_SOCIAL,
                         details={
                             "reason": "Email is already registered with a password."
                         },
@@ -67,7 +67,7 @@ class FindOrCreateBySocialUseCase:
                 AccountCreatedEvent(
                     account_id=created_account.id,
                     email=created_account.email,
-                    provider="password",
+                    provider=provider,
                 )
             )
 

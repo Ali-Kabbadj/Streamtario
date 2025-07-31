@@ -1,7 +1,5 @@
-// src/features/profile/components/profile-header.tsx
 "use client";
 
-// Shadcn UI components can be added here
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProfileHeaderProps {
