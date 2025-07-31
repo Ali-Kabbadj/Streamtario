@@ -7,7 +7,7 @@ import React, {
   type ReactNode,
 } from "react";
 
-type View =
+export type View =
   | { name: "home" }
   | { name: "discover" }
   | { name: "addons" }
@@ -15,20 +15,29 @@ type View =
   | { name: "meta"; itemType: string; itemId: string };
 
 interface ViewContextType {
+  viewStack: View[];
   currentView: View;
   navigateTo: (view: View) => void;
+  navigateBack: () => void;
 }
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
 export function ViewProvider({ children }: { children: ReactNode }) {
-  const [currentView, setCurrentView] = useState<View>({ name: "home" });
+  const [viewStack, setViewStack] = useState<View[]>([{ name: "home" }]);
 
   const navigateTo = (view: View) => {
-    setCurrentView(view);
+    setViewStack((prevStack) => [...prevStack, view]);
   };
 
-  const value = { currentView, navigateTo };
+  const navigateBack = () => {
+    setViewStack((prevStack) =>
+      prevStack.length > 1 ? prevStack.slice(0, -1) : prevStack,
+    );
+  };
+
+  const currentView = viewStack[viewStack.length - 1];
+  const value = { viewStack, currentView, navigateTo, navigateBack };
 
   return <ViewContext.Provider value={value}>{children}</ViewContext.Provider>;
 }

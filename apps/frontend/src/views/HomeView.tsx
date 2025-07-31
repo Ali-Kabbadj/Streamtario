@@ -26,8 +26,9 @@ export function HomeView() {
 
   return (
     <div className="container mx-auto space-y-12">
+      <h1 className="mb-4 text-6xl font-bold tracking-tight">Home</h1>
       <div>
-        <h2 className="mb-4 text-3xl font-bold tracking-tight">
+        <h2 className="mb-4 pt-4 text-3xl font-bold tracking-tight">
           Continue Watching
         </h2>
         <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50">

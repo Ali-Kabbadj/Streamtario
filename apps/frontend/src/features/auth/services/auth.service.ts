@@ -29,13 +29,13 @@ export async function loginWithCredentials(
     persistTokens(tokens);
 }
 
-export async function loginWithGoogle(token: string): Promise<void> {
+export async function loginWithGoogle(code: string): Promise<void> {
     try {
         const tokens = await fetchClient<TokenResponseType>(
             "/api/v1/auth/google/login",
             {
                 method: "POST",
-                body: JSON.stringify({ token }),
+                body: JSON.stringify({ code }),
             },
             "An unknown Google login error occurred.",
         );

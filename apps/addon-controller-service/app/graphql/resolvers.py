@@ -5,6 +5,8 @@ from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
+from app.use_cases.get_streams import GetStreamsUseCase
+from app.use_cases.get_manifest import GetManifestUseCase
 from .types import (
     CatalogResult,
     ProfileExtension,
@@ -15,11 +17,25 @@ from .types import (
     DiscoveredCatalogExtraProp,
     HomeAddonSectionType,
     HomeContentRowType,
+    StreamType,
+    AddonManifestType,
 )
 import strawberry
-from core.utils.logging import log_info
+from core.utils.logging import log_info, log_error
 from app.use_cases.search_use_case import SearchUseCase
 from strawberry.scalars import JSON
+
+
+@inject
+async def resolve_manifest_by_url(
+    url: str, use_case: GetManifestUseCase = Provide[Container.get_manifest_use_case]
+) -> Optional[AddonManifestType]:
+    try:
+        pydantic_manifest = await use_case.execute(url)
+        return AddonManifestType.from_pydantic(pydantic_manifest)
+    except Exception as e:
+        log_error(f"Failed to resolve manifest by URL: {url}", data={"error": str(e)})
+        return None
 
 
 @inject
@@ -27,13 +43,7 @@ async def resolve_discoverable_catalogs(
     profile: ProfileExtension,
     use_case: DiscoverCatalogsUseCase = Provide[Container.discover_catalogs_use_case],
 ) -> List[DiscoveredCatalogType]:
-    log_info(
-        f"GraphQL: Resolving federated field 'discoverable_catalogs' for profile {profile.id}",
-        context="graphql",
-        data={"manifest_urls": profile.manifest_urls},
-    )
     pydantic_catalogs = await use_case.execute(manifest_urls=profile.manifest_urls)
-
     strawberry_catalogs = []
     for p_cat in pydantic_catalogs:
         extra_props = [
@@ -45,7 +55,6 @@ async def resolve_discoverable_catalogs(
             )
             for prop in p_cat.extra_props
         ]
-
         strawberry_catalogs.append(
             DiscoveredCatalogType(
                 addon_name=p_cat.addon_name,
@@ -70,17 +79,6 @@ async def resolve_profile_catalog(
     filterByType: Optional[str],
     use_case: AggregateCatalogUseCase = Provide[Container.aggregate_catalog_use_case],
 ) -> CatalogResult:
-    log_info(
-        f"GraphQL: Resolving federated field 'catalog' for profile {profile.id}",
-        context="graphql",
-        data={
-            "item_type": itemType,
-            "catalog_id": catalogId,
-            "manifest_id_filter": manifestId,
-            "extra_props": extraProps,
-            "filter_by_type": filterByType,
-        },
-    )
     pydantic_items = await use_case.execute(
         manifest_urls=profile.manifest_urls,
         item_type=itemType,
@@ -89,15 +87,7 @@ async def resolve_profile_catalog(
         extra_props=extraProps if extraProps else {},
         filter_by_type=filterByType,
     )
-    strawberry_items = [
-        CatalogItemType(
-            id=strawberry.ID(item.id),
-            type=item.type,
-            name=item.name,
-            poster=item.poster,
-        )
-        for item in pydantic_items
-    ]
+    strawberry_items = [CatalogItemType.from_pydantic(item) for item in pydantic_items]
     return CatalogResult(items=strawberry_items)
 
 
@@ -108,11 +98,6 @@ async def resolve_profile_meta(
     itemId: str,
     use_case: FindAndGetMetaUseCase = Provide[Container.find_and_get_meta_use_case],
 ) -> Optional[MetaItemType]:
-    log_info(
-        f"GraphQL: Resolving federated field 'meta' for profile {profile.id}",
-        context="graphql",
-        data={"item_type": itemType, "item_id": itemId},
-    )
     pydantic_meta = await use_case.execute(
         manifest_urls=profile.manifest_urls,
         item_type=itemType,
@@ -121,7 +106,7 @@ async def resolve_profile_meta(
     if not pydantic_meta:
         return None
 
-    strawberry_meta = MetaItemType(
+    return MetaItemType(
         id=strawberry.ID(pydantic_meta.id),
         type=pydantic_meta.type,
         name=pydantic_meta.name,
@@ -141,7 +126,6 @@ async def resolve_profile_meta(
             else []
         ),
     )
-    return strawberry_meta
 
 
 @inject
@@ -149,12 +133,7 @@ async def resolve_home_catalogs(
     profile: ProfileExtension,
     use_case: GetHomeCatalogsUseCase = Provide[Container.get_home_catalogs_use_case],
 ) -> List[HomeAddonSectionType]:
-    log_info(
-        f"GraphQL: Resolving federated field 'homeCatalogs' for profile {profile.id}",
-        context="graphql",
-    )
     pydantic_sections = await use_case.execute(manifest_urls=profile.manifest_urls)
-
     strawberry_sections = []
     for section in pydantic_sections:
         strawberry_rows = []
@@ -169,3 +148,18 @@ async def resolve_home_catalogs(
             HomeAddonSectionType(addon_name=section.addon_name, content=strawberry_rows)
         )
     return strawberry_sections
+
+
+@inject
+async def resolve_streams(
+    profile: ProfileExtension,
+    itemType: str,
+    itemId: str,
+    use_case: GetStreamsUseCase = Provide[Container.get_streams_use_case],
+) -> List[StreamType]:
+    pydantic_streams = await use_case.execute(
+        manifest_urls=profile.manifest_urls,
+        item_type=itemType,
+        item_id=itemId,
+    )
+    return [StreamType.from_pydantic(s) for s in pydantic_streams]

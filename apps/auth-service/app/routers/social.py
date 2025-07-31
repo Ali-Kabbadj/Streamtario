@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.settings import AuthSettings
 from google.oauth2 import id_token  # type: ignore
 from google.auth.transport import requests  # type: ignore
+import google_auth_oauthlib.flow  # type: ignore
 
 from app.containers import Container
 from api_contract.responses import ApiResponse
@@ -20,7 +21,7 @@ router = APIRouter(tags=["Authentication"])
 
 
 class GoogleLoginRequest(BaseModel):
-    token: str
+    code: str
 
 
 @router.post("/google/login", response_model=ApiResponse[TokenResponse])
@@ -31,24 +32,27 @@ async def google_login(
     jwt_service: IJwtService = Depends(Provide[Container.jwt_service]),
     settings: AuthSettings = Depends(Provide[Container.settings]),
 ):
-    """
-    Authenticates a user with a Google ID token and issues local JWTs.
-    """
     try:
+        flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+            settings.GOOGLE_CLIENT_SECRETS_FILE,
+            scopes=None,
+        )
+        flow.redirect_uri = "postmessage"
+        flow.fetch_token(code=request.code)
+        credentials = flow.credentials
         id_info = id_token.verify_oauth2_token(
-            request.token,
+            credentials.id_token,
             requests.Request(),
             settings.GOOGLE_CLIENT_ID,
             clock_skew_in_seconds=10,
         )
-
         google_user_id = id_info["sub"]
         email = id_info["email"]
 
-    except ValueError as e:
+    except Exception as e:
         raise ApiException(
             ApiErrorCode.GOOGLE_LOGIN_FAILED,
-            details={"reason": "Invalid Google token", "error": str(e)},
+            details={"reason": "Invalid Google auth code", "error": str(e)},
         )
 
     account_service_url = settings.ACCOUNT_PROFILE_SERVICE_URL

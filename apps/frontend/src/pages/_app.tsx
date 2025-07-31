@@ -11,6 +11,7 @@ import {
   useProfileContext,
 } from "@/providers/profile-provider";
 import { ViewProvider, useView } from "@/providers/view-provider";
+import { DiscoverProvider } from "@/providers/discover-provider";
 import { GlobalLoader } from "@/components/shared/GlobalLoader";
 import { AuthFeature } from "@/features/auth";
 import { ProfileSelectionFeature } from "@/features/profile-selection";
@@ -69,7 +70,7 @@ const AppContent = () => {
   return <GlobalLoader />;
 };
 
-export default function App({ Component: _Component, pageProps: _pageProps }: AppProps) {
+export default function App({ Component, pageProps }: AppProps) {
   if (!APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
     console.error("Google Client ID is not configured.");
     return <div>Error: Google authentication is not configured.</div>;
@@ -87,12 +88,14 @@ export default function App({ Component: _Component, pageProps: _pageProps }: Ap
           <AuthProvider>
             <ProfileProvider>
               <ViewProvider>
-                <div className="relative">
-                  <div className="fixed right-6 bottom-6 z-50">
-                    <ThemeToggle />
+                <DiscoverProvider>
+                  <div className="relative">
+                    <div className="fixed right-6 bottom-6 z-50">
+                      <ThemeToggle />
+                    </div>
+                    <AppContent />
                   </div>
-                  <AppContent />
-                </div>
+                </DiscoverProvider>
               </ViewProvider>
             </ProfileProvider>
           </AuthProvider>

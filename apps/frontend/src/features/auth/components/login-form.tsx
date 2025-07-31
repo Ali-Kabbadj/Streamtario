@@ -1,12 +1,13 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import { useGoogleLogin as useGoogleOAuthLogin } from "@react-oauth/google";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLogin } from "../hooks/useLogin";
 import { useGoogleLogin } from "../hooks/useGoogleLogin";
-import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { GoogleIcon } from "@/components/shared/google-icon";
 
 type LoginFormInputs = {
   email: string;
@@ -26,18 +27,18 @@ export const LoginForm = () => {
   } = useGoogleLogin();
   const { register, handleSubmit } = useForm<LoginFormInputs>();
 
+  const googleLogin = useGoogleOAuthLogin({
+    onSuccess: (codeResponse) => {
+      performGoogleLogin(codeResponse.code);
+    },
+    onError: (error) => {
+      console.error("Google OAuth failed:", error);
+    },
+    flow: "auth-code",
+  });
+
   const onSubmit = (data: LoginFormInputs) => {
     loginWithPassword(data);
-  };
-
-  const handleGoogleSuccess = (
-    credentialResponse: CredentialResponse,
-  ): void => {
-    if (credentialResponse.credential) {
-      performGoogleLogin(credentialResponse.credential);
-    } else {
-      console.error("Google login failed: No credential was returned.");
-    }
   };
 
   const isPending = isPasswordLoginPending || isGoogleLoginPending;
@@ -45,7 +46,7 @@ export const LoginForm = () => {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-card rounded-lg p-8 shadow-2xl backdrop-blur-sm">
+      <div className="bg-card/80 rounded-lg p-8 shadow-2xl backdrop-blur-sm">
         <div className="space-y-4">
           <h1 className="text-primary text-center text-2xl font-bold">
             Sign In
@@ -85,30 +86,25 @@ export const LoginForm = () => {
               <span className="w-full border-t border-slate-600" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-accent-foreground/0 px-2 text-slate-400 backdrop-blur-sm">
-                Or
-              </span>
+              <span className="bg-card px-2 text-slate-400">Or</span>
             </div>
           </div>
 
-          <div className="flex justify-center bg-transparent">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => googleLogin()}
+            disabled={isPending}
+          >
             {isGoogleLoginPending ? (
-              <p className="text-sm text-slate-300">
-                Authenticating with Google...
-              </p>
+              "Authenticating..."
             ) : (
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => {
-                  console.error("Google Login Failed");
-                }}
-                theme={undefined}
-                size="large"
-                width="320px"
-                shape="circle"
-              />
+              <>
+                <GoogleIcon className="mr-2 h-5 w-5" />
+                Sign in with Google
+              </>
             )}
-          </div>
+          </Button>
 
           {error && (
             <p className="pt-2 text-center text-sm font-medium text-red-400">
