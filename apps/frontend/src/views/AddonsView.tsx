@@ -2,11 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Link } from "lucide-react";
 import {
   useAddonCatalogs,
   type AddonCatalogItem,
 } from "@/features/addons/hooks/useAddonCatalogs";
+import { useManifestsByUrls } from "@/features/addons/hooks/useManifestsByUrls";
 import { AddonCard } from "@/features/addons/components/AddonCard";
+import { InstallFromUrl } from "@/features/addons/components/InstallFromUrl";
+import { AddonDetailsSheet } from "@/features/addons/components/AddonDetailsSheet";
 import { useInstallAddon } from "@/features/addons/hooks/useInstallAddon";
 import { useUninstallAddon } from "@/features/addons/hooks/useUninstallAddon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,45 +22,47 @@ type TabValue = "installed" | "official" | "community";
 
 export function AddonsView() {
   const { selectedProfile } = useProfileContext();
-  const [activeTab, setActiveTab] = useState<TabValue>("official");
+  const [activeTab, setActiveTab] = useState<TabValue>("installed");
   const [pendingAddonId, setPendingAddonId] = useState<string | null>(null);
+  const [isInstallSheetOpen, setInstallSheetOpen] = useState(false);
+  const [selectedAddon, setSelectedAddon] = useState<AddonCatalogItem | null>(
+    null,
+  );
 
   const profileId = selectedProfile?.id ?? "";
 
-  const { data: profileData, isLoading: isLoadingProfile } =
-    useProfile(profileId);
+  const { data: profileData } = useProfile(profileId);
   const { data: officialAddons, isLoading: isLoadingOfficial } =
     useAddonCatalogs("official");
   const { data: communityAddons, isLoading: isLoadingCommunity } =
     useAddonCatalogs("community");
 
-  const onMutationSettled = () => setPendingAddonId(null);
+  const installedUrls = useMemo(
+    () => profileData?.profile?.installedAddons.map((a) => a.manifestUrl) ?? [],
+    [profileData],
+  );
+
+  const { manifests: installedAddons, isLoading: isLoadingInstalled } =
+    useManifestsByUrls(installedUrls);
+
+  const onMutationSettled = () => {
+    setPendingAddonId(null);
+  };
+
+  // --- FIX: Close sheet after mutation for better UX ---
+  const onMutationSuccess = () => {
+    setPendingAddonId(null);
+    setSelectedAddon(null);
+  };
 
   const { mutate: installAddon } = useInstallAddon(profileId);
   const { mutate: uninstallAddon } = useUninstallAddon(profileId);
-
-  const installedManifestUrls = useMemo(() => {
-    return new Set(
-      profileData?.profile?.installedAddons.map((a) => a.manifestUrl),
-    );
-  }, [profileData]);
-
-  const installedAddons = useMemo(() => {
-    const allAddons = [...(officialAddons ?? []), ...(communityAddons ?? [])];
-    const uniqueAddons = new Map<string, AddonCatalogItem>();
-    allAddons.forEach((addon) => {
-      if (installedManifestUrls.has(addon.transportUrl)) {
-        uniqueAddons.set(addon.transportUrl, addon);
-      }
-    });
-    return Array.from(uniqueAddons.values());
-  }, [officialAddons, communityAddons, installedManifestUrls]);
 
   const handleInstall = (addon: AddonCatalogItem) => {
     setPendingAddonId(addon.manifest.id);
     installAddon(
       { profileId, manifestUrl: addon.transportUrl },
-      { onSettled: onMutationSettled },
+      { onSettled: onMutationSuccess },
     );
   };
 
@@ -63,7 +70,7 @@ export function AddonsView() {
     setPendingAddonId(addon.manifest.id);
     uninstallAddon(
       { profileId, manifestId: addon.manifest.id },
-      { onSettled: onMutationSettled },
+      { onSettled: onMutationSuccess },
     );
   };
 
@@ -93,44 +100,77 @@ export function AddonsView() {
           <AddonCard
             key={`${addon.manifest.id}-${addon.transportUrl}`}
             addon={addon}
-            isInstalled={installedManifestUrls.has(addon.transportUrl)}
-            onInstall={() => handleInstall(addon)}
-            onUninstall={() => handleUninstall(addon)}
-            isPending={pendingAddonId === addon.manifest.id}
+            isInstalled={installedUrls.includes(addon.transportUrl)}
+            onViewDetails={() => setSelectedAddon(addon)}
           />
         ))}
       </div>
     );
   };
 
+  const isSelectedAddonInstalled = useMemo(() => {
+    if (!selectedAddon) return false;
+    return installedUrls.includes(selectedAddon.transportUrl);
+  }, [selectedAddon, installedUrls]);
+
   return (
-    <div className="container mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Add-on Management</h1>
-        <p className="text-muted-foreground">
-          Install, uninstall, and manage add-ons for your profile.
-        </p>
+    <>
+      <div className="container mx-auto">
+        <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8">
+            <h1 className="mb-4 text-6xl font-bold tracking-tight">
+              Add-on Management
+            </h1>
+          </div>
+        </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as TabValue)}
+          className="w-full"
+        >
+          <div className="mb-8 flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="installed">Installed</TabsTrigger>
+              <TabsTrigger value="official">Official</TabsTrigger>
+              <TabsTrigger value="community">Community</TabsTrigger>
+            </TabsList>
+
+            <div>
+              <Button onClick={() => setInstallSheetOpen(true)}>
+                <Link className="mr-2 h-4 w-4" />
+                Install from URL
+              </Button>
+            </div>
+          </div>
+
+          <TabsContent value="installed" className="mt-6">
+            {renderAddonGrid(installedAddons, isLoadingInstalled)}
+          </TabsContent>
+          <TabsContent value="official" className="mt-6">
+            {renderAddonGrid(officialAddons, isLoadingOfficial)}
+          </TabsContent>
+          <TabsContent value="community" className="mt-6">
+            {renderAddonGrid(communityAddons, isLoadingCommunity)}
+          </TabsContent>
+        </Tabs>
       </div>
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as TabValue)}
-        className="w-full"
-      >
-        <TabsList>
-          <TabsTrigger value="installed">Installed</TabsTrigger>
-          <TabsTrigger value="official">Official</TabsTrigger>
-          <TabsTrigger value="community">Community</TabsTrigger>
-        </TabsList>
-        <TabsContent value="installed" className="mt-6">
-          {renderAddonGrid(installedAddons, isLoadingProfile)}
-        </TabsContent>
-        <TabsContent value="official" className="mt-6">
-          {renderAddonGrid(officialAddons, isLoadingOfficial)}
-        </TabsContent>
-        <TabsContent value="community" className="mt-6">
-          {renderAddonGrid(communityAddons, isLoadingCommunity)}
-        </TabsContent>
-      </Tabs>
-    </div>
+
+      <InstallFromUrl
+        isOpen={isInstallSheetOpen}
+        onOpenChange={setInstallSheetOpen}
+      />
+      <AddonDetailsSheet
+        isOpen={!!selectedAddon}
+        onOpenChange={(isOpen) => !isOpen && setSelectedAddon(null)}
+        addon={selectedAddon}
+        isInstalled={isSelectedAddonInstalled}
+        isPending={
+          !!selectedAddon && pendingAddonId === selectedAddon.manifest.id
+        }
+        onInstall={() => selectedAddon && handleInstall(selectedAddon)}
+        onUninstall={() => selectedAddon && handleUninstall(selectedAddon)}
+      />
+    </>
   );
 }

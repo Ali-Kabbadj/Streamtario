@@ -1,7 +1,7 @@
 "use client";
 
 import { useView } from "@/providers/view-provider";
-import { Home, Puzzle, Compass } from "lucide-react";
+import { Home, Settings, Puzzle, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -21,7 +21,7 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="bg-background-primary fixed inset-y-0 left-0 z-10 flex w-20 flex-col">
+      <aside className="bg-background-primary fixed top-4 left-0 z-10 flex h-[calc(100vh-4rem)] w-20 flex-col">
         <nav className="flex flex-col items-center gap-4 px-2 py-4">
           <div className="h-10 w-10" />
           {navLinks.map(({ viewName, label, icon: Icon }) => {

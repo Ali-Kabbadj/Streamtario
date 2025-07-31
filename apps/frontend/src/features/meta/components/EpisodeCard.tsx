@@ -2,27 +2,40 @@
 
 import { motion } from "framer-motion";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
-import type { GetMetaDetailsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type { VideoType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 
-type Episode = NonNullable<
-  NonNullable<NonNullable<GetMetaDetailsQuery["profile"]>["meta"]>["videos"]
->[0];
-
 interface EpisodeCardProps {
-  episode: Episode;
+  episode: VideoType;
+  onClick: () => void;
+  isReleased: boolean;
 }
 
-export function EpisodeCard({ episode }: EpisodeCardProps) {
+export function EpisodeCard({
+  episode,
+  onClick,
+  isReleased,
+}: EpisodeCardProps) {
   return (
     <motion.div
-      className="group flex cursor-pointer flex-col gap-2 overflow-hidden rounded-lg p-2 transition-colors"
-      whileHover={{
-        backgroundColor: "var(--accent)",
-      }}
+      onClick={isReleased ? onClick : undefined}
+      className={cn(
+        "group flex flex-col gap-2 overflow-hidden rounded-lg p-2 transition-colors",
+        isReleased ? "cursor-pointer" : "cursor-not-allowed opacity-50",
+      )}
+      whileHover={isReleased ? { backgroundColor: "var(--accent)" } : {}}
     >
       <AspectRatio ratio={16 / 9} className="flex-shrink-0">
+        {/* <Image
+          src={episode.thumbnail ?? "/placeholder-poster.png"}
+          alt={episode.title ?? "Episode thumbnail"}
+          className="h-full w-full rounded-md object-cover"
+          width={320}
+          height={180}
+          unoptimized
+        /> */}
         <ImageWithFallback
           className="h-full w-full rounded-md object-cover"
           fallbackSrc={"/images/NoImageLandscape.png"}

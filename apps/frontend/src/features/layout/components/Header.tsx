@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Search } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -20,7 +20,7 @@ import Image from "next/image";
 export function Header() {
   const { logout } = useAuth();
   const { selectedProfile, selectProfile } = useProfileContext();
-  const { navigateTo } = useView();
+  const { currentView, navigateTo, navigateBack } = useView();
 
   const handleSwitchProfile = () => {
     selectProfile(null);
@@ -40,46 +40,62 @@ export function Header() {
     }
   };
 
+  const showBackButton = currentView.name === "meta";
+  const showSearchBar = currentView.name !== "meta";
+
   return (
-    <header className="bg-background-primary sticky top-0 z-30 flex h-16 items-center justify-between gap-4 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex-1">
-        <form onSubmit={handleSearchSubmit}>
-          <div className="relative">
-            <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
-            <Input
-              type="search"
-              name="search"
-              placeholder="Search for..."
-              className="w-full appearance-none bg-slate-800 pl-8 shadow-none md:w-2/3 lg:w-1/3"
-            />
-          </div>
-        </form>
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="icon" className="rounded-full">
-            <Image
-              src={selectedProfile?.avatar ?? "/default-avatar.png"}
-              alt={selectedProfile?.name ?? "Profile"}
-              className="h-8 w-8 rounded-full object-cover"
-              width={10}
-              height={10}
-            />
-            <span className="sr-only">Toggle user menu</span>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 px-4 backdrop-blur-sm md:px-6">
+      <div className="flex flex-1 items-center justify-start">
+        {showBackButton && (
+          <Button variant="ghost" size="icon" onClick={navigateBack}>
+            <ArrowLeft className="h-6 w-6" />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{selectedProfile?.name}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>Support</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSwitchProfile}>
-            Switch Profile
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
+      </div>
+
+      <div className="flex flex-1 items-center justify-center">
+        {showSearchBar && (
+          <form onSubmit={handleSearchSubmit} className="w-full max-w-md">
+            <div className="relative">
+              <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
+              <Input
+                type="search"
+                name="search"
+                placeholder="Search for..."
+                className="w-full appearance-none bg-slate-800 pl-8 shadow-none"
+              />
+            </div>
+          </form>
+        )}
+      </div>
+
+      <div className="flex flex-1 items-center justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="icon" className="rounded-full">
+              <Image
+                src={selectedProfile?.avatar ?? "/default-avatar.png"}
+                alt={selectedProfile?.name ?? "Profile"}
+                className="h-8 w-8 rounded-full object-cover"
+                width={32}
+                height={32}
+              />
+              <span className="sr-only">Toggle user menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{selectedProfile?.name}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSwitchProfile}>
+              Switch Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

@@ -1,7 +1,7 @@
 import strawberry
 from strawberry.fastapi import GraphQLRouter
-from .types import ProfileExtension, AddonSearchResultType
-from typing import AsyncGenerator
+from .types import ProfileExtension, AddonSearchResultType, AddonManifestType
+from typing import AsyncGenerator, Optional
 from strawberry.types import Info
 from core.utils.logging import log_info
 from typing import Dict, Any
@@ -9,7 +9,11 @@ from typing import Dict, Any
 
 @strawberry.type
 class Query:
-    pass
+    @strawberry.field
+    async def manifest_by_url(self, url: str) -> Optional[AddonManifestType]:
+        from .resolvers import resolve_manifest_by_url
+
+        return await resolve_manifest_by_url(url=url)
 
 
 @strawberry.type

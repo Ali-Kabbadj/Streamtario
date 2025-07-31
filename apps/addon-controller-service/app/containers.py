@@ -24,6 +24,7 @@ from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.search_use_case import SearchUseCase
 from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
+from app.use_cases.get_streams import GetStreamsUseCase
 
 
 class Container(containers.DeclarativeContainer):
@@ -118,4 +119,9 @@ class Container(containers.DeclarativeContainer):
             get_manifest_use_case=get_manifest_use_case,
             addon_provider=addon_provider,
         )
+    )
+    get_streams_use_case: providers.Factory[GetStreamsUseCase] = providers.Factory(
+        GetStreamsUseCase,
+        get_manifest_use_case=get_manifest_use_case,
+        addon_provider=addon_provider,
     )

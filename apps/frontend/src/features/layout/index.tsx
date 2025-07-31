@@ -3,19 +3,23 @@
 import React from "react";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
+import { useView } from "@/providers/view-provider";
+
 interface MainAppLayoutProps {
   children: React.ReactNode;
 }
 
-// This component is now a simple, "dumb" layout shell.
 export function MainAppLayout({ children }: MainAppLayoutProps) {
+  const { currentView } = useView();
+
+  const showSideBar = currentView.name === "meta";
   return (
-    <div className="bg-muted/40 flex min-h-screen w-full flex-col">
-      <Sidebar />
-      <div className="flex flex-col pl-20">
-        <Header />
-        <main className="flex-1 p-4 sm:px-6 md:gap-8">{children}</main>
-      </div>
+    <div className="bg-muted/40 min-h-screen w-full">
+      <Header />
+      {!showSideBar && <Sidebar />}
+      <main>
+        <div className="p-4 sm:px-6 md:gap-8">{children}</div>
+      </main>
     </div>
   );
 }

@@ -470,6 +470,7 @@
       "xtr1common": "cpp",
       "xtree": "cpp",
       "xutility": "cpp"
-    }
+    },
+    "gitlens.currentLine.format": "\"gitlens.currentLine.format\": \"${author}, ${agoOrDate}, ${message|50?}\""
   }
 }

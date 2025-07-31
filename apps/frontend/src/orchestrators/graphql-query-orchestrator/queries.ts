@@ -27,6 +27,34 @@ export const GetMetaDetailsDocument = graphql(`
   }
 `);
 
+export const GetStreamsDocument = graphql(`
+  query GetStreams($profileId: ID!, $itemType: String!, $itemId: String!) {
+    profile(id: $profileId) {
+      streams(itemType: $itemType, itemId: $itemId) {
+        name
+        title
+        url
+        infoHash
+        behaviorHints
+        addonName
+      }
+    }
+  }
+`);
+
+export const ManifestByUrlDocument = graphql(`
+  query ManifestByUrl($url: String!) {
+    manifestByUrl(url: $url) {
+      id
+      name
+      description
+      version
+      logo
+      types
+    }
+  }
+`);
+
 export const GetFullProfileDocument = graphql(`
   query GetFullProfile($profileId: ID!) {
     profile(id: $profileId) {

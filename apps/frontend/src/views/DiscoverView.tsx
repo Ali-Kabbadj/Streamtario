@@ -1,24 +1,49 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useLayoutEffect } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
+import { useDiscoverContext } from "@/providers/discover-provider";
 import { useDiscover } from "@/features/discover/hooks/useDiscover";
 import { useCatalog } from "@/features/discover/hooks/useCatalog";
 import { DiscoverFilters } from "@/features/discover/components/DiscoverFilters";
 import { CatalogGrid } from "@/features/discover/components/CatalogGrid";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useView } from "@/providers/view-provider";
+import { Icon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export function DiscoverView() {
   const { selectedProfile } = useProfileContext();
+  const {
+    selectedType,
+    setSelectedType,
+    selectedProvider,
+    setSelectedProvider,
+    selectedCatalogId,
+    setSelectedCatalogId,
+    extraFilters,
+    setExtraFilters,
+    scrollPosition,
+    setScrollPosition,
+    resetFilters,
+  } = useDiscoverContext();
 
-  const [selectedType, setSelectedType] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("all");
-  const [selectedCatalogId, setSelectedCatalogId] = useState("");
-  const [extraFilters, setExtraFilters] = useState<Record<string, string>>({});
+  const { navigateTo } = useView();
 
   const { data: discoverData, isLoading: isLoadingDiscover } = useDiscover(
     selectedProfile?.id ?? "",
   );
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, scrollPosition);
+  }, [scrollPosition]);
+
+  useEffect(() => {
+    return () => {
+      setScrollPosition(window.scrollY);
+    };
+  }, [setScrollPosition]);
 
   const selectedCatalogData = useMemo(() => {
     if (!discoverData) return undefined;
@@ -66,50 +91,12 @@ export function DiscoverView() {
     isEnabled: isQueryEnabled,
   });
 
-  const handleTypeChange = useCallback(
-    (type: string) => {
-      setSelectedType(type);
-      setSelectedProvider("all");
-      setExtraFilters({});
-      const firstCatalogForType = discoverData?.find(
-        (c) => c.catalogType === type,
-      );
-      setSelectedCatalogId(firstCatalogForType?.catalogId ?? "");
-    },
-    [discoverData],
-  );
-
-  const handleProviderChange = useCallback(
-    (providerId: string) => {
-      setSelectedProvider(providerId);
-      setExtraFilters({});
-      const firstCatalogForProvider = discoverData?.find(
-        (c) =>
-          c.catalogType === selectedType &&
-          (providerId === "all" || c.manifestId === providerId),
-      );
-      setSelectedCatalogId(firstCatalogForProvider?.catalogId ?? "");
-    },
-    [discoverData, selectedType],
-  );
-
-  const handleCatalogChange = useCallback((catalogId: string) => {
-    setSelectedCatalogId(catalogId);
-    setExtraFilters({});
-  }, []);
-
-  const handleExtraFilterChange = useCallback((key: string, value: string) => {
-    setExtraFilters((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
   useEffect(() => {
     if (discoverData && discoverData.length > 0 && !selectedType) {
-      const firstType = discoverData[0]?.catalogType;
-      if (firstType) {
-        handleTypeChange(firstType);
-      }
+      const firstType = discoverData[0].catalogType;
+      handleTypeChange(firstType);
     }
-  }, [discoverData, selectedType, handleTypeChange]);
+  }, [discoverData, selectedType]);
 
   useEffect(() => {
     if (selectedCatalogData) {
@@ -118,20 +105,51 @@ export function DiscoverView() {
       );
       const updates: Record<string, string> = {};
       requiredFilters.forEach((filter) => {
-        if (!extraFilters[filter.name] && filter.options?.[0]) {
+        if (!extraFilters[filter.name] && filter.options) {
           updates[filter.name] = filter.options[0];
         }
       });
       if (Object.keys(updates).length > 0) {
-        setExtraFilters((prev) => ({ ...prev, ...updates }));
+        setExtraFilters({ ...extraFilters, ...updates });
       }
     }
   }, [selectedCatalogData, extraFilters]);
 
+  const handleTypeChange = (type: string) => {
+    setSelectedType(type);
+    setSelectedProvider("all");
+    setExtraFilters({});
+    const firstCatalogForType = discoverData?.find(
+      (c) => c.catalogType === type,
+    );
+    setSelectedCatalogId(firstCatalogForType?.catalogId ?? "");
+  };
+
+  const handleProviderChange = (providerId: string) => {
+    setSelectedProvider(providerId);
+    setExtraFilters({});
+    const firstCatalogForProvider = discoverData?.find(
+      (c) =>
+        c.catalogType === selectedType &&
+        (providerId === "all" || c.manifestId === providerId),
+    );
+    setSelectedCatalogId(firstCatalogForProvider?.catalogId ?? "");
+  };
+
+  const handleCatalogChange = (catalogId: string) => {
+    setSelectedCatalogId(catalogId);
+    setExtraFilters({});
+  };
+
+  const handleExtraFilterChange = (key: string, value: string) => {
+    setExtraFilters({ ...extraFilters, [key]: value });
+  };
+
   return (
     <div className="container mx-auto">
-      <h1 className="mb-6 text-3xl font-bold tracking-tight">Discover</h1>
-
+      <div className="mb-8">
+        <h1 className="mb-4 text-6xl font-bold tracking-tight">Discover</h1>
+      </div>
       {isLoadingDiscover ? (
         <div className="space-y-4">
           <Skeleton className="h-10 w-full max-w-lg" />
@@ -160,9 +178,16 @@ export function DiscoverView() {
       />
 
       {!isQueryEnabled && !isLoadingDiscover && (
-        <div className="text-muted-foreground py-10 text-center">
-          <p>Please make a selection in all required filters to see content.</p>
-        </div>
+        <>
+          <div className="text-muted-foreground flex justify-center py-10 text-center">
+            <p>
+              Please make sure you installed at least one metadata{" "}
+              <Button onClick={() => navigateTo({ name: "addons" })}>
+                Addons
+              </Button>
+            </p>
+          </div>
+        </>
       )}
     </div>
   );
