@@ -188,3 +188,15 @@ body {
 * {
   scrollbar-width: none;
 }
+
+/* ================================================================= */
+/* THE CRITICAL FIX: HIDE THE APP AND MAKE THE BACKGROUND TRANSPARENT */
+/* ================================================================= */
+body.player-active {
+  background-color: transparent !important;
+}
+
+body.player-active #app-root {
+  display: none;
+}
+/* ================================================================= */

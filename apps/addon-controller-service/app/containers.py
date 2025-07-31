@@ -8,6 +8,10 @@ from app.adapters.redis_manifest_cache import RedisManifestCache
 from app.domain.cache.i_manifest_cache import IManifestCache
 from app.domain.cache.i_profile_manifest_cache import IProfileManifestCache
 from app.adapters.redis_profile_manifest_cache import RedisProfileManifestCache
+from app.domain.providers.i_profile_addon_manifest_provider import (
+    IProfileAddonManifestProvider,
+)
+from app.adapters.profile_addon_manifest_provider import ProfileAddonManifestProvider
 from app.use_cases.event_handlers.handle_addon_installed import (
     HandleAddonInstalledEventUseCase,
 )
@@ -47,6 +51,16 @@ class Container(containers.DeclarativeContainer):
     manifest_cache: providers.Factory[IManifestCache] = providers.Factory(
         RedisManifestCache, redis_client=redis_client
     )
+
+    profile_addon_manifest_provider: providers.Factory[
+        IProfileAddonManifestProvider
+    ] = providers.Factory(
+        ProfileAddonManifestProvider,
+        api_client=api_client,
+        profile_manifest_cache=profile_manifest_cache,
+        account_profile_service_url=settings.provided.ACCOUNT_PROFILE_SERVICE_URL,
+    )
+
     base_addon_provider: providers.Singleton[IExternalAddonProvider] = (
         providers.Singleton(ExternalAddonProvider, public_api_client=public_api_client)
     )
@@ -91,6 +105,7 @@ class Container(containers.DeclarativeContainer):
         providers.Factory(
             DiscoverCatalogsUseCase,
             get_manifest_use_case=get_manifest_use_case,
+            profile_addon_manifest_provider=profile_addon_manifest_provider,
         )
     )
     aggregate_catalog_use_case: providers.Factory[AggregateCatalogUseCase] = (
@@ -98,6 +113,7 @@ class Container(containers.DeclarativeContainer):
             AggregateCatalogUseCase,
             get_manifest_use_case=get_manifest_use_case,
             addon_provider=addon_provider,
+            profile_addon_manifest_provider=profile_addon_manifest_provider,
         )
     )
     find_and_get_meta_use_case: providers.Factory[FindAndGetMetaUseCase] = (
@@ -105,6 +121,7 @@ class Container(containers.DeclarativeContainer):
             FindAndGetMetaUseCase,
             get_manifest_use_case=get_manifest_use_case,
             get_meta_use_case=get_meta_use_case,
+            profile_addon_manifest_provider=profile_addon_manifest_provider,
         )
     )
     search_use_case: providers.Factory[SearchUseCase] = providers.Factory(
@@ -118,10 +135,13 @@ class Container(containers.DeclarativeContainer):
             GetHomeCatalogsUseCase,
             get_manifest_use_case=get_manifest_use_case,
             addon_provider=addon_provider,
+            profile_addon_manifest_provider=profile_addon_manifest_provider,
         )
     )
     get_streams_use_case: providers.Factory[GetStreamsUseCase] = providers.Factory(
         GetStreamsUseCase,
         get_manifest_use_case=get_manifest_use_case,
         addon_provider=addon_provider,
+        profile_addon_manifest_provider=profile_addon_manifest_provider,
+        find_and_get_meta_use_case=find_and_get_meta_use_case,  # <-- INJECTION ADDED
     )

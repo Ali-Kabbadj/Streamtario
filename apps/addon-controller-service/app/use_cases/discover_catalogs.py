@@ -3,18 +3,26 @@ from typing import List
 from core.pydantic.addons.manifest import AddonManifest, Catalog
 from core.pydantic.catalog.catalog import DiscoveredCatalog
 from .get_manifest import GetManifestUseCase
+from ..domain.providers.i_profile_addon_manifest_provider import (
+    IProfileAddonManifestProvider,
+)
 from core.utils.logging import log_error, log_info
 
 
 class DiscoverCatalogsUseCase:
     """
-    Takes a list of manifest URLs, fetches them, and transforms their catalog
+    Takes a profile ID, fetches its manifest URLs, and transforms their catalog
     listings into a UI-friendly format. This is the primary mechanism for
     powering dynamic UI elements like genre or content-type dropdowns.
     """
 
-    def __init__(self, get_manifest_use_case: GetManifestUseCase):
+    def __init__(
+        self,
+        get_manifest_use_case: GetManifestUseCase,
+        profile_addon_manifest_provider: IProfileAddonManifestProvider,
+    ):
         self.get_manifest_use_case = get_manifest_use_case
+        self.profile_addon_manifest_provider = profile_addon_manifest_provider
 
     def _is_search_only_catalog(self, catalog: Catalog) -> bool:
         """Determines if a catalog is exclusively for searching."""
@@ -35,7 +43,13 @@ class DiscoverCatalogsUseCase:
             )
             return None
 
-    async def execute(self, manifest_urls: List[str]) -> List[DiscoveredCatalog]:
+    async def execute(self, profile_id: str) -> List[DiscoveredCatalog]:
+        manifest_urls = await self.profile_addon_manifest_provider.get_manifest_urls(
+            profile_id
+        )
+        if not manifest_urls:
+            return []
+
         manifests = await asyncio.gather(
             *[self._fetch_manifest(url) for url in manifest_urls]
         )

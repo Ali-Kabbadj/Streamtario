@@ -6,6 +6,9 @@ from app.domain.providers.i_external_addon_provider import IExternalAddonProvide
 from core.pydantic.catalog.catalog import CatalogResponse, CatalogItem
 from core.pydantic.addons.manifest import Catalog
 from .get_manifest import GetManifestUseCase
+from ..domain.providers.i_profile_addon_manifest_provider import (
+    IProfileAddonManifestProvider,
+)
 
 
 class HomeContentRow(BaseModel):
@@ -23,15 +26,23 @@ class GetHomeCatalogsUseCase:
         self,
         get_manifest_use_case: GetManifestUseCase,
         addon_provider: IExternalAddonProvider,
+        profile_addon_manifest_provider: IProfileAddonManifestProvider,
     ):
         self.get_manifest_use_case = get_manifest_use_case
         self.addon_provider = addon_provider
+        self.profile_addon_manifest_provider = profile_addon_manifest_provider
 
     def _is_default_catalog(self, catalog: Catalog) -> bool:
         name = catalog.name.lower()
         return "popular" in name or "top" in name or "trending" in name
 
-    async def execute(self, manifest_urls: List[str]) -> List[HomeAddonSection]:
+    async def execute(self, profile_id: str) -> List[HomeAddonSection]:
+        manifest_urls = await self.profile_addon_manifest_provider.get_manifest_urls(
+            profile_id
+        )
+        if not manifest_urls:
+            return []
+
         manifests = await asyncio.gather(
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )

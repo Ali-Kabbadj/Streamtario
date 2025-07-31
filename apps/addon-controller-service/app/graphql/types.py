@@ -64,7 +64,7 @@ class MetaItemType:
     logo: Optional[str] = None
     description: Optional[str] = None
     release_info: Optional[str] = None
-    imdb_rating: Optional[str] = None
+    imdb_id: Optional[str] = None
     videos: Optional[List[VideoType]] = None
 
 
@@ -141,15 +141,14 @@ class StreamType:
 @strawberry.federation.type(name="Profile", keys=["id"], extend=True)
 class ProfileExtension:
     id: strawberry.ID = strawberry.federation.field(external=True)
-    manifest_urls: List[str] = strawberry.federation.field(external=True)
 
-    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    @strawberry.field
     async def discoverable_catalogs(self) -> List["DiscoveredCatalogType"]:
         from .resolvers import resolve_discoverable_catalogs
 
         return await resolve_discoverable_catalogs(self)
 
-    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    @strawberry.field
     async def catalog(
         self,
         itemType: str,
@@ -164,19 +163,19 @@ class ProfileExtension:
             self, itemType, catalogId, manifestId, extraProps, filterByType
         )
 
-    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    @strawberry.field
     async def meta(self, itemType: str, itemId: str) -> Optional["MetaItemType"]:
         from .resolvers import resolve_profile_meta
 
         return await resolve_profile_meta(self, itemType, itemId)
 
-    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    @strawberry.field
     async def home_catalogs(self) -> List["HomeAddonSectionType"]:
         from .resolvers import resolve_home_catalogs
 
         return await resolve_home_catalogs(self)
 
-    @strawberry.federation.field(directives=[Requires(fields="manifestUrls")])
+    @strawberry.field
     async def streams(self, itemType: str, itemId: str) -> List["StreamType"]:
         from .resolvers import resolve_streams
 

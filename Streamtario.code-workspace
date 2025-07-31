@@ -21,13 +21,28 @@
     { "name": "database", "path": "database" },
     { "name": "dev resources", "path": "dev_resources" },
     { "name": "api-gateway", "path": "apps/api-gateway" },
-    { "name": "auth-service", "path": "apps/auth-service" }
+    { "name": "auth-service", "path": "apps/auth-service" },
+    { "name": "streaming-service", "path": "apps/streaming-service" }
   ],
   "tasks": {
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "tsc: build",
+        "label": "tsc: build streaming api",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "build"],
+        "options": { "cwd": "${workspaceFolder:streaming-service}" },
+        "group": "build",
+        "problemMatcher": ["$tsc"],
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "echo": true
+        }
+      },
+      {
+        "label": "tsc: build api-gateway",
         "type": "shell",
         "command": "npm",
         "args": ["run", "build"],
@@ -186,6 +201,25 @@
         "presentation": { "hidden": false, "group": "services", "order": 2 }
       },
       {
+        "name": "➕ Streaming Service",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "node",
+        "runtimeArgs": [
+          "--inspect-brk",
+          "${workspaceFolder:streaming-service}/dist/app.js"
+        ],
+        "preLaunchTask": "tsc: build streaming api",
+        "outFiles": ["${workspaceFolder:streaming-service}/dist/**/*.js"],
+        "sourceMaps": true,
+        "cwd": "${workspaceFolder:streaming-service}",
+        "console": "internalConsole",
+        "skipFiles": ["<node_internals>/**"],
+        "outputCapture": "std",
+        "localRoot": "${workspaceFolder:streaming-service}",
+        "remoteRoot": "/app"
+      },
+      {
         "name": "🚀 API Gateway",
         "type": "node",
         "request": "launch",
@@ -194,7 +228,7 @@
           "--inspect-brk",
           "${workspaceFolder:api-gateway}/dist/index.js"
         ],
-        "preLaunchTask": "tsc: build",
+        "preLaunchTask": "tsc: build api-gateway",
         "outFiles": ["${workspaceFolder:api-gateway}/dist/**/*.js"],
         "sourceMaps": true,
         "cwd": "${workspaceFolder:api-gateway}",
@@ -267,10 +301,10 @@
       {
         "name": "💯 Services",
         "configurations": [
-          "🚀 API Gateway",
           "➕ Addons Service",
           "➕ Accounts Service",
-          "➕ Auth Service"
+          "➕ Auth Service",
+          "🚀 API Gateway"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
         "stopAll": true,
@@ -288,6 +322,7 @@
           "➕ Addons Service",
           "➕ Accounts Service",
           "➕ Auth Service",
+          "➕ Streaming Service",
           "🚀 API Gateway",
           "WebView2",
           "DEBUG_FRONTEND"

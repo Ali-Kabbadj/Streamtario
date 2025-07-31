@@ -43,7 +43,7 @@ async def resolve_discoverable_catalogs(
     profile: ProfileExtension,
     use_case: DiscoverCatalogsUseCase = Provide[Container.discover_catalogs_use_case],
 ) -> List[DiscoveredCatalogType]:
-    pydantic_catalogs = await use_case.execute(manifest_urls=profile.manifest_urls)
+    pydantic_catalogs = await use_case.execute(profile_id=str(profile.id))
     strawberry_catalogs = []
     for p_cat in pydantic_catalogs:
         extra_props = [
@@ -80,7 +80,7 @@ async def resolve_profile_catalog(
     use_case: AggregateCatalogUseCase = Provide[Container.aggregate_catalog_use_case],
 ) -> CatalogResult:
     pydantic_items = await use_case.execute(
-        manifest_urls=profile.manifest_urls,
+        profile_id=str(profile.id),
         item_type=itemType,
         catalog_id=catalogId,
         manifest_id_filter=manifestId,
@@ -99,7 +99,7 @@ async def resolve_profile_meta(
     use_case: FindAndGetMetaUseCase = Provide[Container.find_and_get_meta_use_case],
 ) -> Optional[MetaItemType]:
     pydantic_meta = await use_case.execute(
-        manifest_urls=profile.manifest_urls,
+        profile_id=str(profile.id),
         item_type=itemType,
         item_id=itemId,
     )
@@ -116,7 +116,7 @@ async def resolve_profile_meta(
         logo=pydantic_meta.logo,
         description=pydantic_meta.description,
         release_info=pydantic_meta.release_info,
-        imdb_rating=pydantic_meta.imdb_rating,
+        imdb_id=pydantic_meta.imdb_id,  # <-- THE CRITICAL FIX IS HERE
         videos=(
             [
                 VideoType(id=strawberry.ID(v.id), **v.model_dump(exclude={"id"}))
@@ -133,7 +133,7 @@ async def resolve_home_catalogs(
     profile: ProfileExtension,
     use_case: GetHomeCatalogsUseCase = Provide[Container.get_home_catalogs_use_case],
 ) -> List[HomeAddonSectionType]:
-    pydantic_sections = await use_case.execute(manifest_urls=profile.manifest_urls)
+    pydantic_sections = await use_case.execute(profile_id=str(profile.id))
     strawberry_sections = []
     for section in pydantic_sections:
         strawberry_rows = []
@@ -158,7 +158,7 @@ async def resolve_streams(
     use_case: GetStreamsUseCase = Provide[Container.get_streams_use_case],
 ) -> List[StreamType]:
     pydantic_streams = await use_case.execute(
-        manifest_urls=profile.manifest_urls,
+        profile_id=str(profile.id),
         item_type=itemType,
         item_id=itemId,
     )

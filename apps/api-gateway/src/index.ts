@@ -48,9 +48,16 @@ async function startGateway() {
     accounts: { url: 'https://localhost:8002/graphql' },
     addons: { url: 'https://localhost:8001/graphql' },
     auth: { url: 'https://localhost:8003' },
+    stream: { url: 'https://localhost:8004' },
   };
 
   const app = express();
+
+  // =================================================================
+  // THE CRITICAL FIX: APPLY GLOBAL CORS MIDDLEWARE
+  // This MUST come before any routes or proxies are defined.
+  app.use(cors<cors.CorsRequest>());
+  // =================================================================
 
   let httpServer: Server;
   try {
@@ -151,9 +158,19 @@ async function startGateway() {
   });
   app.use('/api/v1/auth', authProxy);
 
+  const streamProxy = createProxyMiddleware({
+    target: serviceMap.stream.url,
+    changeOrigin: true,
+    secure: false,
+    ws: true,
+    pathRewrite: {
+      '^/api/v1/stream': '',
+    },
+  });
+  app.use('/api/v1/stream', streamProxy);
+
   app.use(
     '/graphql',
-    cors<cors.CorsRequest>(),
     express.json({ limit: '10mb' }),
     expressMiddleware(server, {
       context: async ({ req }) => ({ headers: req.headers }),
@@ -168,6 +185,7 @@ async function startGateway() {
     console.log(`🚀 GraphQL endpoint is available at ${protocol}://localhost:${PORT}/graphql`);
     console.log(`🚀 Subscriptions are available at ${wsProtocol}://localhost:${PORT}/graphql`);
     console.log(`🚀 Auth endpoints are proxied at ${protocol}://localhost:${PORT}/api/v1/auth`);
+    console.log(`🚀 Stream endpoints are proxied at ${protocol}://localhost:${PORT}/api/v1/stream`);
   });
 }
 

@@ -8,7 +8,8 @@
 
 using namespace Microsoft::WRL;
 
-void InitWebView2(HWND hWnd, const std::wstring &app_path)
+// Initializes the main application WebView, RESTORING your original debug/production logic
+void InitMainWebView(HWND hWnd, const std::wstring &app_path)
 {
   std::wstring webview_data_dir = AppConfig::GetConfigDirectory() + L"\\WebView2_Data";
   CreateCoreWebView2EnvironmentWithOptions(
@@ -21,19 +22,12 @@ void InitWebView2(HWND hWnd, const std::wstring &app_path)
             env->CreateCoreWebView2Controller(
                 hWnd,
                 Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                    [hWnd, app_path, env](HRESULT result, ICoreWebView2Controller *controller) -> HRESULT
+                    [hWnd, app_path](HRESULT result, ICoreWebView2Controller *controller) -> HRESULT
                     {
                       if (controller != nullptr)
                       {
                         g_webviewController = controller;
                         g_webviewController->get_CoreWebView2(&g_webview);
-                      }
-
-                      wil::com_ptr<ICoreWebView2Controller2> controller2 =
-                          g_webviewController.try_query<ICoreWebView2Controller2>();
-                      if (controller2)
-                      {
-                        controller2->put_DefaultBackgroundColor({0, 0, 0, 0});
                       }
 
                       RECT bounds;
@@ -50,10 +44,11 @@ void InitWebView2(HWND hWnd, const std::wstring &app_path)
                       if (webview3)
                       {
                         webview3->SetVirtualHostNameToFolderMapping(
-                            L"gaytorrents.app", web_assets_path.c_str(), COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW);
+                            L"streamtario.app", web_assets_path.c_str(), COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW);
                       }
                       g_webview->Navigate(L"https://streamtario.app/index.html");
 #endif
+                      // =================================================================
 
                       EventRegistrationToken token;
                       g_webview->add_WebMessageReceived(
@@ -71,6 +66,62 @@ void InitWebView2(HWND hWnd, const std::wstring &app_path)
                       return S_OK;
                     })
                     .Get());
+            return S_OK;
+          })
+          .Get());
+}
+
+// Initializes the separate, transparent player overlay WebView
+void InitPlayerWebView(HWND hWnd, const std::wstring &app_path)
+{
+  std::wstring webview_data_dir = AppConfig::GetConfigDirectory() + L"\\WebView2_Data";
+  CreateCoreWebView2EnvironmentWithOptions(
+      nullptr, webview_data_dir.c_str(), nullptr,
+      Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+          [hWnd, app_path](HRESULT result, ICoreWebView2Environment *env) -> HRESULT
+          {
+            env->CreateCoreWebView2Controller(hWnd,
+                                              Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                                                  [hWnd, app_path](HRESULT result, ICoreWebView2Controller *controller) -> HRESULT
+                                                  {
+                                                    g_playerWebviewController = controller;
+                                                    g_playerWebviewController->get_CoreWebView2(&g_playerWebview);
+
+                                                    wil::com_ptr<ICoreWebView2Controller2> controller2 = g_playerWebviewController.try_query<ICoreWebView2Controller2>();
+                                                    if (controller2)
+                                                    {
+                                                      controller2->put_DefaultBackgroundColor({0, 0, 0, 0}); // Transparent
+                                                    }
+
+                                                    RECT bounds;
+                                                    GetClientRect(hWnd, &bounds);
+                                                    g_playerWebviewController->put_Bounds(bounds);
+                                                    g_playerWebviewController->put_IsVisible(FALSE); // Initially hidden
+
+#ifdef _DEBUG
+                                                    // =========== DEVELOPMENT MODE (HTTPS) ===========
+                                                    g_playerWebview->Navigate(L"https://localhost:3000/player");
+#else
+                                                    // =========== PRODUCTION MODE ===========
+                                                    // The same mapping from the main view applies here
+                                                    g_playerWebview->Navigate(L"https://streamtario.app/player.html");
+#endif
+
+                                                    EventRegistrationToken token;
+                                                    g_playerWebview->add_WebMessageReceived(
+                                                        Callback<ICoreWebView2WebMessageReceivedEventHandler>(
+                                                            [](ICoreWebView2 *webview, ICoreWebView2WebMessageReceivedEventArgs *args) -> HRESULT
+                                                            {
+                                                              wil::unique_cotaskmem_string message;
+                                                              args->TryGetWebMessageAsString(&message);
+                                                              HandleWebMessage(message.get());
+                                                              return S_OK;
+                                                            })
+                                                            .Get(),
+                                                        &token);
+                                                    return S_OK;
+                                                  })
+                                                  .Get());
             return S_OK;
           })
           .Get());

@@ -64,6 +64,11 @@ class ApiErrorCode(Enum):
         "The requested addon could not be found for the given profile.",
         "The requested addon could not be found.",
     )
+    ADDON_BAD_RESPONSE = ErrorCodeDetail(
+        status.HTTP_502_BAD_GATEWAY,
+        "The addon returned a successful status but an invalid or non-JSON response.",
+        "The addon provider is currently experiencing issues. Please try again later.",
+    )
     ACCOUNT_EMAIL_EXISTS = ErrorCodeDetail(
         status.HTTP_409_CONFLICT,
         "An account with the provided email address already exists.",

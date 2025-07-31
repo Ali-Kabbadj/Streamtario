@@ -9,8 +9,6 @@ import { DiscoverFilters } from "@/features/discover/components/DiscoverFilters"
 import { CatalogGrid } from "@/features/discover/components/CatalogGrid";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useView } from "@/providers/view-provider";
-import { Icon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export function DiscoverView() {
@@ -26,7 +24,6 @@ export function DiscoverView() {
     setExtraFilters,
     scrollPosition,
     setScrollPosition,
-    resetFilters,
   } = useDiscoverContext();
 
   const { navigateTo } = useView();
@@ -45,21 +42,45 @@ export function DiscoverView() {
     };
   }, [setScrollPosition]);
 
+  useEffect(() => {
+    if (discoverData && discoverData.length > 0 && !selectedType) {
+      setSelectedType(discoverData[0].catalogType);
+    }
+  }, [discoverData, selectedType, setSelectedType]);
+
+  useEffect(() => {
+    if (selectedType && discoverData) {
+      const firstProviderForType = discoverData.find(
+        (c) => c.catalogType === selectedType,
+      );
+      if (firstProviderForType) {
+        setSelectedProvider(firstProviderForType.manifestId);
+        setSelectedCatalogId(firstProviderForType.catalogId);
+        setExtraFilters({});
+      }
+    }
+  }, [
+    selectedType,
+    discoverData,
+    setSelectedProvider,
+    setSelectedCatalogId,
+    setExtraFilters,
+  ]);
+
   const selectedCatalogData = useMemo(() => {
     if (!discoverData) return undefined;
     return discoverData.find(
       (c) =>
-        c.catalogType === selectedType &&
-        c.catalogId === selectedCatalogId &&
-        (selectedProvider === "all" || c.manifestId === selectedProvider),
+        c.catalogType === selectedType && c.catalogId === selectedCatalogId,
     );
-  }, [discoverData, selectedType, selectedCatalogId, selectedProvider]);
+  }, [discoverData, selectedType, selectedCatalogId]);
 
   const isQueryEnabled = useMemo(() => {
     if (!selectedCatalogData) return false;
-    const requiredFilters = selectedCatalogData.extraProps.filter(
-      (p) => p.isRequired && p.options && p.options.length > 0,
-    );
+    const requiredFilters =
+      selectedCatalogData.extraProps.filter(
+        (p) => p.isRequired && p.options && p.options.length > 0,
+      ) ?? [];
     if (requiredFilters.length === 0) return true;
     return requiredFilters.every(
       (rf) => !!extraFilters[rf.name] && extraFilters[rf.name] !== "all",
@@ -86,52 +107,20 @@ export function DiscoverView() {
     profileId: selectedProfile?.id ?? "",
     itemType: selectedType,
     catalogId: selectedCatalogId,
-    providerId: selectedProvider === "all" ? undefined : selectedProvider,
+    providerId: selectedProvider,
     extraProps: queryExtraProps,
-    isEnabled: isQueryEnabled,
+    isEnabled: isQueryEnabled && !!selectedProvider,
   });
-
-  useEffect(() => {
-    if (discoverData && discoverData.length > 0 && !selectedType) {
-      const firstType = discoverData[0].catalogType;
-      handleTypeChange(firstType);
-    }
-  }, [discoverData, selectedType]);
-
-  useEffect(() => {
-    if (selectedCatalogData) {
-      const requiredFilters = selectedCatalogData.extraProps.filter(
-        (p) => p.isRequired && p.options && p.options.length > 0,
-      );
-      const updates: Record<string, string> = {};
-      requiredFilters.forEach((filter) => {
-        if (!extraFilters[filter.name] && filter.options) {
-          updates[filter.name] = filter.options[0];
-        }
-      });
-      if (Object.keys(updates).length > 0) {
-        setExtraFilters({ ...extraFilters, ...updates });
-      }
-    }
-  }, [selectedCatalogData, extraFilters]);
 
   const handleTypeChange = (type: string) => {
     setSelectedType(type);
-    setSelectedProvider("all");
-    setExtraFilters({});
-    const firstCatalogForType = discoverData?.find(
-      (c) => c.catalogType === type,
-    );
-    setSelectedCatalogId(firstCatalogForType?.catalogId ?? "");
   };
 
   const handleProviderChange = (providerId: string) => {
     setSelectedProvider(providerId);
     setExtraFilters({});
     const firstCatalogForProvider = discoverData?.find(
-      (c) =>
-        c.catalogType === selectedType &&
-        (providerId === "all" || c.manifestId === providerId),
+      (c) => c.catalogType === selectedType && c.manifestId === providerId,
     );
     setSelectedCatalogId(firstCatalogForProvider?.catalogId ?? "");
   };

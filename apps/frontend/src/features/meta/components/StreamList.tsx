@@ -4,26 +4,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { StreamItem } from "./StreamItem";
 import type { ParsedStreamDetails } from "@/lib/stream-parser";
-import { useView } from "@/providers/view-provider";
 import { Button } from "@/components/ui/button";
 
 interface StreamListProps {
   streams: ParsedStreamDetails[] | undefined;
   rawStreams: GetStreamsQuery["profile"]["streams"] | undefined;
   isLoading: boolean;
+  clearFilters: () => void;
+  mediaTitle: string; // <-- PROP ADDED
 }
 
 export function StreamList({
   streams,
   rawStreams,
   isLoading,
+  clearFilters,
+  mediaTitle, // <-- PROP ADDED
 }: StreamListProps) {
-  const { navigateTo } = useView();
   if (isLoading) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-md" />
+          <Skeleton key={i} className="h-28 w-full rounded-md" />
         ))}
       </div>
     );
@@ -31,22 +33,30 @@ export function StreamList({
 
   if (!streams || streams.length === 0) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50">
+      <div className="flex h-40 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50 p-4">
         <p className="text-muted-foreground text-center">
-          No streaming sources found. Please make use you have installed a
-          streaming{" "}
-          <Button onClick={() => navigateTo({ name: "addons" })}>Addons</Button>
+          No streaming sources found matching your criteria.
         </p>
+        <Button variant="link" onClick={clearFilters} className="mt-2">
+          Clear Filters
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {streams.map((parsed, index) => {
-        const rawStream = rawStreams?.[index];
+      {streams.map((parsed) => {
+        const rawStream = rawStreams?.[parsed.originalIndex];
         if (!rawStream) return null;
-        return <StreamItem key={index} stream={rawStream} parsed={parsed} />;
+        return (
+          <StreamItem
+            key={parsed.originalIndex}
+            stream={rawStream}
+            parsed={parsed}
+            mediaTitle={mediaTitle} // <-- PROP PASSED DOWN
+          />
+        );
       })}
     </div>
   );

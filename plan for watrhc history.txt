@@ -1,0 +1,73 @@
+This new model will be designed from the ground up to support every feature you mentioned:
+
+    Continue Watching: A simple query for items with a progress_seconds > 0 and watched_status set to in_progress.
+
+    Watch History: A query for items where watched_status is watched.
+
+    Playback Position & Smart Detection: The table will store progress_seconds and duration_seconds. We can implement backend logic where if progress_seconds is within, say, 95% of the duration_seconds, we automatically flag watched_status as watched.
+
+    Watchlist/Tracking: A simple boolean flag (in_watchlist) will manage this.
+
+    Calendar/Following: Another flag (tracked_for_release) will drive the notification and calendar features.
+
+    Favorites: A flag like is_favorite.
+
+    External Sync: Columns for trakt_id, imdb_id, etc., can be added later without refactoring the entire system.
+
+    Profile Settings: This state will live separately but will influence how the profile_media_state is queried and updated.
+
+The New Implementation Plan
+
+This is a more significant undertaking, but it's the right way to do it. Here is the revised, step-by-step plan to build this foundation correctly.
+
+Phase 1: Backend Foundation (account-profile-service)
+
+    New Database Model:
+
+        I will create a new SQLAlchemy model, ProfileMediaStateOrm, with fields like:
+
+            profile_id (FK)
+
+            item_id (e.g., tt0111161)
+
+            item_type (movie or series)
+
+            video_id (for specific episodes, e.g., tt0944947:1:1)
+
+            progress_seconds & duration_seconds
+
+            watched_status (an enum: unwatched, in_progress, watched)
+
+            in_watchlist (boolean)
+
+            is_favorite (boolean)
+
+            last_watched_at (timestamp, for sorting "Continue Watching")
+
+            ...and other flags for future features.
+
+    New Repositories & Unit of Work:
+
+        I will create the necessary repository interfaces and implementations to interact with this new table and integrate it into our Unit of Work pattern.
+
+    New, Powerful GraphQL Mutation:
+
+        I will create a single, versatile mutation: updateMediaState(profileId, itemId, videoId, progress, status, etc.). This single endpoint will be the gateway for all state updates, whether it's saving playback progress from the player or the user clicking an "Add to Watchlist" button.
+
+    New GraphQL Queries:
+
+        I will implement the continueWatching field on the Profile type. This query will fetch the relevant items from profile_media_state, and crucially, it will need to be enriched with metadata (poster, name). This will require an internal, service-to-service call to the addon-controller-service to resolve the metadata for the list of item IDs. This is a key point of integration that a simplistic approach would miss.
+
+Phase 2: Frontend Implementation (The UI)
+
+    Data Fetching:
+
+        I will create a new useContinueWatching React Query hook that calls the new continueWatching GraphQL query.
+
+    UI Component:
+
+        I will replace the placeholder on the HomeView with a new ContinueWatchingRow component that takes the data from the hook and renders the list of items, including the progress bars.
+
+This is a far more robust and scalable plan that directly aligns with the complex, feature-rich vision you have for the application. It establishes the correct foundation now, which will save us from massive technical debt later.
+
+I am ready to proceed with Phase 1, Step 1: Creating the new Database Model. Please confirm if this new architectural approach meets your approval.

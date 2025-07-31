@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
 import { useMetaDetails } from "@/features/meta/hooks/useMetaDetails";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,6 @@ import type { VideoType } from "@/orchestrators/graphql-query-orchestrator/gen/g
 import { EpisodeCard } from "@/features/meta/components/EpisodeCard";
 import { StreamPanel } from "@/features/meta/components/StreamPanel";
 import { motion } from "framer-motion";
-import { useRef } from "react";
 
 interface MetaViewProps {
   itemType: string;
@@ -87,9 +86,11 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
 
   const handleEpisodeClick = (episode: Video) => {
     if (!meta) return;
-    const episodeStreamId = `${meta.id.split(":")[1]}:${episode.season}:${
-      episode.episode
-    }`;
+    // =================================================================
+    // THE CRITICAL FIX: USE THE FULL, UNMODIFIED SERIES ID
+    // =================================================================
+    const episodeStreamId = `${meta.id}:${episode.season}:${episode.episode}`;
+    // =================================================================
     setStreamPanelContent({
       itemType: "series",
       itemId: episodeStreamId,
@@ -184,14 +185,12 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                 <span className="text-lg text-slate-400">
                   {meta.releaseInfo}
                 </span>
-                {meta.imdbRating && (
+                {meta.imdb_id && (
                   <>
                     <span className="text-slate-600">•</span>
                     <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 text-yellow-400" />
-                      <span className="text-lg font-bold">
-                        {meta.imdbRating}
-                      </span>
+                      <span className="text-lg font-bold">{meta.imdb_id}</span>
                     </div>
                   </>
                 )}

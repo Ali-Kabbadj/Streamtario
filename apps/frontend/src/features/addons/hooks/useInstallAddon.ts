@@ -15,6 +15,8 @@ export const useInstallAddon = (profileId: string) => {
                 throw new Error(data.installAddon.message);
             }
             void queryClient.invalidateQueries({ queryKey: ['profile', profileId] });
+            void queryClient.invalidateQueries({ queryKey: ['discover', profileId] });
+            void queryClient.invalidateQueries({ queryKey: ['homeData', profileId] });
         },
     });
 };
