@@ -3,7 +3,11 @@ import json
 from typing import Dict, Any
 import redis.asyncio as redis
 from pydantic import ValidationError
-from core.pydantic.events.base import AddonInstalledEvent, AddonUninstalledEvent
+from core.pydantic.events.base import (
+    AddonInstalledEvent,
+    AddonUninstalledEvent,
+    BaseEvent,
+)
 from app.use_cases.event_handlers.handle_addon_installed import (
     HandleAddonInstalledEventUseCase,
 )
@@ -32,39 +36,47 @@ class RedisEventSubscriber:
         }
 
     async def _dispatch(self, raw_message: str):
+        event_data: Dict[str, Any] | None = None
         try:
-            data = json.loads(raw_message)
-            event_name = data.get("event_name")
+            event_data = json.loads(raw_message)
+
+            if not isinstance(event_data, dict):
+                log_warn(
+                    "Decoded event data is not a dictionary",
+                    data={"raw_message": raw_message},
+                )
+                return
+
+            event_name = event_data.get("event_name")
 
             if not event_name:
-                log_warn("Received event without an event_name", data=data)
+                log_warn("Received event without an event_name", data=event_data)
                 return
 
-            # --- FIX: Check the result of .get() before unpacking it ---
             handler_info = self.handler_map.get(event_name)
             if not handler_info:
-                # This is not an error, just an event this service doesn't care about.
                 return
 
-            # Now it is safe to unpack
             handler, model = handler_info
-            # --- END FIX ---
 
-            event = model.model_validate(data)
+            event: BaseEvent = model.model_validate(event_data)
             await handler.execute(event)
 
         except json.JSONDecodeError:
             log_error(
                 "Failed to decode JSON from event message",
-                data={"message": raw_message},
+                data={"raw_message": raw_message},
             )
         except ValidationError as e:
             log_error(
                 "Event validation failed",
-                data={"errors": e.errors(), "message": raw_message},
+                data={"errors": e.errors(), "raw_message": raw_message},
             )
         except Exception as e:
-            log_error("Unexpected error in event dispatcher", data={"error": str(e)})
+            log_error(
+                "Unexpected error in event dispatcher",
+                data={"error": str(e), "event_data": event_data},
+            )
 
     async def listen(self):
         pubsub = self.redis_client.pubsub()

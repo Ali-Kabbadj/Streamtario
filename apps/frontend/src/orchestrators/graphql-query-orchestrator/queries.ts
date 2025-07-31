@@ -1,76 +1,195 @@
-// src/orchestrators/graphql-query-orchestrator/queries.ts
-
 import { graphql } from './gen/gql';
 
-// ============================================================================
-// QUERIES
-// ============================================================================
-
-export const GET_FULL_PROFILE_QUERY = graphql(`
-  query GetFullProfile($profileId: ID!) {
+export const GetMetaDetailsDocument = graphql(`
+  query GetMetaDetails($profileId: ID!, $itemType: String!, $itemId: String!) {
     profile(id: $profileId) {
-      id
-      name
-      avatar
-      manifestUrls
-      discoverableCatalogs {
-        addonName
-        manifestId
-        catalogId
-        catalogName
-        catalogType
-        supportedItemTypes
-        extraProps {
-          name
-          isRequired
-          options
-          optionsLimit
-        }
-      }
-      catalog(itemType: "movie") {
-        items {
-          id
-          type
-          name
-          poster
-        }
-      }
-      meta(itemType: "series", itemId: "community.anime.kitsu:kitsu:856") {
+      meta(itemType: $itemType, itemId: $itemId) {
         id
-        type
         name
-        genres
+        type
         poster
         background
         logo
         description
         releaseInfo
         imdbRating
+        genres
         videos {
           id
           title
           released
           thumbnail
+          season
+          episode
         }
       }
     }
   }
 `);
 
-// ============================================================================
-// MUTATIONS
-// ============================================================================
+export const GetStreamsDocument = graphql(`
+  query GetStreams($profileId: ID!, $itemType: String!, $itemId: String!) {
+    profile(id: $profileId) {
+      streams(itemType: $itemType, itemId: $itemId) {
+        name
+        title
+        url
+        infoHash
+        behaviorHints
+        addonName
+      }
+    }
+  }
+`);
 
-export const CREATE_ACCOUNT_MUTATION = graphql(`
-  mutation CreateAccount($email: String!, $password: String!) {
-    createAccount(input: { email: $email, password: $password }) {
-      ... on CreateAccountSuccess {
-        account {
-          id
-          email
+export const ManifestByUrlDocument = graphql(`
+  query ManifestByUrl($url: String!) {
+    manifestByUrl(url: $url) {
+      id
+      name
+      description
+      version
+      logo
+      types
+    }
+  }
+`);
+
+export const GetFullProfileDocument = graphql(`
+  query GetFullProfile($profileId: ID!) {
+    profile(id: $profileId) {
+      id
+      name
+      avatar
+      isPrivate
+      installedAddons {
+        id
+        manifestId
+        manifestUrl
+      }
+    }
+  }
+`);
+
+export const AccountDocument = graphql(`
+  query Account {
+    account {
+      id
+      email
+      profiles {
+        id
+        name
+        avatar
+        isPrivate
+      }
+    }
+  }
+`);
+
+export const DiscoverableCatalogsDocument = graphql(`
+  query DiscoverableCatalogs($profileId: ID!) {
+    profile(id: $profileId) {
+      discoverableCatalogs {
+        addonName
+        manifestId
+        catalogId
+        catalogName
+        catalogType
+        extraProps {
+          name
+          isRequired
+          options
         }
       }
-      ... on CreateAccountError {
+    }
+  }
+`);
+
+export const CatalogDocument = graphql(`
+  query Catalog(
+    $profileId: ID!
+    $itemType: String!
+    $catalogId: String!
+    $manifestId: String
+    $extraProps: JSON
+  ) {
+    profile(id: $profileId) {
+      catalog(
+        itemType: $itemType
+        catalogId: $catalogId
+        manifestId: $manifestId
+        extraProps: $extraProps
+      ) {
+        items {
+          id
+          name
+          type
+          poster
+        }
+      }
+    }
+  }
+`);
+
+export const HomeCatalogsDocument = graphql(`
+  query HomeCatalogs($profileId: ID!) {
+    profile(id: $profileId) {
+      homeCatalogs {
+        addonName
+        content {
+          title
+          items {
+            id
+            name
+            type
+            poster
+          }
+        }
+      }
+    }
+  }
+`);
+
+export const VerifyProfilePinDocument = graphql(`
+  mutation VerifyProfilePin($profileId: ID!, $pin: String!) {
+    verifyProfilePin(input: { profileId: $profileId, pin: $pin }) {
+      __typename
+      ... on VerifyProfilePinSuccess {
+        success
+      }
+      ... on VerifyProfilePinError {
+        code
+        message
+      }
+    }
+  }
+`);
+
+export const CreateProfileDocument = graphql(`
+  mutation CreateProfile(
+    $name: String!
+    $avatar: String
+    $isPrivate: Boolean!
+    $pin: String
+  ) {
+    createProfile(
+      input: {
+        name: $name
+        avatar: $avatar
+        isPrivate: $isPrivate
+        pin: $pin
+      }
+    ) {
+      __typename
+      ... on CreateProfileSuccess {
+        profile {
+          id
+          name
+          avatar
+        }
+      }
+      ... on CreateProfileError {
+        code
         message
         field
       }
@@ -78,33 +197,65 @@ export const CREATE_ACCOUNT_MUTATION = graphql(`
   }
 `);
 
-export const INSTALL_ADDON_MUTATION = graphql(`
+export const CreateAccountDocument = graphql(`
+  mutation CreateAccount($email: String!, $password: String!) {
+    createAccount(input: { email: $email, password: $password }) {
+      __typename
+      ... on CreateAccountSuccess {
+        account {
+          id
+          email
+        }
+      }
+      ... on CreateAccountError {
+        code
+        message
+        field
+      }
+    }
+  }
+`);
+
+export const InstallAddonDocument = graphql(`
   mutation InstallAddon($profileId: ID!, $manifestUrl: String!) {
-    # ✅ CORRECTION: Changed profile_id -> profileId and manifest_url -> manifestUrl
     installAddon(input: { profileId: $profileId, manifestUrl: $manifestUrl }) {
+      __typename
       ... on InstallAddonSuccess {
         addon {
           id
           manifestId
+          manifestUrl
         }
       }
       ... on InstallAddonError {
+        code
         message
       }
     }
   }
 `);
 
-export const UNINSTALL_ADDON_MUTATION = graphql(`
+export const UninstallAddonDocument = graphql(`
   mutation UninstallAddon($profileId: ID!, $manifestId: String!) {
-    # ✅ CORRECTION: Changed profile_id -> profileId and manifest_id -> manifestId
     uninstallAddon(input: { profileId: $profileId, manifestId: $manifestId }) {
+      __typename
       ... on UninstallAddonSuccess {
         success
       }
       ... on UninstallAddonError {
+        code
         message
       }
+    }
+  }
+`);
+
+export const SearchDocument = graphql(`
+  subscription Search($profileId: String!, $query: String!) {
+    search(profileId: $profileId, query: $query) {
+      addonName
+      resultsByType
+      error
     }
   }
 `);

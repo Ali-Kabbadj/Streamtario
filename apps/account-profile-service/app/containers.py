@@ -28,17 +28,15 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
+from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from security.jwt_service import IJwtService, JwtService
 
 
 class Container(containers.DeclarativeContainer):
-    # --- FIX: Revert to the correct Dependency pattern ---
-    # This declares that the container MUST be provided with a BaseAppSettings object upon creation.
     settings: providers.Dependency[BaseAppSettings] = providers.Dependency(
         instance_of=BaseAppSettings
     )
 
-    # --- All factories now correctly reference the `settings` provider ---
     redis_client = providers.Singleton(create_redis_client, settings=settings)
 
     db_engine = providers.Singleton(create_db_engine, settings=settings)
@@ -80,7 +78,6 @@ class Container(containers.DeclarativeContainer):
         refresh_token_expire_days=settings.provided.JWT_REFRESH_TOKEN_EXPIRE_DAYS,
     )
 
-    # All use case providers remain the same.
     create_account_use_case: providers.Factory[CreateAccountUseCase] = (
         providers.Factory(
             CreateAccountUseCase,
@@ -133,6 +130,15 @@ class Container(containers.DeclarativeContainer):
         )
     )
 
+    verify_profile_pin_use_case: providers.Factory[VerifyProfilePinUseCase] = (
+        providers.Factory(
+            VerifyProfilePinUseCase,
+            uow_factory=uow.provider,
+            password_hasher=password_hasher,
+            authorization_policy=authorization_policy,
+        )
+    )
+
     install_addon_use_case: providers.Factory[InstallAddonUseCase] = providers.Factory(
         InstallAddonUseCase,
         uow_factory=uow.provider,
@@ -140,6 +146,7 @@ class Container(containers.DeclarativeContainer):
         authorization_policy=authorization_policy,
         event_publisher=event_publisher,
     )
+
     uninstall_addon_use_case: providers.Factory[UninstallAddonUseCase] = (
         providers.Factory(
             UninstallAddonUseCase,
@@ -148,6 +155,7 @@ class Container(containers.DeclarativeContainer):
             event_publisher=event_publisher,
         )
     )
+
     install_addon_for_all_profiles_use_case: providers.Factory[
         InstallAddonForAllProfilesUseCase
     ] = providers.Factory(
@@ -155,6 +163,7 @@ class Container(containers.DeclarativeContainer):
         uow_factory=uow.provider,
         install_addon_use_case=install_addon_use_case,
     )
+
     uninstall_addon_from_all_profiles_use_case: providers.Factory[
         UninstallAddonFromAllProfilesUseCase
     ] = providers.Factory(

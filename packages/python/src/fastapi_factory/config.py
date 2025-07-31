@@ -45,6 +45,7 @@ class BaseAppSettings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Optional[int] = None
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: Optional[int] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRETS_FILE: Optional[str] = None
 
     # Caching
     REDIS_HOST: str = None

@@ -4,9 +4,11 @@ from typing import List, Optional
 
 class Video(BaseModel):
     id: str
-    title: str
+    title: Optional[str] = Field(None, alias="name")
     released: Optional[str] = None
     thumbnail: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
 
     class Config:
         populate_by_name = True

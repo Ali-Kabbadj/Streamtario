@@ -42,7 +42,7 @@ class CachingExternalAddonProvider(IExternalAddonProvider):
 
         if fresh_data:
             try:
-                data_to_cache = fresh_data.model_dump_json()
+                data_to_cache = fresh_data.model_dump_json(by_alias=True)
                 await self.redis_client.set(
                     key, data_to_cache, ex=QUERY_CACHE_TTL_SECONDS
                 )

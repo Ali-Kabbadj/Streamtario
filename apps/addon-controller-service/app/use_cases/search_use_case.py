@@ -7,14 +7,10 @@ from core.pydantic.catalog.catalog import (
     AddonSearchResult,
 )
 from core.pydantic.api.error import ErrorResponse
-
-# --- FIX: Remove obsolete imports for ApiClient and old exceptions ---
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_info, log_error, log_warn
 from .get_manifest import GetManifestUseCase
-
-# --- FIX: Import the new cache dependency ---
 from app.domain.cache.i_profile_manifest_cache import IProfileManifestCache
 
 
@@ -23,21 +19,16 @@ class SearchUseCase:
         self,
         get_manifest_use_case: GetManifestUseCase,
         addon_provider: IExternalAddonProvider,
-        # --- FIX: Change dependencies to use the cache ---
         profile_manifest_cache: IProfileManifestCache,
     ):
         self.get_manifest_use_case = get_manifest_use_case
         self.addon_provider = addon_provider
         self.profile_manifest_cache = profile_manifest_cache
 
-    # --- FIX: The _get_manifest_urls_for_profile method is now obsolete and can be deleted entirely ---
-
     async def execute(
         self, profile_id: str, search_query: str
     ) -> AsyncGenerator[AddonSearchResult, None]:
 
-        # --- THIS IS THE PAYOFF ---
-        # Instead of a slow, fragile network call, we make a single, fast call to our local cache.
         manifest_urls = await self.profile_manifest_cache.get_manifests(profile_id)
 
         if not manifest_urls:
@@ -50,7 +41,6 @@ class SearchUseCase:
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )
 
-        # The rest of the search logic remains exactly the same, as it was already correct.
         task_to_metadata: Dict[asyncio.Task, Dict[str, Any]] = {}
         encoded_query = quote(search_query)
 
@@ -119,7 +109,6 @@ class SearchUseCase:
                         )
                 tasks_to_await = list(pending)
         except Exception as e:
-            # This outer catch is for unexpected issues with the asyncio loop itself
             yield AddonSearchResult(
                 addonName="System",
                 error=ErrorResponse(message=f"Unexpected search error: {repr(e)}"),
