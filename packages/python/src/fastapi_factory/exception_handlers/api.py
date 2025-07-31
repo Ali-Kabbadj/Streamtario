@@ -10,7 +10,7 @@ async def api_exception_handler(request: Request, exc: ApiException):
     Handles our custom ApiException and formats it into the standard ApiResponse envelope.
     """
     error_payload = ErrorDetail(
-        type=exc.code,  # Now using the code, e.g., "PROFILE_NOT_FOUND"
+        type=exc.code,
         dev_message=exc.message,
         ui_message=exc.ui_message,
         details=exc.details,
@@ -23,7 +23,6 @@ async def api_exception_handler(request: Request, exc: ApiException):
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    # This handler remains the same but is included for completeness
     error_payload = ErrorDetail(
         type="HttpException",
         dev_message=exc.detail,

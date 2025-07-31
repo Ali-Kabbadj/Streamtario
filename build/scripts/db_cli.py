@@ -14,7 +14,6 @@ def _clear_migrations_folder(versions_path: str):
 
     print("Clearing old migration files...")
     for filename in os.listdir(versions_path):
-        # We only want to delete the .py files, not .gitkeep or subdirectories
         if filename.endswith(".py"):
             file_path = os.path.join(versions_path, filename)
             try:
@@ -45,16 +44,11 @@ def run_psql_command(commands: list[str], check=True, connect_to_db=False):
 
 
 def main():
-    # --- Setup ---
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     load_dotenv(os.path.join(project_root, ".env"))
     sys.path.insert(0, os.path.join(project_root, "packages", "python", "src"))
-
-    # --- THE FIX: Point to the new centralized migrations directory ---
     migrations_path = os.path.join(project_root, "database", "migrations")
     versions_path = os.path.join(migrations_path, "alembic", "versions")
-
-    # --- Argument Parsing ---
     parser = argparse.ArgumentParser(description="Streamtario Database Management CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -83,7 +77,6 @@ def main():
 
     args = parser.parse_args()
 
-    # --- Command Execution ---
     try:
         if args.command == "create":
             print(f"Attempting to create database '{os.environ['DB_NAME']}'...")

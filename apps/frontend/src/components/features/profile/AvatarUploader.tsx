@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 interface AvatarUploaderProps {
-  value?: string; // The current base64 string
-  onChange: (value: string) => void; // Function to update the form state
+  value?: string;
+  onChange: (value: string) => void;
 }
 
 export const AvatarUploader = ({ value, onChange }: AvatarUploaderProps) => {
@@ -17,7 +17,6 @@ export const AvatarUploader = ({ value, onChange }: AvatarUploaderProps) => {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validation for image type, including GIF
       if (
         !["image/jpeg", "image/png", "image/gif", "image/webp"].includes(
           file.type,
@@ -27,7 +26,6 @@ export const AvatarUploader = ({ value, onChange }: AvatarUploaderProps) => {
         return;
       }
 
-      // Validation for file size
       if (file.size > 2 * 1024 * 1024) {
         alert("File is too large. Please select an image under 2MB.");
         return;
@@ -91,16 +89,8 @@ export const AvatarUploader = ({ value, onChange }: AvatarUploaderProps) => {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        // Ensure GIF is in the accept list for the file dialog
         accept="image/png, image/jpeg, image/gif, image/webp"
       />
-      {/* <Button
-        type="button"
-        variant="outline"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        Choose Image
-      </Button> */}
     </div>
   );
 };

@@ -138,9 +138,7 @@ class AggregateCatalogUseCase:
             for m in manifests:
                 if not m:
                     continue
-                # When "All Providers", we must find relevant manifests
                 if catalog_id:
-                    # If a specific sub-catalog is chosen, only check manifests that contain it.
                     if any(
                         c.id == catalog_id and c.type == item_type for c in m.catalogs
                     ):

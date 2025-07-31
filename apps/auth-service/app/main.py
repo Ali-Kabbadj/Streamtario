@@ -44,19 +44,13 @@ async def login_for_access_token(
         url=validation_url, json_payload=form_data.model_dump(), response_model=Account
     )
 
-    # --- THIS IS THE FIX ---
-    # The validation_response from our ApiClient is already a perfect ApiResponse.
-    # If it failed, we just need to re-raise a standard ApiException that our
-    # own exception handler can format correctly for the frontend.
     if not validation_response.ok or not validation_response.data:
-        # Check if the error from the downstream service was the specific INVALID_CREDENTIALS error.
         if (
             validation_response.error
             and validation_response.error.type == ApiErrorCode.INVALID_CREDENTIALS.name
         ):
             raise ApiException(ApiErrorCode.INVALID_CREDENTIALS)
         else:
-            # For any other error (like the service being down), raise a generic auth error.
             raise ApiException(
                 ApiErrorCode.AUTHENTICATION_REQUIRED,
                 details=(
@@ -67,7 +61,6 @@ async def login_for_access_token(
                 override_message="Upstream validation failed during login.",
             )
 
-    # If we get here, the login was successful.
     account = validation_response.data
     token_payload = {"sub": account.id, "email": account.email}
     access_token = jwt_service.create_access_token(data=token_payload)

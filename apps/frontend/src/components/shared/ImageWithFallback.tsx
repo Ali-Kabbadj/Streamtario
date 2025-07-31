@@ -31,7 +31,6 @@ export default function ImageWithFallback({
       src={imgSrc}
       onLoadingComplete={(result) => {
         if (result.naturalWidth === 0) {
-          // Broken image
           set_imgSrc(fallbackSrc);
         }
       }}

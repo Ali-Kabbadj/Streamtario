@@ -50,14 +50,12 @@ class ProfileRepository(IProfileRepository):
         """
         Updates a profile and returns the full, eagerly-loaded domain model.
         """
-        # 1. Fetch the ORM object to be updated.
         profile_orm = await self.session.get(ProfileOrm, profile.id)
         if not profile_orm:
             raise ApiException(
                 ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile.id}
             )
 
-        # 2. Apply the changes from the Pydantic model.
         profile_orm.name = profile.name or "Default"
         profile_orm.avatar = (
             profile.avatar
@@ -66,16 +64,9 @@ class ProfileRepository(IProfileRepository):
         profile_orm.is_private = profile.is_private
         profile_orm.pin_hash = profile.pin_hash or ""
 
-        # 3. Flush the changes to the database.
         await self.session.flush()
-
-        # --- THIS IS THE FIX ---
-        # 4. Expire the object to ensure we get fresh data from the DB.
         self.session.expire(profile_orm)
 
-        # 5. Re-fetch the object using a query that EAGERLY LOADS the relationships.
-        #    This guarantees that when Pydantic accesses `.installed_addons`,
-        #    the data is already present and no lazy-loading I/O occurs.
         stmt = (
             select(ProfileOrm)
             .where(ProfileOrm.id == profile.id)
@@ -84,7 +75,6 @@ class ProfileRepository(IProfileRepository):
         result = await self.session.execute(stmt)
         updated_orm = result.scalars().one()
 
-        # 6. Now, it is safe to validate the fully-loaded ORM object.
         return Profile.model_validate(updated_orm)
 
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:

@@ -1,8 +1,8 @@
 from typing import Callable, Optional
 from core.pydantic.domain.profile import Profile
 from security_factory.services.passwordservice import IPasswordHasher
-from domain_exceptions.exceptions import ApiException  # <-- Change imports
-from api_contract.errors import ApiErrorCode  # <-- Add this import
+from domain_exceptions.exceptions import ApiException
+from api_contract.errors import ApiErrorCode
 from app.domain.events.i_event_publisher import IEventPublisher
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from core.utils.logging import log_info
@@ -37,7 +37,6 @@ class CreateProfileUseCase:
         pin_hash: Optional[str] = None
         if is_private:
             if not pin or len(pin) != 4 or not pin.isdigit():
-                # --- This is the new way to raise errors ---
                 raise ApiException(
                     error_code=ApiErrorCode.VALIDATION_PIN_REQUIRED,
                     details={"field": "pin"},

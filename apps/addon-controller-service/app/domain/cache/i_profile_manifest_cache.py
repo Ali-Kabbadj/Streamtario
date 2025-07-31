@@ -22,5 +22,4 @@ class IProfileManifestCache(ABC):
         self, profile_id: str, manifest_id: str, manifest_url: str
     ) -> None:
         """Removes a manifest URL from a profile's cache."""
-        # We need both manifest_id and manifest_url for different event types.
         pass

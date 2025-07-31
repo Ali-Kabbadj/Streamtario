@@ -47,10 +47,6 @@ class BaseAppSettings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRETS_FILE: Optional[str] = None
 
-    # Caching
-    REDIS_HOST: str = None
-    REDIS_PORT: int = None
-
     model_config = SettingsConfigDict(
         env_file=[
             str(ROOT_ENV),

@@ -1,12 +1,9 @@
-// tailwind.config.ts (Corrected)
-
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 import typography from "@tailwindcss/typography"
 import lineclamp from "@tailwindcss/line-clamp"
 
 const config: Config = {
-  // darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -23,7 +20,6 @@ const config: Config = {
       },
     },
     extend: {
-      // NOTE: The `colors` object is now defined to use CSS variables directly.
       colors: {
       },
       keyframes: {

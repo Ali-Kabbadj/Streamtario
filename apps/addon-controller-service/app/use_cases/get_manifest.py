@@ -15,7 +15,7 @@ class GetManifestUseCase:
         manifest_cache: IManifestCache,
     ):
         self.addon_provider = addon_provider
-        self.manifest_cache = manifest_cache  # <-- ADD
+        self.manifest_cache = manifest_cache
 
     async def execute(self, url: str) -> AddonManifest:
         cached_manifest = await self.manifest_cache.get(url)

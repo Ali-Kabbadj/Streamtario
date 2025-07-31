@@ -126,7 +126,6 @@ class Mutation:
     ) -> UpdateProfileSuccess | UpdateProfileError:
         return await resolve_update_profile(info, input)
 
-    # --- ADD THE NEW MUTATION ---
     @strawberry.mutation
     async def verify_profile_pin(
         self, info: Info, input: VerifyProfilePinInput

@@ -17,14 +17,11 @@ export const useVerifyPin = () => {
         VerifyProfilePinMutationVariables
     >({
         mutationFn: async (variables) => {
-            // --- FIX: Use the correctly named DocumentNode ---
             const result = await graphqlClient.request(
                 VerifyProfilePinDocument,
                 variables,
             );
 
-            // Check the response and throw an error if the PIN was incorrect.
-            // This ensures the mutation's `isError` state is correctly set.
             if (result.verifyProfilePin.__typename === 'VerifyProfilePinError') {
                 throw new Error(result.verifyProfilePin.message);
             }

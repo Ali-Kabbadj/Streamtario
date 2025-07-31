@@ -41,7 +41,6 @@ class InstallAddonForAllProfilesUseCase:
                         {"profile_id": profile.id, "reason": "Already installed."}
                     )
                 else:
-                    # Re-raise other critical errors
                     raise e
         log_info(
             f"Completed account-wide install for '{manifest_url}' on account '{account_id}'"

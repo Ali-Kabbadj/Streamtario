@@ -14,8 +14,6 @@ export const useUninstallAddon = (profileId: string) => {
             if (data.uninstallAddon.__typename === 'UninstallAddonError') {
                 throw new Error(data.uninstallAddon.message);
             }
-            // When an uninstall succeeds, invalidate the profile query
-            // to refetch the list of installed addons.
             void queryClient.invalidateQueries({ queryKey: ['profile', profileId] });
         },
     });

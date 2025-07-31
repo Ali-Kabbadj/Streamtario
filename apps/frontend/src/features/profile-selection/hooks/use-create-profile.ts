@@ -10,7 +10,6 @@ export const useCreateProfile = () => {
     const queryClient = useQueryClient();
 
     return useMutation<CreateProfileMutation, Error, CreateProfileMutationVariables>({
-        // --- FIX: Use the correctly named DocumentNode ---
         mutationFn: (variables) => graphqlClient.request(CreateProfileDocument, variables),
 
         onSuccess: (data) => {

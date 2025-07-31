@@ -61,7 +61,6 @@ class UninstallAddonFromAllProfilesInput:
     manifest_id: str
 
 
-# --- ADD THIS NEW INPUT TYPE ---
 @strawberry.input
 class VerifyProfilePinInput:
     profile_id: strawberry.ID

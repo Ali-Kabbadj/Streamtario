@@ -48,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ) {
           throw new Error("No access token found");
         }
-        // --- FIX: Use the correctly named DocumentNode ---
         return await graphqlClient.request(AccountDocument);
       } catch (error) {
         const authError = error as AuthError;
@@ -59,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isAuthError) {
           try {
             await refreshSession();
-            // --- FIX: Use the correctly named DocumentNode ---
             return await graphqlClient.request(AccountDocument);
           } catch (refreshError) {
             console.error("Token refresh failed, logging out:", refreshError);

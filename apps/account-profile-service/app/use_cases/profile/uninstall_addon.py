@@ -28,7 +28,6 @@ class UninstallAddonUseCase:
         )
 
         async with self.uow_factory() as uow:
-            # We need to fetch the profile to find the URL from the manifest ID
             profile = await uow.profiles.get_by_id(profile_id)
             if not profile:
                 raise ApiException(

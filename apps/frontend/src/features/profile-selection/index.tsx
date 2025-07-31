@@ -46,8 +46,6 @@ export const ProfileSelectionFeature = ({
 }: ProfileSelectionFeatureProps) => {
   const { user, logout } = useAuth();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  // State management for PIN lock remains the same and is correct.
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
   const [profileToUnlock, setProfileToUnlock] =
     useState<SelectableProfile | null>(null);
@@ -59,12 +57,10 @@ export const ProfileSelectionFeature = ({
   } = useVerifyPin();
 
   const handleProfileClick = (profile: SelectableProfile) => {
-    // If the profile is private, open the PIN dialog.
     if (profile.isPrivate) {
       setProfileToUnlock(profile);
       setIsPinDialogOpen(true);
     } else {
-      // If it's not private, call the selection handler immediately.
       onProfileSelect(profile);
     }
   };
