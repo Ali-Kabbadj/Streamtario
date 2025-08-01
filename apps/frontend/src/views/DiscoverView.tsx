@@ -44,7 +44,7 @@ export function DiscoverView() {
 
   useEffect(() => {
     if (discoverData && discoverData.length > 0 && !selectedType) {
-      setSelectedType(discoverData[0].catalogType);
+      setSelectedType(discoverData[0]?.catalogType ?? ""); // Use optional chaining and nullish coalescing
     }
   }, [discoverData, selectedType, setSelectedType]);
 

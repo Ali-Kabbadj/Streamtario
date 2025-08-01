@@ -17,31 +17,21 @@ import { ExecutionArgs, getOperationAST, print } from 'graphql';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { Socket } from 'net';
 import { Duplex } from 'stream';
-import fetch from 'node-fetch'; // Using node-fetch for its clear agent integration
+import fetch from 'node-fetch';
 
-// --- AGENT & FETCHER FOR SELF-SIGNED CERTIFICATES ---
-
-// This agent explicitly tells Node.js to not reject connections
-// due to self-signed (unauthorized) certificates on localhost.
 const localDevAgent = new https.Agent({
   rejectUnauthorized: false,
 });
 
-// A custom fetch implementation that injects our special agent into every request.
 const customDevFetcher = async (url: any, options: any) => {
   return fetch(url, { ...options, agent: localDevAgent });
 };
 
-// A custom RemoteGraphQLDataSource. It overrides the default fetcher with our
-// custom one. `buildService` will use this class for all subgraph communication.
 class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
   constructor(config: { url: string }) {
     super(config);
-    // @ts-ignore // Override readonly fetcher property
     this.fetcher = customDevFetcher;
   }
-
-  // Also ensure we forward the authorization header from the client.
   willSendRequest({ request, context }: any) {
     if (context.headers?.authorization) {
       request.http.headers.set('authorization', context.headers.authorization);
@@ -74,7 +64,6 @@ async function startGateway() {
     httpServer = http.createServer(app);
   }
 
-  // Configure the Apollo Gateway
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
       subgraphs: [
@@ -82,22 +71,17 @@ async function startGateway() {
         { name: 'addons', url: serviceMap.addons.url },
       ],
       pollIntervalInMs: 5000,
-      // THE FIX: The `fetcher` property was removed from here, as it's not a valid option.
-      // The `buildService` method below is the correct way to customize subgraph communication.
     }),
     buildService(service) {
-      // This is the correct injection point. It's called for each subgraph
-      // and provides our custom data source that can handle self-signed certs.
       return new UnsafeHttpsDataSource({ url: service.url ?? "" });
     },
   });
 
-  // Plugin to manage WebSocket server lifecycle correctly
   const wsLifecyclePlugin = {
     async serverWillStart() {
       const gqlWsServer = new WebSocketServer({ noServer: true });
       const serverCleanup = useServer({
-        schema: gateway.schema, // Schema is guaranteed to be ready here
+        schema: gateway.schema,
         context: (ctx) => {
           const { connectionParams = {}, extra } = ctx;
           const { request } = extra as { request: IncomingMessage };
@@ -160,8 +144,6 @@ async function startGateway() {
   });
 
   await server.start();
-
-  // HTTP REST Proxies
   const authProxy = createProxyMiddleware({ target: serviceMap.auth.url, secure: false, changeOrigin: true });
   app.use('/api/v1/auth', authProxy);
 
@@ -176,6 +158,7 @@ async function startGateway() {
   httpServer.listen({ port: PORT }, () => {
     const protocol = httpServer instanceof https.Server ? 'https' : 'http';
     const wsProtocol = httpServer instanceof https.Server ? 'wss' : 'ws';
+    console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
     console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
   });
 }

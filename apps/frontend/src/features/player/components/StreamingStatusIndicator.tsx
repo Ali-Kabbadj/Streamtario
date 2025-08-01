@@ -19,22 +19,19 @@ function formatSpeed(bytes: number): string {
 }
 
 export function StreamingStatusIndicator() {
-  // --- THE FIX: Get the new connect/disconnect functions from the hook ---
-  const { isConnected, stats, connect, disconnect } = useStreamingServerStats();
+  const { isConnected, stats, requestFastUpdates, requestNormalUpdates } =
+    useStreamingServerStats();
 
   const totalDownloadSpeed =
     stats?.reduce((acc, t) => acc + t.downloadSpeed, 0) ?? 0;
-  const totalUploadSpeed =
-    stats?.reduce((acc, t) => acc + t.uploadSpeed, 0) ?? 0;
 
   return (
     <TooltipProvider delayDuration={0}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {/* --- THE FIX: Wrap with a div and add hover events --- */}
           <div
-            onMouseEnter={connect}
-            onMouseLeave={disconnect}
+            onMouseEnter={requestFastUpdates}
+            onMouseLeave={requestNormalUpdates}
             className={cn(
               "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border",
               isConnected
@@ -48,7 +45,7 @@ export function StreamingStatusIndicator() {
         <TooltipContent>
           <div className="p-2 text-sm">
             <p className="font-bold">Streaming Server</p>
-            <p>Status: {isConnected ? "Connected" : "Disconnected"}</p>
+            {isConnected ? <Wifi size={18} /> : <WifiOff size={18} />}
             {isConnected && (
               <>
                 <p>Active Torrents: {stats?.length ?? 0}</p>

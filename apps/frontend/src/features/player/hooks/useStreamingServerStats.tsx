@@ -11,25 +11,49 @@ export interface TorrentStats {
   isPaused: boolean;
 }
 
-const baseUrl = new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL);
-const wsUrl = `${baseUrl.origin.replace("https", "wss")}/api/v1/stream`;
+interface StatsUpdateMessage {
+  type: "stats-update";
+  payload: {
+    torrents: TorrentStats[];
+  };
+}
 
-// This hook now manages an on-demand WebSocket connection.
+const wsUrl =
+  new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL).origin.replace(
+    "https",
+    "wss",
+  ) + "/api/v1/stream";
+
 export function useStreamingServerStats() {
   const [stats, setStats] = useState<TorrentStats[] | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
+  const reconnectInterval = useRef<NodeJS.Timeout | null>(null);
+
+  const sendWsMessage = (message: object) => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify(message));
+    }
+  };
+
+  const requestFastUpdates = () =>
+    sendWsMessage({ action: "request_fast_updates" });
+  const requestNormalUpdates = () =>
+    sendWsMessage({ action: "request_normal_updates" });
 
   const disconnect = useCallback(() => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.close();
+    if (reconnectInterval.current) {
+      clearInterval(reconnectInterval.current);
+      reconnectInterval.current = null;
     }
-    // Clean up regardless of ready state to prevent reconnection attempts
     if (ws.current) {
       ws.current.onopen = null;
+      ws.current.onmessage = null;
       ws.current.onclose = null;
       ws.current.onerror = null;
-      ws.current.onmessage = null;
+      if (ws.current.readyState === WebSocket.OPEN) {
+        ws.current.close();
+      }
       ws.current = null;
       setIsConnected(false);
       setStats(null);
@@ -37,41 +61,51 @@ export function useStreamingServerStats() {
   }, []);
 
   const connect = useCallback(() => {
-    // If already connected or connecting, do nothing.
     if (ws.current && ws.current.readyState < 2) {
-      return;
+      return; // Already connecting or connected
     }
 
+    console.log("[WSS Hook] Attempting to connect...");
     ws.current = new WebSocket(wsUrl);
 
-    ws.current.onopen = () => setIsConnected(true);
-    ws.current.onclose = () => {
-      setIsConnected(false);
-      ws.current = null; // Ensure we can create a new one later
-    };
-    ws.current.onerror = () => {
-      setIsConnected(false);
-      ws.current = null;
+    ws.current.onopen = () => {
+      console.log("[WSS Hook] Connection established.");
+      setIsConnected(true);
+      if (reconnectInterval.current) {
+        clearInterval(reconnectInterval.current); // Stop trying to reconnect
+        reconnectInterval.current = null;
+      }
     };
 
-    ws.current.onmessage = (event) => {
+    ws.current.onmessage = (event: MessageEvent<string>) => {
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data) as StatsUpdateMessage;
         if (data.type === "stats-update" && data.payload?.torrents) {
           setStats(data.payload.torrents);
         }
       } catch (e) {
-        /* Ignore non-JSON messages */
+        console.error("Failed to parse stats update from WebSocket:", e);
       }
+    };
+
+    ws.current.onclose = () => {
+      console.log("[WSS Hook] Connection closed.");
+      setIsConnected(false);
+      ws.current = null;
+      // Set up periodic reconnection attempts
+      reconnectInterval.current ??= setInterval(connect, 5000); // Try to reconnect every 5s
+    };
+
+    ws.current.onerror = (err) => {
+      console.error("[WSS Hook] WebSocket error:", err);
+      // onclose will be called next, which handles reconnect logic
     };
   }, []);
 
-  // Effect to ensure cleanup when the parent component unmounts
   useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
+    connect();
+    return () => disconnect();
+  }, [connect, disconnect]);
 
-  return { stats, isConnected, connect, disconnect };
+  return { isConnected, stats, requestFastUpdates, requestNormalUpdates };
 }

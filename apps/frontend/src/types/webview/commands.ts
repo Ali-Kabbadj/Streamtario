@@ -8,7 +8,7 @@ interface SetWebViewVisibilityCommand {
 interface PlayCommand {
     command: "play";
     payload: {
-        url: string; // Changed from infoHash/fileIndex to a direct URL
+        url: string;
     };
 }
 

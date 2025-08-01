@@ -23,7 +23,7 @@ export const useManifestsByUrls = (urls: string[]) => {
                         version: data.manifestByUrl.version,
                         name: data.manifestByUrl.name,
                         description: data.manifestByUrl.description,
-                        logo: data.manifestByUrl.logo,
+                        logo: data.manifestByUrl.logo ?? "",
                         types: data.manifestByUrl.types,
                     },
                 };

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
 import type { PlayerState } from "../hooks/useMpvPlayer";
-// --- FIX: Import the status indicator component ---
 import { StreamingStatusIndicator } from "./StreamingStatusIndicator";
 
 interface PlayerControlsProps {
@@ -36,11 +35,11 @@ export function PlayerControls({ playerState, actions }: PlayerControlsProps) {
   const { isPaused, time, duration, volume, isMuted } = playerState;
 
   const handleSeek = (values: number[]) => {
-    actions.seek(values[0]);
+    actions.seek(values[0] ?? 0);
   };
 
   const handleVolumeChange = (values: number[]) => {
-    actions.setVolume(values[0]);
+    actions.setVolume(values[0] ?? 0);
   };
 
   return (
@@ -81,8 +80,6 @@ export function PlayerControls({ playerState, actions }: PlayerControlsProps) {
             />
           </div>
         </div>
-
-        {/* --- FIX: Add a container for the right-side controls --- */}
         <div className="flex items-center gap-4">
           <StreamingStatusIndicator />
           <Button

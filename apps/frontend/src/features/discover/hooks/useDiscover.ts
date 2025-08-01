@@ -12,6 +12,6 @@ export const useDiscover = (profileId: string) => {
             return profile?.discoverableCatalogs ?? [];
         },
         enabled: !!profileId,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 5,
     });
 };

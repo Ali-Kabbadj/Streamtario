@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import type { VideoType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 
@@ -28,14 +27,6 @@ export function EpisodeCard({
       whileHover={isReleased ? { backgroundColor: "var(--accent)" } : {}}
     >
       <AspectRatio ratio={16 / 9} className="flex-shrink-0">
-        {/* <Image
-          src={episode.thumbnail ?? "/placeholder-poster.png"}
-          alt={episode.title ?? "Episode thumbnail"}
-          className="h-full w-full rounded-md object-cover"
-          width={320}
-          height={180}
-          unoptimized
-        /> */}
         <ImageWithFallback
           className="h-full w-full rounded-md object-cover"
           fallbackSrc={"/images/NoImageLandscape.png"}

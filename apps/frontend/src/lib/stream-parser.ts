@@ -1,6 +1,12 @@
 import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 
-type Stream = GetStreamsQuery["profile"]["streams"][0];
+export type Stream = NonNullable<GetStreamsQuery["profile"]>["streams"][0];
+
+interface BehaviorHints {
+  filename?: string;
+  bingeGroup?: string;
+  videoSize?: number;
+}
 
 export interface ParsedStreamDetails {
   filename: string;
@@ -100,30 +106,26 @@ export function parseStream(
   stream: Stream,
   originalIndex: number,
 ): ParsedStreamDetails {
-  const behavior = stream.behaviorHints ?? {};
+  const behavior = (stream.behaviorHints ?? {}) as BehaviorHints;
   const name = stream.name ?? "";
   const title = stream.title ?? "";
   const filename =
-    (behavior.filename as string) ||
-    title.split("\n")[0] ||
-    name.split("\n")[0] ||
+    behavior.filename ??
+    title.split("\n")[0] ??
+    name.split("\n")[0] ??
     "Untitled";
 
-  let searchableString = [
-    name,
-    title,
-    filename,
-    (behavior.bingeGroup as string) || "",
-  ]
+  let searchableString = [name, title, filename, behavior.bingeGroup ?? ""]
     .join(" ")
     .toLowerCase();
 
-  const releaseGroupMatch = filename.match(/-(\w+)$/i);
-  const releaseGroup = releaseGroupMatch
-    ? releaseGroupMatch[1].toUpperCase()
-    : null;
+  const releaseGroupMatch = /-(\w+)$/i.exec(filename);
+  const releaseGroup = releaseGroupMatch?.[1]?.toUpperCase() ?? null;
   if (releaseGroup) {
-    searchableString = searchableString.replace(releaseGroup.toLowerCase(), "");
+    searchableString = searchableString.replace(
+      new RegExp(releaseGroup, "i"),
+      "",
+    );
   }
 
   const result: ParsedStreamDetails = {
@@ -132,8 +134,7 @@ export function parseStream(
     addonName: stream.addonName ?? "Unknown Addon",
     releaseGroup,
     seeders: null,
-    sizeInBytes:
-      typeof behavior.videoSize === "number" ? behavior.videoSize : null,
+    sizeInBytes: behavior.videoSize ?? null,
     formattedSize: null,
     sourceProvider: null,
     tags: {
@@ -147,16 +148,22 @@ export function parseStream(
     originalIndex,
   };
 
-  const seederMatch = title.match(/(?:👤|S:)\s*(\d+)/i);
-  if (seederMatch) result.seeders = parseInt(seederMatch[1], 10);
+  const seederMatch = /(?:👤|S:)\s*(\d+)/i.exec(title);
+  if (seederMatch?.[1]) {
+    result.seeders = parseInt(seederMatch[1], 10);
+  }
 
-  const sizeMatch = title.match(/💾\s*([\d.]+\s*\w+)/i);
-  if (sizeMatch) result.formattedSize = sizeMatch[1];
-  else if (result.sizeInBytes)
+  const sizeMatch = /💾\s*([\d.]+\s*\w+)/i.exec(title);
+  if (sizeMatch?.[1]) {
+    result.formattedSize = sizeMatch[1];
+  } else if (result.sizeInBytes) {
     result.formattedSize = formatBytes(result.sizeInBytes);
+  }
 
-  const providerMatch = title.match(/⚙️\s*(\w+)/i);
-  if (providerMatch) result.sourceProvider = providerMatch[1];
+  const providerMatch = /⚙️\s*(\w+)/i.exec(title);
+  if (providerMatch?.[1]) {
+    result.sourceProvider = providerMatch[1];
+  }
 
   for (const [category, tags] of Object.entries(TAG_LIBRARY)) {
     for (const [canonicalTag, patterns] of Object.entries(tags)) {

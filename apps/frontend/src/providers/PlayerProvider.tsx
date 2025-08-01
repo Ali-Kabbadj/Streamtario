@@ -8,7 +8,7 @@ import {
   type PlayerState,
 } from "@/features/player/hooks/useMpvPlayer";
 
-type Stream = GetStreamsQuery["profile"]["streams"][0];
+type Stream = NonNullable<NonNullable<GetStreamsQuery["profile"]>["streams"]>[0];
 
 interface PlayerActions {
   playStream: (stream: Stream, title: string) => void;
@@ -23,7 +23,11 @@ interface PlayerActions {
 interface PlayerContextType {
   status: "idle" | "preparing" | "playing" | "error";
   errorMessage: string | null;
-  activeStream: { infoHash: string; fileIndex: number; title: string } | null;
+  activeStream: {
+    infoHash: string | null;
+    fileIndex: number | null;
+    title: string;
+  } | null;
   playerState: PlayerState;
   actions: PlayerActions;
 }

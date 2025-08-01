@@ -3,7 +3,7 @@ import type { PlayerState } from "@/features/player/hooks/useMpvPlayer";
 interface PropertyChangeEvent {
     event: "property-change";
     payload: {
-        property: keyof PlayerState | "time-pos"; // Allow for raw property name
+        property: keyof PlayerState | "time-pos";
         value: unknown;
     };
 }

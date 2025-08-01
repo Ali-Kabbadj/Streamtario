@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils";
 import { CheckCircle2 } from "lucide-react";
 
 const defaultAvatars = [
-  "https://i.pinimg.com/736x/a4/c6/5f/a4c65f709d4c0cb1b4329c12beb9cd78.jpg",
-  "https://i.pinimg.com/1200x/56/c6/ed/56c6ed3a438a525acc5e883fc15798a9.jpg",
-  "https://i.pinimg.com/1200x/92/b4/e7/92b4e7c57de1b5e1e8c5e883fd915450.jpg",
-  "https://i.pinimg.com/736x/87/d2/39/87d239c65732f941a8f2d9cce9f245f9.jpg",
-  "https://i.pinimg.com/736x/e0/b6/16/e0b6164723e67c29decccc30d51b481e.jpg",
-  "https://i.pinimg.com/originals/c3/36/29/c3362993f53cd865c4aeb711e8d0a175.gif",
+  "/images/avatars/a4c65f709d4c0cb1b4329c12beb9cd78.jpg",
+  "/images/avatars/56c6ed3a438a525acc5e883fc15798a9.jpg",
+  "/images/avatars/92b4e7c57de1b5e1e8c5e883fd915450.jpg",
+  "/images/avatars/87d239c65732f941a8f2d9cce9f245f9.jpg",
+  "/images/avatars/e0b6164723e67c29decccc30d51b481e.jpg",
+  "/images/avatars/c3362993f53cd865c4aeb711e8d0a175.gif",
 ];
 
 interface AvatarPickerProps {

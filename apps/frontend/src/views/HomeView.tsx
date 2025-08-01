@@ -67,7 +67,7 @@ export function HomeView() {
       )}
 
       {hasContent &&
-        data.profile.homeCatalogs.map((addonData) => (
+        data.profile!.homeCatalogs.map((addonData) => (
           <AddonSection key={addonData.addonName} data={addonData} />
         ))}
     </div>
