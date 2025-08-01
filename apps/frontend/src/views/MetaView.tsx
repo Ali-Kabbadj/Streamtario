@@ -86,11 +86,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
 
   const handleEpisodeClick = (episode: Video) => {
     if (!meta) return;
-    // =================================================================
-    // THE CRITICAL FIX: USE THE FULL, UNMODIFIED SERIES ID
-    // =================================================================
     const episodeStreamId = `${meta.id}:${episode.season}:${episode.episode}`;
-    // =================================================================
     setStreamPanelContent({
       itemType: "series",
       itemId: episodeStreamId,
@@ -232,48 +228,50 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
           {meta.type !== "movie" && seasonKeys.length > 0 && (
             <div className="mt-12">
               <h2 className="mb-4 text-2xl font-bold">Episodes</h2>
-              <Tabs
-                value={selectedSeason}
-                onValueChange={setSelectedSeason}
-                className="w-full"
-              >
-                <div className="group relative">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute top-1/2 left-0 z-20 -translate-x-10 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={() => scrollTabs("left")}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div
-                    ref={tabsListRef}
-                    className="scrollbar-hide overflow-x-auto whitespace-nowrap"
-                  >
-                    <TabsList className="inline-flex h-auto">
-                      {seasonKeys.map((seasonKey) => (
-                        <TabsTrigger
-                          key={seasonKey}
-                          value={seasonKey}
-                          className="flex-shrink-0"
-                        >
-                          {seasonKey === "extras"
-                            ? "Extras"
-                            : `Season ${seasonKey}`}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+              {/* --- THE FIX: Conditionally render Tabs only when selectedSeason has a value --- */}
+              {selectedSeason && (
+                <Tabs
+                  value={selectedSeason}
+                  onValueChange={setSelectedSeason}
+                  className="w-full"
+                >
+                  <div className="group relative">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="absolute top-1/2 left-0 z-20 -translate-x-10 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                      onClick={() => scrollTabs("left")}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div
+                      ref={tabsListRef}
+                      className="scrollbar-hide overflow-x-auto whitespace-nowrap"
+                    >
+                      <TabsList className="inline-flex h-auto">
+                        {seasonKeys.map((seasonKey) => (
+                          <TabsTrigger
+                            key={seasonKey}
+                            value={seasonKey}
+                            className="flex-shrink-0"
+                          >
+                            {seasonKey === "extras"
+                              ? "Extras"
+                              : `Season ${seasonKey}`}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="absolute top-1/2 right-0 z-20 translate-x-10 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                      onClick={() => scrollTabs("right")}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute top-1/2 right-0 z-20 translate-x-10 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={() => scrollTabs("right")}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-                {selectedSeason && seasons[selectedSeason] && (
+                  {/* The content is already keyed to selectedSeason, so it's safe */}
                   <TabsContent value={selectedSeason} className="mt-4">
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                       {seasons[selectedSeason].map((episode) => {
@@ -290,8 +288,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                       })}
                     </div>
                   </TabsContent>
-                )}
-              </Tabs>
+                </Tabs>
+              )}
             </div>
           )}
         </div>

@@ -10,9 +10,9 @@ import { ViewProvider } from "@/providers/view-provider";
 import { DiscoverProvider } from "@/providers/discover-provider";
 import { useEffect } from "react";
 import { PlayerProvider, usePlayer } from "@/providers/PlayerProvider";
-import { AppContent } from "@/components/shared/AppContent";
 
-const AppContainer = () => {
+// This component now wraps the entire app and controls the body class
+const AppContainer = ({ children }: { children: React.ReactNode }) => {
   const { status } = usePlayer();
 
   useEffect(() => {
@@ -23,22 +23,10 @@ const AppContainer = () => {
     }
   }, [status]);
 
-  return (
-    <>
-      {/* This div is what we hide with CSS */}
-      <div id="app-root">
-        <AppContent />
-      </div>
-      {/* The PlayerOverlay from the provider will be the only visible thing */}
-    </>
-  );
+  return <div id="app-root">{children}</div>;
 };
 
 export default function App({ Component, pageProps }: AppProps) {
-  if (!APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-    return <div>Error: Google authentication is not configured.</div>;
-  }
-
   return (
     <GoogleOAuthProvider clientId={APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
       <ThemeProvider
@@ -53,7 +41,9 @@ export default function App({ Component, pageProps }: AppProps) {
               <ViewProvider>
                 <DiscoverProvider>
                   <PlayerProvider>
-                    <AppContainer />
+                    <AppContainer>
+                      <Component {...pageProps} />
+                    </AppContainer>
                   </PlayerProvider>
                 </DiscoverProvider>
               </ViewProvider>

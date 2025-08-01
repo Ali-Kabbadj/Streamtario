@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
 import type { PlayerState } from "../hooks/useMpvPlayer";
+// --- FIX: Import the status indicator component ---
+import { StreamingStatusIndicator } from "./StreamingStatusIndicator";
 
 interface PlayerControlsProps {
   playerState: PlayerState;
@@ -79,7 +81,10 @@ export function PlayerControls({ playerState, actions }: PlayerControlsProps) {
             />
           </div>
         </div>
-        <div>
+
+        {/* --- FIX: Add a container for the right-side controls --- */}
+        <div className="flex items-center gap-4">
+          <StreamingStatusIndicator />
           <Button
             variant="ghost"
             size="icon"

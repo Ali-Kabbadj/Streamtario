@@ -15,30 +15,39 @@ import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHt
 import { Server, IncomingMessage } from 'http';
 import { ExecutionArgs, getOperationAST, print } from 'graphql';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import type { Socket } from 'net';
+import { Duplex } from 'stream';
+import fetch from 'node-fetch'; // Using node-fetch for its clear agent integration
 
-class AuthenticatedDataSource extends RemoteGraphQLDataSource {
+// --- AGENT & FETCHER FOR SELF-SIGNED CERTIFICATES ---
+
+// This agent explicitly tells Node.js to not reject connections
+// due to self-signed (unauthorized) certificates on localhost.
+const localDevAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
+// A custom fetch implementation that injects our special agent into every request.
+const customDevFetcher = async (url: any, options: any) => {
+  return fetch(url, { ...options, agent: localDevAgent });
+};
+
+// A custom RemoteGraphQLDataSource. It overrides the default fetcher with our
+// custom one. `buildService` will use this class for all subgraph communication.
+class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
+  constructor(config: { url: string }) {
+    super(config);
+    // @ts-ignore // Override readonly fetcher property
+    this.fetcher = customDevFetcher;
+  }
+
+  // Also ensure we forward the authorization header from the client.
   willSendRequest({ request, context }: any) {
     if (context.headers?.authorization) {
       request.http.headers.set('authorization', context.headers.authorization);
     }
   }
 }
-
-const localhostHttpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-  checkServerIdentity: () => undefined,
-});
-
-const originalHttpsRequest = https.request;
-https.request = function (options: any, callback?: any) {
-  if (typeof options === 'string') { options = new URL(options); }
-  const isLocalhost = options.hostname === 'localhost' || options.hostname?.includes('localhost');
-  if (isLocalhost) {
-    options.agent = localhostHttpsAgent;
-    options.rejectUnauthorized = false;
-  }
-  return originalHttpsRequest(options, callback);
-};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,12 +61,7 @@ async function startGateway() {
   };
 
   const app = express();
-
-  // =================================================================
-  // THE CRITICAL FIX: APPLY GLOBAL CORS MIDDLEWARE
-  // This MUST come before any routes or proxies are defined.
   app.use(cors<cors.CorsRequest>());
-  // =================================================================
 
   let httpServer: Server;
   try {
@@ -66,15 +70,11 @@ async function startGateway() {
     const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
     httpServer = https.createServer(httpsOptions, app);
   } catch (error) {
-    console.error('Could not start HTTPS server, falling back to HTTP. Is `local_dev_deps/certs` set up?');
+    console.warn('Could not start HTTPS server, falling back to HTTP.');
     httpServer = http.createServer(app);
   }
 
-  const wsServer = new WebSocketServer({
-    server: httpServer,
-    path: '/graphql',
-  });
-
+  // Configure the Apollo Gateway
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
       subgraphs: [
@@ -82,110 +82,101 @@ async function startGateway() {
         { name: 'addons', url: serviceMap.addons.url },
       ],
       pollIntervalInMs: 5000,
+      // THE FIX: The `fetcher` property was removed from here, as it's not a valid option.
+      // The `buildService` method below is the correct way to customize subgraph communication.
     }),
-    buildService({ url }) {
-      return new AuthenticatedDataSource({ url });
+    buildService(service) {
+      // This is the correct injection point. It's called for each subgraph
+      // and provides our custom data source that can handle self-signed certs.
+      return new UnsafeHttpsDataSource({ url: service.url ?? "" });
     },
   });
 
-  let serverCleanup: { dispose: () => void | Promise<void> } | null = null;
+  // Plugin to manage WebSocket server lifecycle correctly
+  const wsLifecyclePlugin = {
+    async serverWillStart() {
+      const gqlWsServer = new WebSocketServer({ noServer: true });
+      const serverCleanup = useServer({
+        schema: gateway.schema, // Schema is guaranteed to be ready here
+        context: (ctx) => {
+          const { connectionParams = {}, extra } = ctx;
+          const { request } = extra as { request: IncomingMessage };
+          const authorization = (connectionParams.Authorization as string) || (connectionParams.authorization as string) || request.headers['authorization'];
+          return { headers: { authorization }, gateway };
+        },
+        execute: (args: ExecutionArgs) => (args.contextValue as any).gateway.execute(args),
+        subscribe: async (args: ExecutionArgs) => {
+          const { gateway, ...context } = args.contextValue as any;
+          const operationAst = getOperationAST(args.document, args.operationName!);
+          if (operationAst?.operation === 'subscription') {
+            const forwardClient = createClient({
+              url: serviceMap.addons.url,
+              webSocketImpl: class extends WebSocket {
+                constructor(url: string | URL, protocols?: string | string[]) {
+                  super(url, protocols, { agent: localDevAgent });
+                }
+              },
+              connectionParams: { Authorization: context.headers?.authorization },
+            });
+            return forwardClient.iterate({
+              query: print(args.document),
+              variables: args.variableValues,
+              operationName: args.operationName,
+            });
+          }
+          return gateway.execute(args);
+        }
+      }, gqlWsServer);
+
+      const streamProxy = createProxyMiddleware({
+        target: serviceMap.stream.url, ws: true, secure: false, changeOrigin: true,
+        pathRewrite: { '^/api/v1/stream': '' },
+      });
+
+      httpServer.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+        const { pathname } = new URL(req.url!, `http://${req.headers.host}`);
+        if (pathname === '/graphql') {
+          gqlWsServer.handleUpgrade(req, socket as Socket, head, (ws) => {
+            gqlWsServer.emit('connection', ws, req);
+          });
+        } else if (pathname.startsWith('/api/v1/stream')) {
+          streamProxy.upgrade(req, socket as Socket, head);
+        } else {
+          socket.destroy();
+        }
+      });
+
+      return { async drainServer() { await serverCleanup.dispose(); } };
+    },
+  };
 
   const server = new ApolloServer({
     gateway,
     introspection: true,
     plugins: [
+      wsLifecyclePlugin,
       ApolloServerPluginDrainHttpServer({ httpServer }),
-      {
-        async serverWillStart() {
-          serverCleanup = useServer(
-            {
-              schema: gateway.schema,
-              context: (ctx) => {
-                const { connectionParams, extra } = ctx;
-                const { request } = extra as { request: IncomingMessage };
-                return {
-                  headers: {
-                    authorization: connectionParams?.Authorization || request.headers['authorization'],
-                  },
-                  gateway
-                };
-              },
-              execute: (args: ExecutionArgs) => (args.contextValue as any).gateway.execute(args),
-              subscribe: async (args: ExecutionArgs) => {
-                const { gateway, ...context } = args.contextValue as any;
-                const document = args.document;
-                const operationName = args.operationName!;
-                const operationAst = getOperationAST(document, operationName);
-                if (operationAst?.operation === 'subscription') {
-                  const forwardClient = createClient({
-                    url: serviceMap.addons.url,
-                    webSocketImpl: class extends WebSocket {
-                      constructor(url: string | URL, protocols: string | string[] | undefined) {
-                        super(url, protocols, { agent: localhostHttpsAgent, rejectUnauthorized: false });
-                      }
-                    },
-                    connectionParams: {
-                      Authorization: context.headers?.authorization,
-                    },
-                  });
-                  return forwardClient.iterate({
-                    query: print(document),
-                    variables: args.variableValues,
-                    operationName: operationName,
-                  });
-                }
-                return gateway.execute(args);
-              }
-            },
-            wsServer,
-          );
-          return {
-            async drainServer() {
-              await serverCleanup?.dispose();
-            },
-          };
-        },
-      },
     ],
   });
 
   await server.start();
 
-  const authProxy = createProxyMiddleware({
-    target: serviceMap.auth.url,
-    changeOrigin: true,
-    secure: false,
-  });
+  // HTTP REST Proxies
+  const authProxy = createProxyMiddleware({ target: serviceMap.auth.url, secure: false, changeOrigin: true });
   app.use('/api/v1/auth', authProxy);
 
-  const streamProxy = createProxyMiddleware({
-    target: serviceMap.stream.url,
-    changeOrigin: true,
-    secure: false,
-    ws: true,
-    pathRewrite: {
-      '^/api/v1/stream': '',
-    },
-  });
-  app.use('/api/v1/stream', streamProxy);
+  const streamHttpProxy = createProxyMiddleware({ target: serviceMap.stream.url, secure: false, changeOrigin: true });
+  app.use('/api/v1/stream', streamHttpProxy);
 
-  app.use(
-    '/graphql',
-    express.json({ limit: '10mb' }),
-    expressMiddleware(server, {
-      context: async ({ req }) => ({ headers: req.headers }),
-    })
-  );
+  app.use('/graphql', express.json({ limit: '10mb' }), expressMiddleware(server, {
+    context: async ({ req }) => ({ headers: req.headers }),
+  }));
 
   const PORT = 4000;
   httpServer.listen({ port: PORT }, () => {
     const protocol = httpServer instanceof https.Server ? 'https' : 'http';
     const wsProtocol = httpServer instanceof https.Server ? 'wss' : 'ws';
-    console.log(`🚀 API Gateway is ready at ${protocol}://localhost:${PORT}`);
-    console.log(`🚀 GraphQL endpoint is available at ${protocol}://localhost:${PORT}/graphql`);
-    console.log(`🚀 Subscriptions are available at ${wsProtocol}://localhost:${PORT}/graphql`);
-    console.log(`🚀 Auth endpoints are proxied at ${protocol}://localhost:${PORT}/api/v1/auth`);
-    console.log(`🚀 Stream endpoints are proxied at ${protocol}://localhost:${PORT}/api/v1/stream`);
+    console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
   });
 }
 

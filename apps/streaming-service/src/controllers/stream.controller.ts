@@ -1,40 +1,64 @@
 import { Request, Response } from "express";
-import { WebTorrentService } from "../services/webtorrent.service.js";
-import { getAndValidateTorrentFile } from "../utils/validator.js";
-import { pipeline } from "streamx";
+import { TorrentStreamService } from "../services/torrent-stream.service.js";
+import { pipeline } from "stream";
+import { buildLogger } from "../utils/logger.js";
+
+const logger = buildLogger(import.meta.url);
 
 export class StreamController {
+  private torrentStreamService: TorrentStreamService;
 
-  constructor(private webTorrentService: WebTorrentService) { }
+  constructor() {
+    this.torrentStreamService = TorrentStreamService.getInstance();
+  }
 
-  public directStream = (req: Request, res: Response) => {
-    const validated = getAndValidateTorrentFile(req, this.webTorrentService);
-    if (!validated) return res.status(404).send("File not found.");
+  public directStream = async (req: Request, res: Response) => {
+    const { infoHash, fileIndex: fileIndexStr } = req.params;
 
-    const { file } = validated;
-    const { length: fileSize } = file;
-    const { range } = req.headers;
+    try {
+      const fileIndex = parseInt(fileIndexStr, 10);
+      if (isNaN(fileIndex)) {
+        return res.status(400).send("Invalid file index.");
+      }
 
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
+      // 1. Get the engine (this is fast if it already exists).
+      const engine = await this.torrentStreamService.getStreamEngine(infoHash);
 
-      res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
-        'Content-Type': 'video/mp4'
+      // 2. THIS IS THE FIX: Wait until the engine confirms it's ready to stream this file.
+      const file = await this.torrentStreamService.prepareFileForStream(engine, fileIndex);
+
+      logger.stream("Engine is primed. Creating stream for client.", { data: { name: file.name } });
+
+      const fileSize = file.length;
+      const { range } = req.headers;
+
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes', 'Content-Length': (end - start) + 1, 'Content-Type': 'video/mp4'
+        });
+
+        const stream = file.createReadStream({ start, end });
+        pipeline(stream, res, () => { });
+
+      } else {
+        res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4' });
+        const stream = file.createReadStream();
+        pipeline(stream, res, () => { });
+      }
+
+      res.on('close', () => {
+        logger.stream("Client disconnected, cleaning up engine.", { data: { infoHash } });
+        this.torrentStreamService.destroyEngine(infoHash);
       });
-      pipeline(file.createReadStream({ start, end }), res);
-    } else {
-      res.writeHead(200, {
-        'Content-Length': fileSize,
-        'Content-Type': 'video/mp4',
-        'Accept-Ranges': 'bytes'
-      });
-      pipeline(file.createReadStream(), res);
+
+    } catch (error) {
+      logger.error("Streaming failed", { error: (error as Error).message, data: { infoHash } });
+      if (!res.headersSent) res.status(500).send((error as Error).message);
     }
   };
 }

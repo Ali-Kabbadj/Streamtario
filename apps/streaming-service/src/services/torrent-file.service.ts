@@ -22,21 +22,6 @@ export class TorrentFileService {
     return TorrentFileService.instance;
   }
 
-  public async findTorrentFile(
-    torrentId: string,
-  ): Promise<{ fullPath: string; torrentDir: string }> {
-    const torrentDir = path.join(config.TORRENTS_BASE_DIR, torrentId);
-    if (!fs.existsSync(torrentDir)) {
-      throw new Error(`Directory not found for torrent ID ${torrentId}`);
-    }
-    const torrentFileName = fs
-      .readdirSync(torrentDir)
-      .find((f) => f.endsWith(".torrent"));
-    if (!torrentFileName) {
-      throw new Error(`No .torrent file found in directory ${torrentDir}`);
-    }
-    return { fullPath: path.join(torrentDir, torrentFileName), torrentDir };
-  }
 
   public async parseTorrentFile(
     filePath: string,

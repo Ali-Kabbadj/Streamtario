@@ -7,6 +7,8 @@ import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator
 type Stream = GetStreamsQuery["profile"]["streams"][0];
 
 const isWebView = () => typeof window !== "undefined" && !!window.chrome?.webview;
+const POLLING_INTERVAL_MS = 2000; // Poll every 2 seconds
+const PREPARE_TIMEOUT_MS = 60000; // Timeout after 60 seconds
 
 export interface PlayerState {
     isPaused: boolean;
@@ -17,34 +19,45 @@ export interface PlayerState {
 }
 
 export function useMpvPlayer() {
+    // --- RE-INTRODUCED "preparing" state for the new workflow ---
     const [status, setStatus] = useState<"idle" | "preparing" | "playing" | "error">("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [activeStream, setActiveStream] = useState<{ infoHash: string | null; fileIndex: number | null; title: string } | null>(null);
     const [playerState, setPlayerState] = useState<PlayerState>({
         isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false,
     });
+
+    // Refs to manage intervals and timeouts
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     const lastVolumeRef = useRef(playerState.volume);
     const streamingApiUrl = `${APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('/graphql', '')}/api/v1/stream`;
 
+
     const sendCommand = useCallback((command: WebViewCommand) => {
         const message = JSON.stringify(command);
-        if (isWebView()) {
-            window.chrome.webview!.postMessage(message);
-        } else {
-            console.log("WebView Outgoing:", message);
-        }
+        if (isWebView()) window.chrome.webview!.postMessage(message);
+        else console.log("WebView Outgoing:", message);
     }, []);
 
+    const cleanupTimers = () => {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        pollingIntervalRef.current = null;
+        timeoutRef.current = null;
+    };
+
     const stopAction = useCallback(() => {
+        cleanupTimers(); // Ensure polling stops when the user closes the player
         const currentActiveStream = activeStream;
         if (status !== "idle" && currentActiveStream?.infoHash) {
             sendCommand({ command: "stop" });
-            fetch(`${streamingApiUrl}/torrents/${currentActiveStream.infoHash}/pause`, { method: 'POST' })
-                .catch(err => console.error("Failed to pause torrent on stop:", err));
+            fetch(`${streamingApiUrl}/torrents/${currentActiveStream.infoHash}/cleanup`, { method: 'POST', keepalive: true })
+                .catch(err => console.error("Failed to cleanup torrent on stop:", err));
         } else if (status !== "idle") {
             sendCommand({ command: "stop" });
         }
-
         setStatus("idle");
         setActiveStream(null);
         setPlayerState({ isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false });
@@ -56,26 +69,16 @@ export function useMpvPlayer() {
         const handleEvent = (e: MessageEvent<string>) => {
             try {
                 const data: MpvEvent = JSON.parse(e.data) as MpvEvent;
-                switch (data.event) {
-                    case "property-change": {
-                        const { property, value } = data.payload;
-                        const keyMap: Record<string, keyof PlayerState> = {
-                            "time-pos": "time", "pause": "isPaused", "mute": "isMuted",
-                            "volume": "volume", "duration": "duration",
-                        };
-                        const stateKey = keyMap[property as keyof typeof keyMap];
-                        if (stateKey) {
-                            setPlayerState((prev) => ({ ...prev, [stateKey]: value as never }));
-                            if (stateKey === 'volume' && typeof value === 'number' && value > 0) {
-                                lastVolumeRef.current = value;
-                            }
-                        }
-                        break;
+                if (data.event === "property-change") {
+                    const { property, value } = data.payload;
+                    const keyMap: Record<string, keyof PlayerState> = { "time-pos": "time", "pause": "isPaused", "mute": "isMuted", "volume": "volume", "duration": "duration" };
+                    const stateKey = keyMap[property as keyof typeof keyMap];
+                    if (stateKey) {
+                        setPlayerState((prev) => ({ ...prev, [stateKey]: value as never }));
+                        if (stateKey === 'volume' && typeof value === 'number' && value > 0) lastVolumeRef.current = value;
                     }
-                    case "playback-ended": {
-                        stopAction();
-                        break;
-                    }
+                } else if (data.event === "playback-ended") {
+                    stopAction();
                 }
             } catch { /* Ignore */ }
         };
@@ -84,76 +87,34 @@ export function useMpvPlayer() {
     }, [stopAction]);
 
     const actions = {
-        playStream: useCallback(async (stream: Stream, title: string) => {
-            setStatus("preparing");
-            setActiveStream({ infoHash: stream.infoHash ?? null, fileIndex: stream.fileIdx ?? null, title });
-
-            if (stream.infoHash && typeof stream.fileIdx === 'number') {
-                try {
-                    const torrentsUrl = `${streamingApiUrl}/torrents`;
-
-                    const body = {
-                        infoHash: stream.infoHash,
-                        torrentURL: stream.url
-                    };
-
-                    // =================================================================
-                    // THE CRITICAL FIX: RESTORED THE FETCH OPTIONS
-                    // =================================================================
-                    const addTorrentResponse = await fetch(torrentsUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body),
-                    });
-
-                    if (!addTorrentResponse.ok) {
-                        const errorText = await addTorrentResponse.text();
-                        throw new Error(errorText || `Server failed to add torrent [${addTorrentResponse.status}]`);
-                    }
-
-                    const selectFileResponse = await fetch(`${torrentsUrl}/${stream.infoHash}/select/${stream.fileIdx}`, {
-                        method: 'POST',
-                    });
-
-                    if (!selectFileResponse.ok) {
-                        const errorText = await selectFileResponse.text();
-                        throw new Error(errorText || `Server failed to select file [${selectFileResponse.status}]`);
-                    }
-                    // =================================================================
-
-                    const streamUrl = `${streamingApiUrl}/direct/${stream.infoHash}/${stream.fileIdx}`;
-                    sendCommand({ command: "play", payload: { url: streamUrl } });
-                    setStatus("playing");
-                    return;
-
-                } catch (error) {
-                    console.error("Failed to prepare torrent stream:", error);
-                    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-                    setStatus("error");
-                    setErrorMessage(errorMessage);
-                    return;
-                }
-            }
-
-            if (stream.url && (stream.url.startsWith('http://') || stream.url.startsWith('https://'))) {
-                sendCommand({ command: "play", payload: { url: stream.url } });
-                setStatus("playing");
+        playStream: useCallback((stream: Stream, title: string) => {
+            if (!stream.infoHash || typeof stream.fileIdx !== 'number') {
+                setStatus("error");
+                setErrorMessage("This stream is not a valid torrent.");
                 return;
             }
 
-            setStatus("error");
-            setErrorMessage("This stream format is not supported.");
+            // --- THE FIX: The logic is now incredibly simple ---
+            // 1. Immediately show the player UI.
+            setStatus("playing");
+            setActiveStream({ infoHash: stream.infoHash, fileIndex: stream.fileIdx, title });
 
+            // 2. Construct the direct streaming URL.
+            const streamUrl = `${streamingApiUrl}/direct/${stream.infoHash}/${stream.fileIdx}`;
+
+            // 3. Tell MPV to play it. The backend handles the rest.
+            sendCommand({ command: "play", payload: { url: streamUrl } });
         }, [sendCommand, streamingApiUrl]),
 
         stop: stopAction,
-
         togglePause: useCallback(() => sendCommand({ command: "toggle-pause" }), [sendCommand]),
         toggleFullscreen: useCallback(() => sendCommand({ command: "toggle-fullscreen" }), [sendCommand]),
         seek: useCallback((time: number) => sendCommand({ command: "seek", payload: { time } }), [sendCommand]),
         setVolume: useCallback((volume: number) => {
-            sendCommand({ command: "set-volume", payload: { volume } });
-        }, [sendCommand]),
+            const newVolume = Math.max(0, Math.min(100, volume));
+            sendCommand({ command: "set-volume", payload: { volume: newVolume } });
+            if (playerState.isMuted) sendCommand({ command: "toggle-mute" });
+        }, [sendCommand, playerState.isMuted]),
         toggleMute: useCallback(() => {
             if (playerState.isMuted && playerState.volume === 0) {
                 const newVolume = lastVolumeRef.current > 0 ? lastVolumeRef.current : 70;

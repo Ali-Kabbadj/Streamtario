@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { APP_CONFIG } from '@/config/env';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { APP_CONFIG } from "@/config/env";
 
-// This mirrors the TorrentStat type from the streaming server
 export interface TorrentStats {
   infoHash: string;
   name: string;
@@ -12,67 +11,67 @@ export interface TorrentStats {
   isPaused: boolean;
 }
 
-const wsUrl = APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('https', 'wss').replace('/graphql', '/api/v1/stream');
+const baseUrl = new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL);
+const wsUrl = `${baseUrl.origin.replace("https", "wss")}/api/v1/stream`;
 
-export function useStreamingServerStats(activeInfoHash: string | null) {
-  const [stats, setStats] = useState<TorrentStats | null>(null);
+// This hook now manages an on-demand WebSocket connection.
+export function useStreamingServerStats() {
+  const [stats, setStats] = useState<TorrentStats[] | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
-  useEffect(() => {
-    if (!activeInfoHash) {
-      if (ws.current) {
-        ws.current.close();
-        ws.current = null;
-      }
+  const disconnect = useCallback(() => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.close();
+    }
+    // Clean up regardless of ready state to prevent reconnection attempts
+    if (ws.current) {
+      ws.current.onopen = null;
+      ws.current.onclose = null;
+      ws.current.onerror = null;
+      ws.current.onmessage = null;
+      ws.current = null;
       setIsConnected(false);
       setStats(null);
+    }
+  }, []);
+
+  const connect = useCallback(() => {
+    // If already connected or connecting, do nothing.
+    if (ws.current && ws.current.readyState < 2) {
       return;
     }
 
-    if (!ws.current) {
-      ws.current = new WebSocket(wsUrl);
+    ws.current = new WebSocket(wsUrl);
 
-      ws.current.onopen = () => {
-        console.log('Streaming server WebSocket connected.');
-        setIsConnected(true);
-      };
+    ws.current.onopen = () => setIsConnected(true);
+    ws.current.onclose = () => {
+      setIsConnected(false);
+      ws.current = null; // Ensure we can create a new one later
+    };
+    ws.current.onerror = () => {
+      setIsConnected(false);
+      ws.current = null;
+    };
 
-      ws.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'stats-update' && data.payload?.torrents) {
-            const activeTorrentStats = data.payload.torrents.find(
-              (t: TorrentStats) => t.infoHash === activeInfoHash
-            );
-            if (activeTorrentStats) {
-              setStats(activeTorrentStats);
-            }
-          }
-        } catch (e) {
-            // Ignore non-JSON messages
+    ws.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "stats-update" && data.payload?.torrents) {
+          setStats(data.payload.torrents);
         }
-      };
-
-      ws.current.onclose = () => {
-        console.log('Streaming server WebSocket disconnected.');
-        setIsConnected(false);
-        ws.current = null;
-      };
-      
-      ws.current.onerror = (err) => {
-        console.error('Streaming server WebSocket error:', err);
-        setIsConnected(false);
-        ws.current = null;
-      };
-    }
-
-    return () => {
-      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-        ws.current.close();
+      } catch (e) {
+        /* Ignore non-JSON messages */
       }
     };
-  }, [activeInfoHash]);
+  }, []);
 
-  return { stats, isConnected };
+  // Effect to ensure cleanup when the parent component unmounts
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
+
+  return { stats, isConnected, connect, disconnect };
 }
