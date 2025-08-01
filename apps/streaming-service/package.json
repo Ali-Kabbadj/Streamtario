@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-   "clean": "node -e \"const fs = require('fs'); const p = 'dist'; if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); console.log('🧹 Deleted', p); } catch (e) { console.warn('Could not delete', p, e); } }\"",
+    "clean": "node -e \"const fs = require('fs'); const p = 'dist'; if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); console.log('🧹 Deleted', p); } catch (e) { console.warn('Could not delete', p, e); } }\"",
     "build": "npm run clean && tsc",
     "start": "node dist/app.js",
     "dev": "nodemon",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "bencode": "4.0.0",
+    "bitfield": "^4.2.0",
     "colors": "^1.4.0",
     "cors": "2.8.5",
     "express": "^5.1.0",
@@ -23,6 +24,7 @@
     "https": "^1.0.0",
     "pdfjs-dist": "^5.3.93",
     "sanitize-filename": "^1.6.3",
+    "torrent-stream": "^1.2.1",
     "ts-node": "^10.9.2",
     "unzipper": "^0.12.3",
     "webtorrent": "2.6.10",

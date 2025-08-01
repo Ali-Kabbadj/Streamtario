@@ -1,3 +1,5 @@
+import { AppContent } from "@/components/shared/AppContent";
+
 export default function IndexPage() {
-  return null;
+  return <AppContent />;
 }

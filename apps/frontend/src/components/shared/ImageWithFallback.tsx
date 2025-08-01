@@ -5,9 +5,12 @@ interface ImageWithFallbackProps {
   fallbackSrc: string;
   alt: string;
   src: string;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
   className?: string;
+  fill?: boolean;
+  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
+  priority?: boolean;
 }
 
 export default function ImageWithFallback({
@@ -16,6 +19,10 @@ export default function ImageWithFallback({
   alt,
   width,
   height,
+  fill,
+  objectFit,
+  priority,
+  className,
   ...rest
 }: ImageWithFallbackProps) {
   const [imgSrc, set_imgSrc] = useState(src);
@@ -26,19 +33,23 @@ export default function ImageWithFallback({
 
   return (
     <Image
+      priority={priority}
       {...rest}
       alt={alt}
       src={imgSrc}
-      onLoadingComplete={(result) => {
-        if (result.naturalWidth === 0) {
+      onLoad={(result) => {
+        if (!result) {
           set_imgSrc(fallbackSrc);
         }
       }}
       onError={() => {
         set_imgSrc(fallbackSrc);
       }}
-      width={width}
-      height={height}
+      width={fill ? undefined : width}
+      height={fill ? undefined : height}
+      fill={fill}
+      objectFit={objectFit}
+      className={className}
     />
   );
 }

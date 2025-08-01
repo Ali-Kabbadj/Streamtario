@@ -18,13 +18,6 @@ namespace WebViewProtocol
                 LOG_ERROR("CommandHandler", "Play command received with empty URL.");
                 return;
             }
-
-            // THE CRITICAL UI SWITCH
-            if (g_webviewController)
-                g_webviewController->put_IsVisible(FALSE);
-            if (g_playerWebviewController)
-                g_playerWebviewController->put_IsVisible(TRUE);
-
             g_isMpvPlaying = true;
             HandleMpvCommand({"loadfile", url});
         };
@@ -37,12 +30,6 @@ namespace WebViewProtocol
                 HandleMpvCommand({"write-watch-later-config"});
                 HandleMpvCommand({"stop"});
             }
-
-            // THE CRITICAL UI SWITCH
-            if (g_playerWebviewController)
-                g_playerWebviewController->put_IsVisible(FALSE);
-            if (g_webviewController)
-                g_webviewController->put_IsVisible(TRUE);
         };
 
         m_commands["toggle-pause"] = [](const json &)

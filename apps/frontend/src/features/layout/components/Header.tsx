@@ -16,6 +16,7 @@ import { useProfileContext } from "@/providers/profile-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useView } from "@/providers/view-provider";
 import Image from "next/image";
+import { StreamingStatusIndicator } from "@/features/player/components/StreamingStatusIndicator";
 
 export function Header() {
   const { logout } = useAuth();
@@ -69,7 +70,8 @@ export function Header() {
         )}
       </div>
 
-      <div className="flex flex-1 items-center justify-end">
+      <div className="flex flex-1 items-center justify-end gap-4">
+        <StreamingStatusIndicator />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">

@@ -23,7 +23,10 @@ void HandleMpvEvents()
     while (true)
     {
         mpv_event *ev = mpv_wait_event(g_mpv, 0);
-        if (!ev || ev->event_id == MPV_EVENT_NONE) { break; }
+        if (!ev || ev->event_id == MPV_EVENT_NONE)
+        {
+            break;
+        }
 
         switch (ev->event_id)
         {
@@ -34,12 +37,25 @@ void HandleMpvEvents()
         case MPV_EVENT_PROPERTY_CHANGE:
         {
             mpv_event_property *prop = (mpv_event_property *)ev->data;
-            if (prop->data == NULL) break;
+            if (prop->data == NULL)
+                break;
             json value;
-            if (prop->format == MPV_FORMAT_DOUBLE) { value = *(double *)prop->data; }
-            else if (prop->format == MPV_FORMAT_FLAG) { value = (*(int *)prop->data ? true : false); }
-            else if (prop->format == MPV_FORMAT_INT64) { value = *(int64_t *)prop->data; }
-            else { continue; }
+            if (prop->format == MPV_FORMAT_DOUBLE)
+            {
+                value = *(double *)prop->data;
+            }
+            else if (prop->format == MPV_FORMAT_FLAG)
+            {
+                value = (*(int *)prop->data ? true : false);
+            }
+            else if (prop->format == MPV_FORMAT_INT64)
+            {
+                value = *(int64_t *)prop->data;
+            }
+            else
+            {
+                continue;
+            }
 
             WebViewProtocol::EventEmitter::emitPropertyChange(prop->name, value);
             break;
@@ -54,15 +70,15 @@ void HandleMpvEvents()
             if (mpv_get_property(g_mpv, "start", MPV_FORMAT_DOUBLE, &startTime) == 0 && startTime > 1.0)
             {
                 std::string timeStr = std::to_string(startTime);
-                HandleMpvCommand({ "seek", timeStr, "absolute" });
+                HandleMpvCommand({"seek", timeStr, "absolute"});
                 LOG_INFO("MPV_Event", "Found resume time. Issued explicit seek to: " + timeStr + "s");
             }
 
             // Proactively send the initial state to the frontend
-            double  duration  = 0;
-            int64_t volume    = 0;
-            int     is_paused = 1;
-            int     is_muted  = 0;
+            double duration = 0;
+            int64_t volume = 0;
+            int is_paused = 1;
+            int is_muted = 0;
 
             mpv_get_property(g_mpv, "duration", MPV_FORMAT_DOUBLE, &duration);
             mpv_get_property(g_mpv, "volume", MPV_FORMAT_INT64, &volume);
@@ -84,7 +100,10 @@ void HandleMpvEvents()
                 g_isMpvPlaying = false;
                 WebViewProtocol::EventEmitter::emitPlaybackEnded();
             }
-            else { LOG_INFO("MPV_Event", "Playback stopped by user command."); }
+            else
+            {
+                LOG_INFO("MPV_Event", "Playback stopped by user command.");
+            }
             break;
         }
         case MPV_EVENT_SHUTDOWN:
@@ -113,8 +132,11 @@ void HandleMpvCommand(const std::vector<std::string> &args)
 
     // Convert std::string to const char* for the C API
     std::vector<const char *> cargs;
-    for (const auto &s : args) { cargs.push_back(s.c_str()); }
-    cargs.push_back(nullptr);// The array must be null-terminated
+    for (const auto &s : args)
+    {
+        cargs.push_back(s.c_str());
+    }
+    cargs.push_back(nullptr); // The array must be null-terminated
 
     // Send the command to the MPV engine
     mpv_command_async(g_mpv, 0, cargs.data());
@@ -126,10 +148,13 @@ void HandleMpvCommand(const std::vector<std::string> &args)
 
 void HandleMpvSetProp(const std::vector<std::string> &args)
 {
-    if (!g_mpv || args.size() < 2) return;
+    if (!g_mpv || args.size() < 2)
+        return;
     std::string val = args[1];
-    if (val == "true") val = "yes";
-    if (val == "false") val = "no";
+    if (val == "true")
+        val = "yes";
+    if (val == "false")
+        val = "no";
     mpv_set_property_string(g_mpv, args[0].c_str(), val.c_str());
 
     // Also wake up after setting a property
@@ -139,35 +164,39 @@ void HandleMpvSetProp(const std::vector<std::string> &args)
 // Not used yet, but good to have
 void HandleMpvObserveProp(const std::vector<std::string> &args)
 {
-    if (!g_mpv || args.empty()) return;
+    if (!g_mpv || args.empty())
+        return;
     mpv_observe_property(g_mpv, 0, args[0].c_str(), MPV_FORMAT_NODE);
 }
 
 void pauseMPV(bool allowed)
 {
-    if (!allowed) return;
-    HandleMpvSetProp({ "pause", "true" });
+    if (!allowed)
+        return;
+    HandleMpvSetProp({"pause", "true"});
 }
 
 void playMPV(bool allowed)
 {
-    if (!allowed) return;
-    HandleMpvSetProp({ "pause", "false" });
+    if (!allowed)
+        return;
+    HandleMpvSetProp({"pause", "false"});
 }
 
 bool InitMPV(HWND hwnd)
 {
     g_mpv = mpv_create();
-    if (!g_mpv) return false;
+    if (!g_mpv)
+        return false;
 
     int64_t wid = (int64_t)hwnd;
     mpv_set_option(g_mpv, "wid", MPV_FORMAT_INT64, &wid);
     mpv_set_option_string(g_mpv, "vo", "gpu-next");
 
     // === USE PORTABLE CONFIGURATION ===
-    std::wstring configDirW  = AppConfig::GetConfigDirectory();
-    int          size_needed = WideCharToMultiByte(CP_UTF8, 0, configDirW.c_str(), -1, NULL, 0, NULL, NULL);
-    std::string  configDirA(size_needed, 0);
+    std::wstring configDirW = AppConfig::GetConfigDirectory();
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, configDirW.c_str(), -1, NULL, 0, NULL, NULL);
+    std::string configDirA(size_needed, 0);
     WideCharToMultiByte(CP_UTF8, 0, configDirW.c_str(), -1, &configDirA[0], size_needed, NULL, NULL);
 
     mpv_set_option_string(g_mpv, "config", "yes");
@@ -175,8 +204,8 @@ bool InitMPV(HWND hwnd)
 
     //  Enable and configure watch_later for position saving ---
     std::wstring watchLaterDirW = configDirW + L"\\watch_later";
-    int          size_needed_wl = WideCharToMultiByte(CP_UTF8, 0, watchLaterDirW.c_str(), -1, NULL, 0, NULL, NULL);
-    std::string  watchLaterDirA(size_needed_wl, 0);
+    int size_needed_wl = WideCharToMultiByte(CP_UTF8, 0, watchLaterDirW.c_str(), -1, NULL, 0, NULL, NULL);
+    std::string watchLaterDirA(size_needed_wl, 0);
     WideCharToMultiByte(CP_UTF8, 0, watchLaterDirW.c_str(), -1, &watchLaterDirA[0], size_needed_wl, NULL, NULL);
 
     mpv_set_option_string(g_mpv, "watch-later-directory", watchLaterDirA.c_str());
@@ -219,7 +248,10 @@ void CleanupMPV()
     {
         LOG_INFO("MPV_Cleanup", "CleanupMPV called.");
         mpv_command_string(g_mpv, "quit");
-        if (g_mpvThread.joinable()) { g_mpvThread.join(); }
+        if (g_mpvThread.joinable())
+        {
+            g_mpvThread.join();
+        }
         // mpv_terminate_destroy is called by the shutdown event, but we can call it here as a fallback
         // mpv_terminate_destroy(g_mpv);
         g_mpv = nullptr;

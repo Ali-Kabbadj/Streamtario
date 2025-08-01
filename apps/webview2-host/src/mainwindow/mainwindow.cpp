@@ -36,7 +36,7 @@ void ToggleFullscreen(HWND hWnd)
     if (!g_isFullscreen)
     {
         GetWindowRect(hWnd, &g_windowRect);
-        MONITORINFO mi = { sizeof(mi) };
+        MONITORINFO mi = {sizeof(mi)};
         GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &mi);
         SetWindowLong(hWnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
         SetWindowPos(hWnd,

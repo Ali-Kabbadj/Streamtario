@@ -17,9 +17,6 @@ bool g_isMpvPlaying = false;
 // WebView2
 wil::com_ptr<ICoreWebView2Controller> g_webviewController;
 wil::com_ptr<ICoreWebView2> g_webview;
-// NEW: Player Overlay WebView
-wil::com_ptr<ICoreWebView2Controller> g_playerWebviewController;
-wil::com_ptr<ICoreWebView2> g_playerWebview;
 
 // Command handler
 WebViewProtocol::CommandHandler g_commandHandler;

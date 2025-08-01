@@ -3,21 +3,21 @@
 
 namespace WebViewProtocol
 {
-namespace EventEmitter
-{
-
-    void emitPropertyChange(const std::string &property, const json &value)
+    namespace EventEmitter
     {
-        PropertyChangeEventPayload p  = { property, value };
-        json                       ev = { { "event", "property-change" }, { "payload", p } };
-        SendMessageToJS(ev.dump());
-    }
 
-    void emitPlaybackEnded()
-    {
-        json ev = { { "event", "playback-ended" } };
-        SendMessageToJS(ev.dump());
-    }
+        void emitPropertyChange(const std::string &property, const json &value)
+        {
+            PropertyChangeEventPayload p = {property, value};
+            json ev = {{"event", "property-change"}, {"payload", p}};
+            SendMessageToJS(ev.dump());
+        }
 
-}// namespace EventEmitter
-}// namespace WebViewProtocol
+        void emitPlaybackEnded()
+        {
+            json ev = {{"event", "playback-ended"}};
+            SendMessageToJS(ev.dump());
+        }
+
+    } // namespace EventEmitter
+} // namespace WebViewProtocol

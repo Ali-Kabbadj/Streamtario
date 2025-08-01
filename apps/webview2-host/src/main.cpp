@@ -112,7 +112,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.lpszClassName = g_szWindowClass;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH); // Black background
+    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     RegisterClassW(&wc);
 
     g_hWnd = CreateWindowExW(0,
@@ -140,7 +140,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     InitMainWebView(g_hWnd, app_directory);
-    InitPlayerWebView(g_hWnd, app_directory); // Initialize the second WebView
 
     MSG msg = {};
     while (GetMessage(&msg, nullptr, 0, 0) > 0)
