@@ -1,7 +1,7 @@
 "use client";
 
 import { useView } from "@/providers/view-provider";
-import { Home, Settings, Puzzle, Compass } from "lucide-react";
+import { Home, Puzzle, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,

@@ -21,7 +21,11 @@ import { useProfileContext } from "@/providers/profile-provider";
 import { StreamList } from "./StreamList";
 import { X, ArrowUpDown, Filter } from "lucide-react";
 import Image from "next/image";
-import { parseStream, ParsedStreamDetails } from "@/lib/stream-parser";
+import {
+  parseStream,
+  type ParsedStreamDetails,
+  type Stream,
+} from "@/lib/stream-parser";
 import { Label } from "@/components/ui/label";
 
 type SortKey = "best" | "seeders" | "size";
@@ -115,10 +119,10 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
   const { selectedProfile } = useProfileContext();
   const [sortKey, setSortKey] = useState<SortKey>("best");
   const [filters, setFilters] = useState<Filters>({
-    resolution: new Set(),
-    source: new Set(),
-    hdr: new Set(),
-    language: new Set(),
+    resolution: new Set<string>(),
+    source: new Set<string>(),
+    hdr: new Set<string>(),
+    language: new Set<string>(),
   });
 
   const { data: rawStreams, isLoading: isLoadingStreams } = useStreams({
@@ -126,11 +130,11 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
     itemType: content?.itemType ?? "",
     itemId: content?.itemId ?? "",
     enabled: !!content,
-  });
+  }) as { data: Stream[] | undefined; isLoading: boolean };
 
   const parsedStreams = useMemo(() => {
     if (!rawStreams) return [];
-    return rawStreams.map((s, i) => parseStream(s, i));
+    return rawStreams.map((s: Stream, i: number) => parseStream(s, i));
   }, [rawStreams]);
 
   const filterOptions = useMemo(() => {
@@ -140,13 +144,13 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
     const languages = new Set<string>();
     const hdrKeys = Object.keys(HDR_SCORE);
 
-    parsedStreams.forEach((s) => {
+    parsedStreams.forEach((s: ParsedStreamDetails) => {
       if (s.tags.quality) resolutions.add(s.tags.quality);
       if (s.tags.source) sources.add(s.tags.source);
-      s.tags.video.forEach((v) => {
+      s.tags.video.forEach((v: string) => {
         if (hdrKeys.includes(v)) hdrTypes.add(v);
       });
-      s.tags.languages.forEach((l) => languages.add(l));
+      s.tags.languages.forEach((l: string) => languages.add(l));
     });
     return {
       resolutions: Array.from(resolutions).sort(
@@ -161,7 +165,7 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
   }, [parsedStreams]);
 
   const processedStreams = useMemo(() => {
-    const filtered = parsedStreams.filter((stream) => {
+    const filtered = parsedStreams.filter((stream: ParsedStreamDetails) => {
       const { tags } = stream;
       if (
         filters.resolution.size > 0 &&
@@ -173,18 +177,21 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
         (!tags.source || !filters.source.has(tags.source))
       )
         return false;
-      if (filters.hdr.size > 0 && !tags.video.some((v) => filters.hdr.has(v)))
+      if (
+        filters.hdr.size > 0 &&
+        !tags.video.some((v: string) => filters.hdr.has(v))
+      )
         return false;
       if (
         filters.language.size > 0 &&
         (tags.languages.length === 0 ||
-          !tags.languages.some((l) => filters.language.has(l)))
+          !tags.languages.some((l: string) => filters.language.has(l)))
       )
         return false;
       return true;
     });
 
-    return filtered.sort((a, b) => {
+    return filtered.sort((a: ParsedStreamDetails, b: ParsedStreamDetails) => {
       if (sortKey === "best") return getStreamScore(b) - getStreamScore(a);
       if (sortKey === "seeders") return (b.seeders ?? 0) - (a.seeders ?? 0);
       if (sortKey === "size")
@@ -212,10 +219,9 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
       hdr: new Set(),
       language: new Set(),
     });
-  const activeFilterCount = Object.values(filters).reduce(
-    (acc, current) => acc + current.size,
-    0,
-  );
+  const activeFilterCount = (
+    Object.values(filters) as Array<Set<string>>
+  ).reduce((acc: number, current: Set<string>) => acc + current.size, 0);
 
   return (
     <AnimatePresence>

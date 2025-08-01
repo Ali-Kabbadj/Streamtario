@@ -8,7 +8,6 @@
       "name": "python-libs",
       "path": "packages/python"
     },
-    { "name": "typescript-lib", "path": "packages/typescript" },
     { "name": "frontend", "path": "apps/frontend" },
     { "name": "state-tracker-service", "path": "apps/state-tracker-service" },
     {
@@ -22,7 +21,8 @@
     { "name": "dev resources", "path": "dev_resources" },
     { "name": "api-gateway", "path": "apps/api-gateway" },
     { "name": "auth-service", "path": "apps/auth-service" },
-    { "name": "streaming-service", "path": "apps/streaming-service" }
+    { "name": "streaming-service", "path": "apps/streaming-service" },
+    { "name": "torrserver-daemon", "path": "apps/torrserver-daemon" }
   ],
   "tasks": {
     "version": "2.0.0",
@@ -163,7 +163,6 @@
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 3 }
       },
-      // --- SERVICE CONFIGURATIONS (UNCHANGED) ---
       {
         "name": "➕ Addons Service",
         "type": "debugpy",
@@ -207,7 +206,7 @@
         "runtimeExecutable": "node",
         "runtimeArgs": [
           "--inspect-brk",
-          "${workspaceFolder:streaming-service}/dist/app.js"
+          "${workspaceFolder:streaming-service}/dist/index.js"
         ],
         "preLaunchTask": "tsc: build streaming api",
         "outFiles": ["${workspaceFolder:streaming-service}/dist/**/*.js"],
@@ -217,7 +216,15 @@
         "skipFiles": ["<node_internals>/**"],
         "outputCapture": "std",
         "localRoot": "${workspaceFolder:streaming-service}",
-        "remoteRoot": "/app"
+        "remoteRoot": "${workspaceFolder:streaming-service}/app",
+        "presentation": { "hidden": false, "group": "services", "order": 4 }
+      },
+      {
+        "name": "➕ torrserver-daemon",
+        "type": "go",
+        "request": "launch",
+        "mode": "auto",
+        "program": "${workspaceFolder:torrserver-daemon}/server/cmd"
       },
       {
         "name": "🚀 API Gateway",
@@ -237,7 +244,7 @@
         "outputCapture": "std",
         "localRoot": "${workspaceFolder:api-gateway}",
         "remoteRoot": "/app",
-        "presentation": { "hidden": false, "group": "services", "order": 4 }
+        "presentation": { "hidden": false, "group": "services", "order": 5 }
       },
       {
         "name": "REACT_DEVTOOLS",
@@ -304,6 +311,8 @@
           "➕ Addons Service",
           "➕ Accounts Service",
           "➕ Auth Service",
+          "➕ Streaming Service",
+          "➕ torrserver-daemon",
           "🚀 API Gateway"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
@@ -323,9 +332,10 @@
           "➕ Accounts Service",
           "➕ Auth Service",
           "➕ Streaming Service",
+          "➕ torrserver-daemon",
           "🚀 API Gateway",
-          "WebView2",
-          "DEBUG_FRONTEND"
+          "WebView2"
+          // "DEBUG_FRONTEND"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
         "stopAll": true,

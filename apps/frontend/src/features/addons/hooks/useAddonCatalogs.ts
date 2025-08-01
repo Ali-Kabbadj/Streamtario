@@ -14,7 +14,7 @@ export interface AddonCatalogItem {
         version: string;
         name: string;
         description: string;
-        logo?: string;
+        logo: string;
         types: string[];
     };
     transportUrl: string;

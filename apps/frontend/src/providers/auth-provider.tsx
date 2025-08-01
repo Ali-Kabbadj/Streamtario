@@ -1,7 +1,14 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { useQuery } from "@tanstack/react-query";
 import { graphqlClient } from "@/lib/graphql-client";
 import { AccountDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import type { AccountQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
@@ -20,43 +27,52 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
+  const [isClient, setIsClient] = useState(false);
 
-  const logout = () => {
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const logout = useCallback(() => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-    void queryClient.resetQueries();
-  };
+    window.location.href = "/";
+  }, []);
 
-  const { data, isLoading, isSuccess } = useQuery<AccountQuery, Error>({
+  const hasToken = isClient && !!localStorage.getItem("refreshToken");
+
+  const { data, isLoading, isSuccess, isError, error } = useQuery<
+    AccountQuery,
+    Error
+  >({
     queryKey: ["Account"],
     queryFn: async () => {
-      if (
-        typeof window !== "undefined" &&
-        !localStorage.getItem("refreshToken")
-      ) {
-        throw new Error("No refresh token found, user is not logged in.");
-      }
-      return graphqlClient.request<AccountQuery, {}>(print(AccountDocument));
+      return graphqlClient.request<AccountQuery, Record<string, unknown>>(
+        print(AccountDocument),
+      );
     },
+    enabled: hasToken,
     retry: false,
     refetchOnWindowFocus: false,
     staleTime: Infinity,
     gcTime: Infinity,
-    onError: (err) => {
-      console.error("Account query failed permanently, logging out.", err);
-      logout();
-    },
   });
 
-  if (isLoading) {
+  useEffect(() => {
+    if (isError) {
+      console.error("Account query failed permanently, logging out.", error);
+      logout();
+    }
+  }, [isError, error, logout]);
+
+  if (isLoading && hasToken) {
     return <GlobalLoader />;
   }
 
   const value = {
-    isAuthenticated: isSuccess && !!data?.account,
+    isAuthenticated: hasToken && isSuccess && !!data?.account,
     user: data?.account ?? null,
-    isLoading: isLoading,
+    isLoading: isLoading && hasToken,
     logout,
   };
 

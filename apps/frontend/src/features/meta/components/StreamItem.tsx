@@ -6,7 +6,6 @@ import {
   HardDrive,
   Clapperboard,
   Film,
-  Mic,
   Video,
   Sparkles,
   Sigma,
@@ -15,11 +14,9 @@ import {
   Tv,
 } from "lucide-react";
 import type { ParsedStreamDetails } from "@/lib/stream-parser";
-import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import type { JSX } from "react";
 import { usePlayer } from "@/providers/PlayerProvider";
-
-type Stream = GetStreamsQuery["profile"]["streams"][0];
+import type { Stream } from "../types";
 
 interface StreamItemProps {
   stream: Stream;
@@ -57,7 +54,7 @@ const tagIcons: Record<string, JSX.Element> = {
 };
 
 const DetailBadge = ({ tag }: { tag: string }) => {
-  const icon = tagIcons[tag] || null;
+  const icon = tagIcons[tag] ?? null;
   return (
     <Badge variant="secondary" className="flex items-center">
       {icon}

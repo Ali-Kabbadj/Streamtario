@@ -97,7 +97,7 @@ class CatalogResult:
 @strawberry.type
 class AddonSearchResultType:
     addon_name: str
-    results_by_type: JSON
+    results_by_type: JSON  # type: ignore
     error: Optional[str] = None
 
 
@@ -121,7 +121,7 @@ class StreamType:
     yt_id: Optional[str] = None
     info_hash: Optional[str] = None
     file_idx: Optional[int] = None
-    behavior_hints: Optional[JSON] = None
+    behavior_hints: Optional[JSON] = None  # type: ignore
     addon_name: Optional[str] = None
 
     @classmethod
@@ -154,7 +154,7 @@ class ProfileExtension:
         itemType: str,
         catalogId: Optional[str] = None,
         manifestId: Optional[str] = None,
-        extraProps: Optional[JSON] = None,
+        extraProps: Optional[JSON] = None,  # type: ignore
         filterByType: Optional[str] = None,
     ) -> "CatalogResult":
         from .resolvers import resolve_profile_catalog

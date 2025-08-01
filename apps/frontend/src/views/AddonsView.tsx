@@ -45,10 +45,6 @@ export function AddonsView() {
   const { manifests: installedAddons, isLoading: isLoadingInstalled } =
     useManifestsByUrls(installedUrls);
 
-  const onMutationSettled = () => {
-    setPendingAddonId(null);
-  };
-
   const onMutationSuccess = () => {
     setPendingAddonId(null);
     setSelectedAddon(null);

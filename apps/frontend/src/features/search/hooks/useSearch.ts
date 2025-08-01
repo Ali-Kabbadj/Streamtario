@@ -5,11 +5,11 @@ import { createClient } from 'graphql-ws';
 import { print } from 'graphql';
 import { APP_CONFIG } from '@/config/env';
 import { SearchDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
-import type { SearchSubscription } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
+import type { CatalogItemType, SearchSubscription } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
 const wsUrl = APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('https', 'wss');
 
-export type SearchResultItem = NonNullable<NonNullable<SearchSubscription['search']>['resultsByType']>[string][0];
+export type SearchResultItem = CatalogItemType;
 
 export interface AddonResults {
     addonName: string;
@@ -60,7 +60,7 @@ export const useSearch = (profileId: string, query: string) => {
                             const addonEntry = newResults.get(addonName) ?? { addonName, resultsByType: new Map(), error: searchResult.error };
 
                             if (searchResult.resultsByType) {
-                                for (const [type, items] of Object.entries(searchResult.resultsByType as Record<string, SearchResultItem[]>)) {
+                                for (const [type, items] of Object.entries(searchResult.resultsByType as Record<string, CatalogItemType[]>)) {
                                     addonEntry.resultsByType.set(type, items);
                                 }
                             }

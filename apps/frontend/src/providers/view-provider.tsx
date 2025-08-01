@@ -37,7 +37,12 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   };
 
   const currentView = viewStack[viewStack.length - 1];
-  const value = { viewStack, currentView, navigateTo, navigateBack };
+  const value: ViewContextType = {
+    viewStack,
+    currentView: currentView ?? { name: "home" }, // Use nullish coalescing operator
+    navigateTo,
+    navigateBack,
+  };
 
   return <ViewContext.Provider value={value}>{children}</ViewContext.Provider>;
 }

@@ -146,8 +146,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
             <Image
               src={meta.background}
               alt={`${meta.name} background`}
-              layout="fill"
-              objectFit="cover"
+              fill // Use fill prop
+              style={{ objectFit: "cover" }} // Use style prop for objectFit
               className="opacity-40"
               unoptimized
             />
@@ -167,8 +167,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
               <Image
                 src={meta.poster ?? ""}
                 alt={`${meta.name} poster`}
-                layout="fill"
-                objectFit="cover"
+                fill // Use fill prop
+                style={{ objectFit: "cover" }}
                 className="rounded-lg shadow-2xl"
                 unoptimized
               />
@@ -181,12 +181,12 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                 <span className="text-lg text-slate-400">
                   {meta.releaseInfo}
                 </span>
-                {meta.imdb_id && (
+                {meta.imdbId && (
                   <>
                     <span className="text-slate-600">•</span>
                     <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 text-yellow-400" />
-                      <span className="text-lg font-bold">{meta.imdb_id}</span>
+                      <span className="text-lg font-bold">{meta.imdbId}</span>
                     </div>
                   </>
                 )}
@@ -274,7 +274,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                   {/* The content is already keyed to selectedSeason, so it's safe */}
                   <TabsContent value={selectedSeason} className="mt-4">
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      {seasons[selectedSeason].map((episode) => {
+                      {seasons[selectedSeason]?.map((episode) => {
                         const isReleased =
                           new Date(episode.released ?? 0) <= new Date();
                         return (

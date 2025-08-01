@@ -13,15 +13,15 @@ class RedisProfileManifestCache(IProfileManifestCache):
 
     async def get_manifests(self, profile_id: str) -> List[str]:
         key = get_profile_cache_key(profile_id)
-        manifests = await self.redis_client.smembers(key)
+        manifests = await self.redis_client.smembers(key)  # type: ignore
         return list(manifests)
 
     async def add_manifest(self, profile_id: str, manifest_url: str) -> None:
         key = get_profile_cache_key(profile_id)
-        await self.redis_client.sadd(key, manifest_url)
+        await self.redis_client.sadd(key, manifest_url)  # type: ignore
 
     async def remove_manifest(
         self, profile_id: str, manifest_id: str, manifest_url: str
     ) -> None:
         key = get_profile_cache_key(profile_id)
-        await self.redis_client.srem(key, manifest_url)
+        await self.redis_client.srem(key, manifest_url)  # type: ignore

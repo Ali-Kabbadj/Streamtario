@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { loginWithCredentials } from "../services/auth.service";
 
 type LoginCredentials = {
@@ -7,12 +7,10 @@ type LoginCredentials = {
 };
 
 export const useLogin = () => {
-    const queryClient = useQueryClient();
-
     return useMutation<void, Error, LoginCredentials>({
         mutationFn: loginWithCredentials,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["Account"] });
+        onSuccess: () => {
+            window.location.href = "/";
         },
     });
 };

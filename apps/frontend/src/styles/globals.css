@@ -172,20 +172,13 @@ body {
   }
 }
 
-/* Hide default scrollbar for Webkit-based browsers like WebView2 */
 *::-webkit-scrollbar {
   display: none;
 }
 
-/* For Firefox, though less critical for WebView2 */
 * {
   scrollbar-width: none;
 }
-
-/* ================================================================= */
-/* THE CRITICAL FIX: HIDE THE APP AND MAKE THE BACKGROUND TRANSPARENT */
-/* ================================================================= */
-/* At the very end of your globals.css */
 
 body.player-active {
   background-color: transparent !important;
@@ -194,5 +187,3 @@ body.player-active {
 body.player-active #app-root {
   display: none;
 }
-
-/* ================================================================= */

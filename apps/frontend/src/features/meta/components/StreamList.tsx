@@ -1,17 +1,17 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type { Stream } from "../types";
 import { StreamItem } from "./StreamItem";
 import type { ParsedStreamDetails } from "@/lib/stream-parser";
 import { Button } from "@/components/ui/button";
 
 interface StreamListProps {
   streams: ParsedStreamDetails[] | undefined;
-  rawStreams: GetStreamsQuery["profile"]["streams"] | undefined;
+  rawStreams: Stream[] | undefined;
   isLoading: boolean;
   clearFilters: () => void;
-  mediaTitle: string; // <-- PROP ADDED
+  mediaTitle: string;
 }
 
 export function StreamList({
@@ -19,7 +19,7 @@ export function StreamList({
   rawStreams,
   isLoading,
   clearFilters,
-  mediaTitle, // <-- PROP ADDED
+  mediaTitle,
 }: StreamListProps) {
   if (isLoading) {
     return (
@@ -54,7 +54,7 @@ export function StreamList({
             key={parsed.originalIndex}
             stream={rawStream}
             parsed={parsed}
-            mediaTitle={mediaTitle} // <-- PROP PASSED DOWN
+            mediaTitle={mediaTitle}
           />
         );
       })}
