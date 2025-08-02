@@ -22,6 +22,7 @@ interface StreamItemProps {
   stream: Stream;
   parsed: ParsedStreamDetails;
   mediaTitle: string;
+  logoUrl?: string | null;
 }
 
 const tagIcons: Record<string, JSX.Element> = {
@@ -63,7 +64,12 @@ const DetailBadge = ({ tag }: { tag: string }) => {
   );
 };
 
-export function StreamItem({ stream, parsed, mediaTitle }: StreamItemProps) {
+export function StreamItem({
+  stream,
+  parsed,
+  mediaTitle,
+  logoUrl = null,
+}: StreamItemProps) {
   const { actions } = usePlayer();
   const { tags } = parsed;
 
@@ -77,7 +83,7 @@ export function StreamItem({ stream, parsed, mediaTitle }: StreamItemProps) {
   ].filter(Boolean) as string[];
 
   const handlePlayClick = () => {
-    actions.playStream(stream, mediaTitle);
+    actions.playStream(stream, mediaTitle, logoUrl);
   };
 
   return (

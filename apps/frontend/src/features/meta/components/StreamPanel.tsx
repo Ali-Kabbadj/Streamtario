@@ -40,6 +40,7 @@ interface StreamPanelContent {
 interface StreamPanelProps {
   content: StreamPanelContent | null;
   onClose: () => void;
+  logoUrl?: string | null;
 }
 
 interface Filters {
@@ -115,7 +116,7 @@ const FilterSection = ({
   );
 };
 
-export function StreamPanel({ content, onClose }: StreamPanelProps) {
+export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
   const { selectedProfile } = useProfileContext();
   const [sortKey, setSortKey] = useState<SortKey>("best");
   const [filters, setFilters] = useState<Filters>({
@@ -340,6 +341,7 @@ export function StreamPanel({ content, onClose }: StreamPanelProps) {
                 isLoading={isLoadingStreams}
                 clearFilters={clearFilters}
                 mediaTitle={content.title}
+                logoUrl={logoUrl}
               />
             </div>
           </ScrollArea>

@@ -7,12 +7,17 @@ import { useState, useEffect, useRef } from "react";
 import { PlayerHeader } from "./PlayerHeader";
 import { PlayerControls } from "./PlayerControls";
 import { usePlayer } from "@/providers/PlayerProvider";
+import { useStreamingServerStats } from "../hooks/useStreamingServerStats";
+import { PreparingSplash } from "./PreparingSplash";
 
 export function PlayerOverlay() {
   const { status, activeStream, errorMessage, actions, playerState } =
     usePlayer();
+  const { stats } = useStreamingServerStats();
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeTorrentStats =
+    stats?.find((t) => t.infoHash === activeStream?.infoHash) ?? null;
 
   useEffect(() => {
     const handleActivity = () => {
@@ -56,16 +61,24 @@ export function PlayerOverlay() {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-transparent text-white"
       >
-        {/* --- UI FOR THE NEW "preparing" STATE --- */}
         {status === "preparing" && (
           <div className="flex flex-col items-center gap-4">
             <PlayerHeader
               title={activeStream?.title ?? ""}
               onBack={actions.stop}
             />
-            <Loader className="h-12 w-12 animate-spin" />
-            <h2 className="text-2xl font-bold">Preparing Stream...</h2>
-            <p className="text-lg text-slate-300">{activeStream?.title}</p>
+            <PreparingSplash
+              logoUrl={activeStream?.logo}
+              progress={activeTorrentStats?.progress ?? 0}
+            />
+            <h2 className="mt-4 text-2xl font-bold">Preparing Stream...</h2>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Loader className="h-4 w-4 animate-spin" />
+              <span>
+                Buffering:{" "}
+                {Math.floor((activeTorrentStats?.progress ?? 0) * 100)}%
+              </span>
+            </div>
           </div>
         )}
 

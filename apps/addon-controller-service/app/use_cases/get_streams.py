@@ -89,8 +89,6 @@ class GetStreamsUseCase:
 
         id_for_meta_lookup = item_id
         if item_type == "series" and len(item_id_parts) >= 3:
-            # Reconstruct the series ID from the episode ID for the meta lookup
-            # e.g., "prefix:id:s:e" -> "prefix:id"
             id_for_meta_lookup = ":".join(item_id_parts[:-2])
 
         if cinemeta_manifest and cinemeta_manifest.manifest_url:

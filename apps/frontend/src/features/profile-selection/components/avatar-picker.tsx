@@ -25,7 +25,7 @@ export const AvatarPicker = ({ value, onChange }: AvatarPickerProps) => {
         return (
           <button
             key={src}
-            type="button" // Important to prevent form submission
+            type="button"
             onClick={() => onChange(src)}
             className="relative rounded-lg focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-900 focus:outline-none"
           >

@@ -62,7 +62,7 @@ export function useStreamingServerStats() {
 
   const connect = useCallback(() => {
     if (ws.current && ws.current.readyState < 2) {
-      return; // Already connecting or connected
+      return;
     }
 
     console.log("[WSS Hook] Attempting to connect...");
@@ -72,7 +72,7 @@ export function useStreamingServerStats() {
       console.log("[WSS Hook] Connection established.");
       setIsConnected(true);
       if (reconnectInterval.current) {
-        clearInterval(reconnectInterval.current); // Stop trying to reconnect
+        clearInterval(reconnectInterval.current);
         reconnectInterval.current = null;
       }
     };
@@ -92,13 +92,11 @@ export function useStreamingServerStats() {
       console.log("[WSS Hook] Connection closed.");
       setIsConnected(false);
       ws.current = null;
-      // Set up periodic reconnection attempts
-      reconnectInterval.current ??= setInterval(connect, 5000); // Try to reconnect every 5s
+      reconnectInterval.current ??= setInterval(connect, 5000);
     };
 
     ws.current.onerror = (err) => {
       console.error("[WSS Hook] WebSocket error:", err);
-      // onclose will be called next, which handles reconnect logic
     };
   }, []);
 

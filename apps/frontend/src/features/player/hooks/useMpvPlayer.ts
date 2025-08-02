@@ -16,10 +16,17 @@ export interface PlayerState {
     isMuted: boolean;
 }
 
+// Add the new event to our type definition
+interface PlaybackStartedEvent {
+    event: "playback-started";
+}
+
+type WebViewEvent = MpvEvent | PlaybackStartedEvent;
+
 export function useMpvPlayer() {
     const [status, setStatus] = useState<"idle" | "preparing" | "playing" | "error">("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [activeStream, setActiveStream] = useState<{ infoHash: string | null; fileIndex: number | null; title: string } | null>(null);
+    const [activeStream, setActiveStream] = useState<{ infoHash: string | null; fileIndex: number | null; title: string; logo?: string | null; } | null>(null);
     const [playerState, setPlayerState] = useState<PlayerState>({
         isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false,
     });
@@ -53,8 +60,14 @@ export function useMpvPlayer() {
         if (!isWebView()) return;
         const handleEvent = (e: MessageEvent<string>) => {
             try {
-                const data: MpvEvent = JSON.parse(e.data) as MpvEvent;
-                if (data.event === "property-change") {
+                const data: WebViewEvent = JSON.parse(e.data) as WebViewEvent;
+
+                // THE NEW LOGIC: We only switch to "playing" on our new, reliable event.
+                if (data.event === "playback-started") {
+                    if (status === 'preparing') {
+                        setStatus('playing');
+                    }
+                } else if (data.event === "property-change") {
                     const { property, value } = data.payload;
                     const keyMap: Record<string, keyof PlayerState> = { "time-pos": "time", "pause": "isPaused", "mute": "isMuted", "volume": "volume", "duration": "duration" };
                     const stateKey = keyMap[property as keyof typeof keyMap];
@@ -85,21 +98,19 @@ export function useMpvPlayer() {
                 window.chrome.webview.removeEventListener("message", handleEvent);
             }
         };
-    }, [stopAction]);
+    }, [stopAction, status]); // status is a dependency now
 
     const actions = {
-        playStream: useCallback((stream: Stream, title: string) => {
+        playStream: useCallback((stream: Stream, title: string, logo?: string | null) => {
             if (stream.infoHash == null || stream.fileIdx == null) {
                 setStatus("error");
                 setErrorMessage("This stream is not a valid torrent.");
                 return;
             }
 
-
+            setStatus("preparing");
+            setActiveStream({ infoHash: stream.infoHash, fileIndex: stream.fileIdx, title, logo });
             sendCommand({ command: "set-webview-visibility", payload: { visible: true } });
-
-            setStatus("playing");
-            setActiveStream({ infoHash: stream.infoHash, fileIndex: stream.fileIdx, title });
 
             const streamUrl = `${streamingApiUrl}/direct/${stream.infoHash}/${stream.fileIdx}`;
             sendCommand({ command: "play", payload: { url: streamUrl } });
