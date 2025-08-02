@@ -224,7 +224,8 @@
         "type": "go",
         "request": "launch",
         "mode": "auto",
-        "program": "${workspaceFolder:torrserver-daemon}/server/cmd"
+        "program": "${workspaceFolder:torrserver-daemon}/server/cmd",
+        "presentation": { "hidden": false, "group": "services", "order": 5 }
       },
       {
         "name": "🚀 API Gateway",
@@ -244,7 +245,7 @@
         "outputCapture": "std",
         "localRoot": "${workspaceFolder:api-gateway}",
         "remoteRoot": "/app",
-        "presentation": { "hidden": false, "group": "services", "order": 5 }
+        "presentation": { "hidden": false, "group": "services", "order": 6 }
       },
       {
         "name": "REACT_DEVTOOLS",
@@ -274,7 +275,7 @@
         },
         "timeout": 30000,
         "trace": true,
-        "presentation": { "hidden": true }
+        "presentation": { "hidden": false }
       },
       {
         "name": "WebView2",

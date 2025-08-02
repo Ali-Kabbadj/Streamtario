@@ -11,7 +11,6 @@ import { DiscoverProvider } from "@/providers/discover-provider";
 import { useEffect } from "react";
 import { PlayerProvider, usePlayer } from "@/providers/PlayerProvider";
 
-// This component now wraps the entire app and controls the body class
 const AppContainer = ({ children }: { children: React.ReactNode }) => {
   const { status } = usePlayer();
 

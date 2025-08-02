@@ -1,4 +1,3 @@
-// --- AFTER (The Correct Implementation) ---
 import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
 import { useEffect } from "react";
 

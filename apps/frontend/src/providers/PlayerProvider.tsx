@@ -8,10 +8,12 @@ import {
   type PlayerState,
 } from "@/features/player/hooks/useMpvPlayer";
 
-type Stream = NonNullable<NonNullable<GetStreamsQuery["profile"]>["streams"]>[0];
+type Stream = NonNullable<
+  NonNullable<GetStreamsQuery["profile"]>["streams"]
+>[0];
 
 interface PlayerActions {
-  playStream: (stream: Stream, title: string) => void;
+  playStream: (stream: Stream, title: string, logo: string | null) => void;
   stop: () => void;
   togglePause: () => void;
   toggleFullscreen: () => void;
@@ -27,6 +29,7 @@ interface PlayerContextType {
     infoHash: string | null;
     fileIndex: number | null;
     title: string;
+    logo: string | null;
   } | null;
   playerState: PlayerState;
   actions: PlayerActions;

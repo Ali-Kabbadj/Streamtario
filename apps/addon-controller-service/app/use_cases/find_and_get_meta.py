@@ -48,10 +48,6 @@ class FindAndGetMetaUseCase:
         self, profile_id: str, item_type: str, item_id: str
     ) -> MetaItem | None:
 
-        # =================================================================
-        # THE CRITICAL FIX: REMOVED ALL FAILED, COMPLEX PARSING LOGIC
-        # This now correctly splits ANY item_id on the first colon.
-        # =================================================================
         if ":" not in item_id:
             raise ApiException(
                 ApiErrorCode.VALIDATION_ERROR,
@@ -61,7 +57,6 @@ class FindAndGetMetaUseCase:
             )
 
         routing_prefix, addon_specific_id = item_id.split(":", 1)
-        # =================================================================
 
         log_info(
             f"Primary attempt: Fetching meta for '{item_id}' using provider '{routing_prefix}'"

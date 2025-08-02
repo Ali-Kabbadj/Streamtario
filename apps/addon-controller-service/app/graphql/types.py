@@ -51,6 +51,7 @@ class VideoType:
     thumbnail: Optional[str] = None
     season: Optional[int] = None
     episode: Optional[int] = None
+    logo: Optional[str] = None
 
 
 @strawberry.type

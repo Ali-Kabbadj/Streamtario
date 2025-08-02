@@ -184,16 +184,15 @@ export function parseStream(
   }
 
   result.cleanedTitle = filename
-    .replace(/\.[^/.]+$/, "") // remove extension
-    .replace(/[-._]/g, " ") // replace separators with space
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[-._]/g, " ")
     .replace(
       /\b(2160p|1080p|720p|480p|uhd|4k|sd|bluray|web-?dl|webrip|remux|hdr|dv|atmos|dts|ac3|eac3|h264|h265|hevc|avc|x264|x265|dual|multi|dubbed|ita|eng|\[.*?\])\b/gi,
       "",
     )
-    .replace(/\s+/g, " ") // collapse multiple spaces
+    .replace(/\s+/g, " ")
     .trim();
 
-  // Ensure tags are unique
   for (const key of ["video", "audio", "languages", "other"]) {
     result.tags[key as "video"] = unique(result.tags[key as "video"]);
   }

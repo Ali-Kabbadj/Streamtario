@@ -11,6 +11,7 @@ import type { VideoType } from "@/orchestrators/graphql-query-orchestrator/gen/g
 import { EpisodeCard } from "@/features/meta/components/EpisodeCard";
 import { StreamPanel } from "@/features/meta/components/StreamPanel";
 import { motion } from "framer-motion";
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
 
 interface MetaViewProps {
   itemType: string;
@@ -146,8 +147,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
             <Image
               src={meta.background}
               alt={`${meta.name} background`}
-              fill // Use fill prop
-              style={{ objectFit: "cover" }} // Use style prop for objectFit
+              fill
+              style={{ objectFit: "cover" }}
               className="opacity-40"
               unoptimized
             />
@@ -167,17 +168,27 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
               <Image
                 src={meta.poster ?? ""}
                 alt={`${meta.name} poster`}
-                fill // Use fill prop
+                fill
                 style={{ objectFit: "cover" }}
                 className="rounded-lg shadow-2xl"
                 unoptimized
               />
             </div>
+
             <div className="flex-grow space-y-3 py-4 text-center md:text-left">
-              <h1 className="text-4xl font-extrabold tracking-tighter sm:text-5xl">
-                {meta.name}
-              </h1>
+              <div className="relative w-auto flex-shrink-0 self-center md:justify-center">
+                <ImageWithFallback
+                  className=""
+                  fallbackSrc={"/images/NoImagePortrait.png"}
+                  alt={meta.name}
+                  width={600}
+                  height={400}
+                  src={meta.logo ?? ""}
+                />
+              </div>
+
               <div className="flex flex-wrap items-center justify-center gap-4 md:justify-start">
+                <span className="text-primary text-lg">{meta.name}</span>
                 <span className="text-lg text-slate-400">
                   {meta.releaseInfo}
                 </span>
@@ -297,6 +308,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
       <StreamPanel
         content={streamPanelContent}
         onClose={() => setStreamPanelContent(null)}
+        logoUrl={meta.logo} // Pass the logo here
       />
     </div>
   );

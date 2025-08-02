@@ -12,6 +12,7 @@ interface StreamListProps {
   isLoading: boolean;
   clearFilters: () => void;
   mediaTitle: string;
+  logoUrl?: string | null;
 }
 
 export function StreamList({
@@ -20,6 +21,7 @@ export function StreamList({
   isLoading,
   clearFilters,
   mediaTitle,
+  logoUrl,
 }: StreamListProps) {
   if (isLoading) {
     return (
@@ -55,6 +57,7 @@ export function StreamList({
             stream={rawStream}
             parsed={parsed}
             mediaTitle={mediaTitle}
+            logoUrl={logoUrl}
           />
         );
       })}

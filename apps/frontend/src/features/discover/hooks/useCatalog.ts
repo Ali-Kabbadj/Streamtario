@@ -1,13 +1,13 @@
+
 "use client";
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql-client';
 import { CatalogDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
-import type { CatalogItemType } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
+import type { CatalogItemType, CatalogQuery } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
 interface CatalogPage {
   items: CatalogItemType[];
-  nextSkip: number | null;
 }
 
 interface UseCatalogProps {
@@ -18,8 +18,6 @@ interface UseCatalogProps {
   extraProps: Record<string, unknown>;
   isEnabled: boolean;
 }
-
-const PAGE_SIZE = 20;
 
 export const useCatalog = ({ profileId, itemType, catalogId, providerId, extraProps, isEnabled }: UseCatalogProps) => {
   return useInfiniteQuery<CatalogPage, Error>({
@@ -38,33 +36,36 @@ export const useCatalog = ({ profileId, itemType, catalogId, providerId, extraPr
         },
       };
 
-      const data = await graphqlClient.request(CatalogDocument, variables);
+      const data: CatalogQuery = await graphqlClient.request(CatalogDocument, variables);
       const items = data.profile?.catalog.items ?? [];
 
-      return {
-        items,
-        nextSkip: items.length >= PAGE_SIZE ? skip + PAGE_SIZE : null,
-      };
+      return { items };
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.items.length < PAGE_SIZE) {
+      if (lastPage.items.length === 0) {
+        return null;
+      }
+      const pageSize = allPages[0]?.items.length ?? 0;
+      if (pageSize === 0) {
         return null;
       }
 
+      if (lastPage.items.length < pageSize) {
+        return null;
+      }
       if (allPages.length > 1) {
-        const allPreviousItemIds = new Set(
-          allPages.slice(0, -1).flatMap(page => page.items.map(item => item.id))
-        );
+        const allItems = allPages.flatMap(page => page.items);
+        const uniqueItems = new Set(allItems.map(item => item.id));
 
-        const isDuplicatePage = lastPage.items.every(item => allPreviousItemIds.has(item.id));
+        const previousItems = allPages.slice(0, -1).flatMap(page => page.items);
+        const previousUniqueItems = new Set(previousItems.map(item => item.id));
 
-        if (isDuplicatePage) {
+        if (uniqueItems.size === previousUniqueItems.size) {
           return null;
         }
       }
-
-      return lastPage.nextSkip;
+      return (allPages.length + 1) * pageSize;
     },
     enabled: isEnabled,
   });

@@ -21,6 +21,7 @@ export const GetMetaDetailsDocument = graphql(`
           thumbnail
           season
           episode
+          logo
         }
       }
     }

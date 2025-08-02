@@ -48,18 +48,11 @@ const customRequest = async <T, V extends object>(
     } catch (error) {
         if (isAuthError(error)) {
             console.log('Authentication error detected, attempting token refresh...');
-
-            // --- START OF THE FIX ---
-            // CRITICAL: Before attempting to refresh, we MUST check if a refresh token exists.
-            // If it doesn't, it means the user is logged out, and we should NOT try to refresh.
             const refreshToken = localStorage.getItem('refreshToken');
             if (!refreshToken) {
                 console.log('No refresh token found. Aborting refresh attempt.');
-                // Re-throw the original error. This will be caught by React Query and
-                // handled by the AuthProvider, preventing an infinite loop.
                 throw error;
             }
-            // --- END OF THE FIX ---
 
             try {
                 await refreshSession();

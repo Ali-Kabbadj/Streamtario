@@ -12,8 +12,8 @@ from ..domain.providers.i_profile_addon_manifest_provider import (
 
 class AggregateCatalogUseCase:
     """
-    Orchestrates fetching catalog data. It intelligently filters addons
-    based on the selected criteria before making any external requests.
+    Orchestrates fetching catalog data. It now precisely identifies the target
+    catalogs and dynamically constructs the correct URL format for each addon.
     """
 
     def __init__(
@@ -26,98 +26,48 @@ class AggregateCatalogUseCase:
         self.addon_provider = addon_provider
         self.profile_addon_manifest_provider = profile_addon_manifest_provider
 
-    def _is_manifest_relevant(
+    async def _get_fetch_tasks_for_catalogs(
         self,
-        manifest: AddonManifest,
-        item_type: str,
-        catalog_id: Optional[str],
-        extra_props: Dict[str, Any],
-    ) -> bool:
-        """
-        Checks if a manifest has catalogs that can satisfy the given filter criteria.
-        It deliberately ignores pagination properties like 'skip'.
-        """
-        filtering_props = extra_props.copy()
-        filtering_props.pop("skip", None)
-
-        for catalog in manifest.catalogs:
-            if catalog.type != item_type:
-                continue
-            if catalog_id and catalog.id != catalog_id:
-                continue
-
-            if not filtering_props:
-                return True
-
-            all_props_supported = True
-            for key, value in filtering_props.items():
-                prop_is_supported_in_catalog = False
-                if catalog.extra:
-                    for extra_option in catalog.extra:
-                        if extra_option.name == key:
-                            if (
-                                extra_option.options is None
-                                or value in extra_option.options
-                            ):
-                                prop_is_supported_in_catalog = True
-                                break
-                if not prop_is_supported_in_catalog:
-                    all_props_supported = False
-                    break
-
-            if all_props_supported:
-                return True
-
-        return False
-
-    async def _get_fetch_tasks_for_manifest(
-        self,
-        manifest: AddonManifest,
-        base_url: str,
-        item_type: str,
-        catalog_id: Optional[str],
+        catalogs_to_process: List[Tuple[AddonManifest, Catalog]],
         extra_props: Dict[str, Any],
     ) -> List[Tuple[asyncio.Task, str]]:
         tasks_with_prefixes = []
-        routing_prefix = manifest.id
-        catalogs_to_query: List[Catalog] = []
+        for manifest, catalog in catalogs_to_process:
+            if not manifest.manifest_url:
+                continue
 
-        if catalog_id:
-            found_catalog = next(
-                (
-                    c
-                    for c in manifest.catalogs
-                    if c.type == item_type and c.id == catalog_id
-                ),
-                None,
+            base_url = manifest.manifest_url
+            routing_prefix = manifest.id
+            base_path = f"catalog/{catalog.type}/{catalog.id}"
+
+            supported_names = (
+                {e.name for e in catalog.extra} if catalog.extra else set()
             )
-            if found_catalog:
-                catalogs_to_query.append(found_catalog)
-        else:
-            catalogs_to_query = [
-                c for c in manifest.catalogs if c.type == item_type and not c.is_search
-            ]
 
-        for catalog in catalogs_to_query:
-            extra_path_segment = ""
-            if extra_props:
-                extra_args = [
-                    f"{k}={v}" for k, v in extra_props.items() if v is not None
-                ]
-                if extra_args:
-                    extra_path_segment = f"/{'&'.join(extra_args)}"
+            valid_props = {}
+            for k, v in extra_props.items():
+                if v is not None and v != "all":
+                    if k == "skip" and isinstance(v, int) and v > 0:
+                        valid_props[k] = v
+                    elif k != "skip" and k in supported_names:
+                        valid_props[k] = v
 
-            catalog_path = (
-                f"catalog/{catalog.type}/{catalog.id}{extra_path_segment}.json"
-            )
+            extra_string = ""
+            if valid_props:
+                param_list = sorted([f"{k}={v}" for k, v in valid_props.items()])
+                param_string = "&".join(param_list)
+                extra_string = f"/{param_string}"
+
+            catalog_path = f"{base_path}{extra_string}.json"
             full_url = f"{base_url.rsplit('/', 1)[0]}/{catalog_path}"
 
             log_info(
-                f"Queueing catalog fetch from: {full_url}",
-                data={"addon": manifest.name},
+                f"Queueing dynamically constructed catalog fetch: {full_url}",
+                data={"addon": manifest.name, "catalog": catalog.name},
             )
             task = self.addon_provider.get(full_url, response_model=CatalogResponse)
-            tasks_with_prefixes.append((task, routing_prefix))
+            tasks_with_prefixes.append((asyncio.create_task(task), routing_prefix))
+
         return tasks_with_prefixes
 
     async def execute(
@@ -135,57 +85,39 @@ class AggregateCatalogUseCase:
         if not manifest_urls:
             return []
 
-        manifests = await asyncio.gather(
+        fetched_manifests = await asyncio.gather(
             *[self.get_manifest_use_case.execute(url) for url in manifest_urls]
         )
 
-        manifests_to_process: List[AddonManifest] = []
+        all_manifests: List[AddonManifest] = [m for m in fetched_manifests if m]
 
-        if manifest_id_filter:
-            manifests_to_process = [
-                m for m in manifests if m and m.id == manifest_id_filter
-            ]
+        catalogs_to_process: List[Tuple[AddonManifest, Catalog]] = []
+
+        if manifest_id_filter and catalog_id:
+            target_manifest = next(
+                (m for m in all_manifests if m.id == manifest_id_filter), None
+            )
+            if target_manifest:
+                target_catalog = next(
+                    (
+                        c
+                        for c in target_manifest.catalogs
+                        if c.id == catalog_id and c.type == item_type
+                    ),
+                    None,
+                )
+                if target_catalog:
+                    catalogs_to_process.append((target_manifest, target_catalog))
         else:
-            for m in manifests:
-                if not m:
-                    continue
-                if catalog_id:
-                    if any(
-                        c.id == catalog_id and c.type == item_type for c in m.catalogs
-                    ):
-                        manifests_to_process.append(m)
-                elif self._is_manifest_relevant(m, item_type, catalog_id, extra_props):
-                    manifests_to_process.append(m)
+            for manifest in all_manifests:
+                for catalog in manifest.catalogs:
+                    if catalog.type == item_type and not catalog.is_search:
+                        if not catalog_id or catalog.id == catalog_id:
+                            catalogs_to_process.append((manifest, catalog))
 
-        if not manifests_to_process:
-            log_warn(
-                "No installed addons match the specified filter criteria.",
-                data={
-                    "item_type": item_type,
-                    "catalog_id": catalog_id,
-                    "extra_props": extra_props,
-                },
-            )
-            return []
-
-        log_info(
-            f"Filtered to {len(manifests_to_process)} relevant addons for query.",
-            data={"addon_ids": [m.id for m in manifests_to_process]},
+        tasks_with_prefixes = await self._get_fetch_tasks_for_catalogs(
+            catalogs_to_process, extra_props
         )
-
-        tasks_with_prefixes: List[Tuple[asyncio.Task, str]] = []
-        for manifest in manifests_to_process:
-            if not manifest or not manifest.manifest_url:
-                continue
-
-            manifest_tasks = await self._get_fetch_tasks_for_manifest(
-                manifest=manifest,
-                base_url=manifest.manifest_url,
-                item_type=item_type,
-                catalog_id=catalog_id,
-                extra_props=extra_props,
-            )
-            tasks_with_prefixes.extend(manifest_tasks)
 
         if not tasks_with_prefixes:
             return []
@@ -193,7 +125,9 @@ class AggregateCatalogUseCase:
         tasks = [tp[0] for tp in tasks_with_prefixes]
         prefixes = [tp[1] for tp in tasks_with_prefixes]
 
-        list_of_responses: List[CatalogResponse | None] = await asyncio.gather(*tasks)
+        list_of_responses: List[Optional[CatalogResponse]] = await asyncio.gather(
+            *tasks
+        )
         responses_with_prefixes = zip(list_of_responses, prefixes)
 
         list_of_item_lists = []

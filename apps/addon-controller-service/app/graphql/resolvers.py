@@ -116,7 +116,7 @@ async def resolve_profile_meta(
         logo=pydantic_meta.logo,
         description=pydantic_meta.description,
         release_info=pydantic_meta.release_info,
-        imdb_id=pydantic_meta.imdb_id,  # <-- THE CRITICAL FIX IS HERE
+        imdb_id=pydantic_meta.imdb_id,
         videos=(
             [
                 VideoType(id=strawberry.ID(v.id), **v.model_dump(exclude={"id"}))

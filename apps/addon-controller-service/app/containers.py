@@ -143,5 +143,5 @@ class Container(containers.DeclarativeContainer):
         get_manifest_use_case=get_manifest_use_case,
         addon_provider=addon_provider,
         profile_addon_manifest_provider=profile_addon_manifest_provider,
-        find_and_get_meta_use_case=find_and_get_meta_use_case,  # <-- INJECTION ADDED
+        find_and_get_meta_use_case=find_and_get_meta_use_case,
     )
