@@ -1,9 +1,3 @@
-interface SetWebViewVisibilityCommand {
-    command: "set-webview-visibility";
-    payload: {
-        visible: boolean;
-    };
-}
 
 interface PlayCommand {
     command: "play";
@@ -50,4 +44,3 @@ export type WebViewCommand =
     | SetVolumeCommand
     | ToggleMuteCommand
     | ToggleFullscreenCommand
-    | SetWebViewVisibilityCommand;

@@ -1,4 +1,4 @@
-// src/components/shared/ImageWithFallback.tsx
+"use client";
 
 import {
   useEffect,
@@ -10,7 +10,7 @@ import Image from "next/image";
 
 type NextImageProps = Omit<
   ComponentProps<typeof Image>,
-  "src" | "onError" | "onLoad" | "objectFit"
+  "src" | "onError" | "onLoad"
 >;
 
 interface ImageWithFallbackProps extends NextImageProps {
