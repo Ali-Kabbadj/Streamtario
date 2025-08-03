@@ -9,22 +9,29 @@ interface UseMetaDetailsProps {
     itemType: string;
 }
 
-export const useMetaDetails = ({ profileId, itemId, itemType }: UseMetaDetailsProps) => {
-    return useQuery<GetMetaDetailsQuery, Error, MetaItemType | null>({
-        queryKey: ['metaDetails', profileId, itemType, itemId],
-        queryFn: async () => {
-            return graphqlClient.request<GetMetaDetailsQuery, GetMetaDetailsQueryVariables>(GetMetaDetailsDocument, {
-                profileId,
-                itemType,
-                itemId,
-            });
-        },
-        select: (data) => {
-            if (!data.profile) {
-                return null;
-            }
-            return data.profile.meta ?? null;
-        },
-        enabled: !!profileId && !!itemId && !!itemType,
-    });
+export const useMetaDetails = ({
+  profileId,
+  itemId,
+  itemType,
+}: UseMetaDetailsProps) => {
+  return useQuery({
+    queryKey: ["metaDetails", profileId, itemType, itemId],
+    queryFn: async () => {
+      return graphqlClient.request<
+        GetMetaDetailsQuery,
+        GetMetaDetailsQueryVariables
+      >(GetMetaDetailsDocument, {
+        profileId,
+        itemType,
+        itemId,
+      });
+    },
+    select: (data: GetMetaDetailsQuery) => {
+      if (!data.profile) {
+        return null;
+      }
+      return data.profile.meta ?? null;
+    },
+    enabled: !!profileId && !!itemId && !!itemType,
+  });
 };

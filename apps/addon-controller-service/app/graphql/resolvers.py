@@ -19,6 +19,12 @@ from .types import (
     HomeContentRowType,
     StreamType,
     AddonManifestType,
+    TrailerType,
+    TrailerStreamType,
+    LinkType,
+    BehaviorHintType,
+    CastType,
+    AppExtrasType,
 )
 import strawberry
 from core.utils.logging import log_info, log_error
@@ -106,17 +112,25 @@ async def resolve_profile_meta(
     if not pydantic_meta:
         return None
 
+    # Fully map the pydantic model to the Strawberry type
     return MetaItemType(
         id=strawberry.ID(pydantic_meta.id),
         type=pydantic_meta.type,
         name=pydantic_meta.name,
+        slug=pydantic_meta.slug,
+        imdb_id=pydantic_meta.imdb_id,
+        imdbRating=pydantic_meta.imdbRating,
         genres=pydantic_meta.genres,
+        country=pydantic_meta.country,
+        director=pydantic_meta.director,
+        writer=pydantic_meta.writer,
+        year=pydantic_meta.year,
         poster=pydantic_meta.poster,
         background=pydantic_meta.background,
         logo=pydantic_meta.logo,
         description=pydantic_meta.description,
+        runtime=pydantic_meta.runtime,
         release_info=pydantic_meta.release_info,
-        imdb_id=pydantic_meta.imdb_id,
         videos=(
             [
                 VideoType(id=strawberry.ID(v.id), **v.model_dump(exclude={"id"}))
@@ -124,6 +138,36 @@ async def resolve_profile_meta(
             ]
             if pydantic_meta.videos
             else []
+        ),
+        trailers=(
+            [TrailerType(**t.model_dump()) for t in pydantic_meta.trailers]
+            if pydantic_meta.trailers
+            else []
+        ),
+        trailerStreams=(
+            [
+                TrailerStreamType(**ts.model_dump())
+                for ts in pydantic_meta.trailerStreams
+            ]
+            if pydantic_meta.trailerStreams
+            else []
+        ),
+        links=(
+            [LinkType(**l.model_dump()) for l in pydantic_meta.links]
+            if pydantic_meta.links
+            else []
+        ),
+        behaviorHints=(
+            BehaviorHintType(**pydantic_meta.behaviorHints.model_dump())
+            if pydantic_meta.behaviorHints
+            else None
+        ),
+        app_extras=(
+            AppExtrasType(
+                cast=[CastType(**c.model_dump()) for c in pydantic_meta.app_extras.cast]
+            )
+            if pydantic_meta.app_extras and pydantic_meta.app_extras.cast
+            else None
         ),
     )
 
