@@ -1,3 +1,4 @@
+from xmlrpc.client import boolean
 import strawberry
 from typing import List, Optional, AsyncGenerator
 from strawberry.federation.schema_directives import Requires
@@ -55,17 +56,67 @@ class VideoType:
 
 
 @strawberry.type
+class TrailerType:
+    source: Optional[str] = None
+    type: Optional[str] = None
+
+
+@strawberry.type
+class TrailerStreamType:
+    title: Optional[str] = None
+    ytId: Optional[str] = None
+
+
+@strawberry.type
+class LinkType:
+    name: Optional[str] = None
+    category: Optional[str] = None
+    url: Optional[str] = None
+
+
+@strawberry.type
+class BehaviorHintType:
+    defaultVideoId: Optional[str] = None
+    hasScheduledVideos: boolean
+
+
+@strawberry.type
+class CastType:
+    name: Optional[str] = None
+    character: Optional[str] = None
+    photo: Optional[str] = None
+
+
+@strawberry.type
+class AppExtrasType:
+    cast: Optional[List[CastType]] = None
+
+
+@strawberry.type
 class MetaItemType:
-    id: strawberry.ID
-    type: str
-    name: str
-    genres: Optional[List[str]] = None
-    poster: Optional[str] = None
-    background: Optional[str] = None
-    logo: Optional[str] = None
-    description: Optional[str] = None
-    release_info: Optional[str] = None
     imdb_id: Optional[str] = None
+    country: Optional[str]
+    description: Optional[str] = None
+    director: Optional[List[str]] = None
+    genres: Optional[List[str]] = None
+    imdbRating: Optional[str]
+    name: str
+    released: Optional[str] = None
+    slug: Optional[str] = None
+    type: str
+    writer: Optional[List[str]] = None
+    year: Optional[str] = None
+    trailers: Optional[List[TrailerType]] = None
+    background: Optional[str] = None
+    poster: Optional[str] = None
+    runtime: Optional[str] = None
+    id: strawberry.ID
+    release_info: Optional[str] = None
+    trailerStreams: Optional[List[TrailerStreamType]] = None
+    links: Optional[List[LinkType]] = None
+    behaviorHints: Optional[BehaviorHintType] = None
+    logo: Optional[str] = None
+    app_extras: Optional[AppExtrasType] = None
     videos: Optional[List[VideoType]] = None
 
 

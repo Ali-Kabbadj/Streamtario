@@ -12,7 +12,8 @@ export const GetMetaDetailsDocument = graphql(`
         logo
         description
         releaseInfo
-        imdbId 
+        released
+        imdbId
         genres
         videos {
           id
@@ -22,6 +23,37 @@ export const GetMetaDetailsDocument = graphql(`
           season
           episode
           logo
+        }
+        country
+        director
+        imdbRating
+        slug
+        writer
+        year
+        runtime
+        trailers {
+          source
+          type
+        }
+        trailerStreams {
+          title
+          ytId
+        }
+        links {
+          name
+          category
+          url
+        }
+        behaviorHints {
+          defaultVideoId
+          hasScheduledVideos
+        }
+        appExtras {
+          cast {
+            name
+            character
+            photo
+          }
         }
       }
     }

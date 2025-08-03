@@ -1,55 +1,51 @@
-import { useEffect, useState } from "react";
+// src/components/shared/ImageWithFallback.tsx
+
+import {
+  useEffect,
+  useState,
+  type ComponentProps,
+  type SyntheticEvent,
+} from "react";
 import Image from "next/image";
 
-interface ImageWithFallbackProps {
+type NextImageProps = Omit<
+  ComponentProps<typeof Image>,
+  "src" | "onError" | "onLoad" | "objectFit"
+>;
+
+interface ImageWithFallbackProps extends NextImageProps {
   fallbackSrc: string;
-  alt: string;
-  src: string;
-  width?: number;
-  height?: number;
-  className?: string;
-  fill?: boolean;
-  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
-  priority?: boolean;
+  src: string | null | undefined;
 }
 
 export default function ImageWithFallback({
   src,
   fallbackSrc,
   alt,
-  width,
-  height,
-  fill,
-  objectFit,
-  priority,
   className,
   ...rest
 }: ImageWithFallbackProps) {
-  const [imgSrc, set_imgSrc] = useState(src);
+  const [imgSrc, setImgSrc] = useState(src);
 
   useEffect(() => {
-    set_imgSrc(src);
+    setImgSrc(src);
   }, [src]);
 
   return (
     <Image
-      priority={priority}
       {...rest}
       alt={alt}
-      src={imgSrc}
-      onLoad={(result) => {
-        if (!result) {
-          set_imgSrc(fallbackSrc);
+      className={className}
+      src={imgSrc ?? fallbackSrc}
+      onLoad={(result: SyntheticEvent<HTMLImageElement, Event>) => {
+        const target = result.target as HTMLImageElement;
+        if (target.naturalWidth === 0) {
+          setImgSrc(fallbackSrc);
         }
       }}
       onError={() => {
-        set_imgSrc(fallbackSrc);
+        setImgSrc(fallbackSrc);
       }}
-      width={fill ? undefined : width}
-      height={fill ? undefined : height}
-      fill={fill}
-      objectFit={objectFit}
-      className={className}
     />
   );
 }
