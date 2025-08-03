@@ -1,120 +1,104 @@
 "use client";
 
-import { useEffect, useMemo, useReducer } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
 import { useDiscover } from "@/features/discover/hooks/useDiscover";
 import { useCatalog } from "@/features/discover/hooks/useCatalog";
 import { DiscoverFilters } from "@/features/discover/components/DiscoverFilters";
 import { CatalogGrid } from "@/features/discover/components/CatalogGrid";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { DiscoverableCatalogsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-
-type Catalog = NonNullable<
-  DiscoverableCatalogsQuery["profile"]
->["discoverableCatalogs"][number];
-
-type State = {
-  type: string;
-  provider: string;
-  catalogId: string;
-  filters: Record<string, string>;
-};
-
-type Action =
-  | { type: "SET_TYPE"; payload: string; catalogs: Catalog[] }
-  | { type: "SET_PROVIDER"; payload: string; catalogs: Catalog[] }
-  | { type: "SET_CATALOG"; payload: string }
-  | { type: "SET_FILTER"; key: string; value: string }
-  | { type: "INITIALIZE"; catalogs: Catalog[] };
-
-function discoverReducer(state: State, action: Action): State {
-  switch (action.type) {
-    case "INITIALIZE": {
-      const initialType = action.catalogs[0]?.catalogType ?? "";
-      const firstProvider = action.catalogs.find(
-        (c) => c.catalogType === initialType,
-      );
-      return {
-        type: initialType,
-        provider: firstProvider?.manifestId ?? "",
-        catalogId: firstProvider?.catalogId ?? "",
-        filters: {},
-      };
-    }
-    case "SET_TYPE": {
-      const newType = action.payload;
-      const firstProviderForType = action.catalogs.find(
-        (c) => c.catalogType === newType,
-      );
-      return {
-        type: newType,
-        provider: firstProviderForType?.manifestId ?? "",
-        catalogId: firstProviderForType?.catalogId ?? "",
-        filters: {},
-      };
-    }
-    case "SET_PROVIDER": {
-      const newProvider = action.payload;
-      const firstCatalogForProvider = action.catalogs.find(
-        (c) => c.catalogType === state.type && c.manifestId === newProvider,
-      );
-      return {
-        ...state,
-        provider: newProvider,
-        catalogId: firstCatalogForProvider?.catalogId ?? "",
-        filters: {},
-      };
-    }
-    case "SET_CATALOG":
-      return { ...state, catalogId: action.payload, filters: {} };
-    case "SET_FILTER":
-      return {
-        ...state,
-        filters: { ...state.filters, [action.key]: action.value },
-      };
-    default:
-      return state;
-  }
-}
+import { useDiscoverContext } from "@/providers/discover-provider";
 
 export function DiscoverView() {
   const { selectedProfile } = useProfileContext();
   const { data: discoverData, isLoading: isLoadingDiscover } = useDiscover(
     selectedProfile?.id ?? "",
   );
+  const {
+    selectedType,
+    selectedProvider,
+    selectedCatalogId,
+    extraFilters,
+    scrollPosition,
+    dispatch,
+  } = useDiscoverContext();
 
-  const [state, dispatch] = useReducer(discoverReducer, {
-    type: "",
-    provider: "",
-    catalogId: "",
-    filters: {},
-  });
+  const setState = useCallback(
+    (payload: Partial<Parameters<typeof dispatch>[0]["payload"]>) => {
+      dispatch({ type: "SET_STATE", payload });
+    },
+    [dispatch],
+  );
 
   useEffect(() => {
-    if (discoverData && discoverData.length > 0 && !state.type) {
-      dispatch({ type: "INITIALIZE", catalogs: discoverData });
+    if (discoverData && discoverData.length > 0 && !selectedType) {
+      const initialType = discoverData[0]?.catalogType ?? "";
+      const firstProvider = discoverData.find(
+        (c) => c.catalogType === initialType,
+      );
+      setState({
+        selectedType: initialType,
+        selectedProvider: firstProvider?.manifestId ?? "",
+        selectedCatalogId: firstProvider?.catalogId ?? "",
+        extraFilters: {},
+      });
     }
-  }, [discoverData, state.type]);
+  }, [discoverData, selectedType, setState]);
+
+  useEffect(() => {
+    const container = window;
+    const handleScroll = () => {
+      setState({ scrollPosition: container.scrollY });
+    };
+    if (scrollPosition) {
+      container.scrollTo(0, scrollPosition);
+    }
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [scrollPosition, setState]);
+
+  const handleTypeChange = (type: string) => {
+    const firstProviderForType = discoverData?.find(
+      (c) => c.catalogType === type,
+    );
+    setState({
+      selectedType: type,
+      selectedProvider: firstProviderForType?.manifestId ?? "",
+      selectedCatalogId: firstProviderForType?.catalogId ?? "",
+      extraFilters: {},
+    });
+  };
+
+  const handleProviderChange = (provider: string) => {
+    const firstCatalogForProvider = discoverData?.find(
+      (c) => c.catalogType === selectedType && c.manifestId === provider,
+    );
+    setState({
+      selectedProvider: provider,
+      selectedCatalogId: firstCatalogForProvider?.catalogId ?? "",
+      extraFilters: {},
+    });
+  };
 
   const queryExtraProps = useMemo(() => {
     const props: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(state.filters)) {
+    for (const [key, value] of Object.entries(extraFilters)) {
       if (value && value !== "all") {
         props[key] = value;
       }
     }
     return props;
-  }, [state.filters]);
+  }, [extraFilters]);
 
   const selectedCatalogData = useMemo(() => {
     if (!discoverData) return undefined;
     return discoverData.find(
       (c) =>
-        c.catalogType === state.type &&
-        c.manifestId === state.provider &&
-        c.catalogId === state.catalogId,
+        c.catalogType === selectedType &&
+        c.manifestId === selectedProvider &&
+        c.catalogId === selectedCatalogId,
     );
-  }, [discoverData, state.type, state.provider, state.catalogId]);
+  }, [discoverData, selectedType, selectedProvider, selectedCatalogId]);
 
   const isQueryEnabled = useMemo(() => {
     if (!selectedCatalogData) return false;
@@ -122,9 +106,9 @@ export function DiscoverView() {
       selectedCatalogData.extraProps.filter((p) => p.isRequired) ?? [];
     if (requiredFilters.length === 0) return true;
     return requiredFilters.every(
-      (rf) => !!state.filters[rf.name] && state.filters[rf.name] !== "all",
+      (rf) => !!extraFilters[rf.name] && extraFilters[rf.name] !== "all",
     );
-  }, [selectedCatalogData, state.filters]);
+  }, [selectedCatalogData, extraFilters]);
 
   const {
     data: catalogData,
@@ -134,11 +118,11 @@ export function DiscoverView() {
     isFetchingNextPage,
   } = useCatalog({
     profileId: selectedProfile?.id ?? "",
-    itemType: state.type,
-    catalogId: state.catalogId,
-    providerId: state.provider,
+    itemType: selectedType,
+    catalogId: selectedCatalogId,
+    providerId: selectedProvider,
     extraProps: queryExtraProps,
-    isEnabled: isQueryEnabled && !!state.provider && !!state.catalogId,
+    isEnabled: isQueryEnabled && !!selectedProvider && !!selectedCatalogId,
   });
 
   return (
@@ -154,29 +138,15 @@ export function DiscoverView() {
       ) : (
         <DiscoverFilters
           catalogs={discoverData ?? []}
-          selectedType={state.type}
-          onTypeChange={(value) =>
-            dispatch({
-              type: "SET_TYPE",
-              payload: value,
-              catalogs: discoverData ?? [],
-            })
-          }
-          selectedProvider={state.provider}
-          onProviderChange={(value) =>
-            dispatch({
-              type: "SET_PROVIDER",
-              payload: value,
-              catalogs: discoverData ?? [],
-            })
-          }
-          selectedCatalogId={state.catalogId}
-          onCatalogChange={(value) =>
-            dispatch({ type: "SET_CATALOG", payload: value })
-          }
-          extraFilters={state.filters}
+          selectedType={selectedType}
+          onTypeChange={handleTypeChange}
+          selectedProvider={selectedProvider}
+          onProviderChange={handleProviderChange}
+          selectedCatalogId={selectedCatalogId}
+          onCatalogChange={(value) => setState({ selectedCatalogId: value })}
+          extraFilters={extraFilters}
           onExtraFilterChange={(key, value) =>
-            dispatch({ type: "SET_FILTER", key, value })
+            setState({ extraFilters: { ...extraFilters, [key]: value } })
           }
         />
       )}

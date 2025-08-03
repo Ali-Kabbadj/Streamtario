@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CastType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
