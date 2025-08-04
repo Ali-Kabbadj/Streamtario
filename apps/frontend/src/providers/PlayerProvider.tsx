@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, type ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  type ReactNode,
+} from "react";
 import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
 import {
@@ -22,8 +27,9 @@ interface PlayerActions {
   toggleMute: () => void;
 }
 
+// The context now provides the full return value of the hook
 interface PlayerContextType {
-  status: "idle" | "preparing" | "playing" | "error";
+  status: "idle" | "playing" | "error";
   errorMessage: string | null;
   activeStream: {
     infoHash: string | null;
@@ -33,14 +39,26 @@ interface PlayerContextType {
   } | null;
   playerState: PlayerState;
   actions: PlayerActions;
+  hasPlaybackStarted: boolean;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  // The provider is now the single source of truth. It calls the hook.
   const player = useMpvPlayer();
 
+  // The side effect for managing the body class now lives here, where it belongs.
+  useEffect(() => {
+    if (player.status === "playing" || player.status === "error") {
+      document.body.classList.add("player-active");
+    } else {
+      document.body.classList.remove("player-active");
+    }
+  }, [player.status]);
+
   return (
+    // The entire player object is provided to the context.
     <PlayerContext.Provider value={player}>
       {children}
       <PlayerOverlay />

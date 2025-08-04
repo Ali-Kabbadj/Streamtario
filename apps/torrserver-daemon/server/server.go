@@ -6,19 +6,109 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"server/log"
 	"server/settings"
 	"server/torr"
+	"server/torr/state"
 )
 
+// WebSocket Hub to manage clients
+var (
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all connections
+		},
+	}
+	clients   = make(map[*websocket.Conn]bool)
+	clientsMu sync.Mutex
+)
+
+// Broadcast sends a message to all connected WebSocket clients
+func Broadcast(status []*state.TorrentStatus) {
+	clientsMu.Lock()
+	defer clientsMu.Unlock()
+
+	// Only broadcast if there are actual clients to prevent unnecessary work
+	if len(clients) == 0 {
+		return
+	}
+	
+	message := gin.H{"type": "stats-update", "payload": gin.H{"torrents": status}}
+	for client := range clients {
+		err := client.WriteJSON(message)
+		if err != nil {
+			log.TLogln("ws write error:", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
+}
+
+func handleWebSocket(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.TLogln("ws upgrade error:", err)
+		return
+	}
+	defer conn.Close()
+
+	clientsMu.Lock()
+	clients[conn] = true
+	clientsMu.Unlock()
+	log.TLogln("WebSocket client connected")
+
+	// Send initial state immediately
+	var statusList []*state.TorrentStatus
+	for _, t := range torr.ListTorrent() {
+		statusList = append(statusList, t.Status())
+	}
+	if len(statusList) > 0 {
+		conn.WriteJSON(gin.H{"type": "stats-update", "payload": gin.H{"torrents": statusList}})
+	}
+
+
+	// Keep the connection alive
+	for {
+		// Read message to detect client disconnect
+		if _, _, err := conn.ReadMessage(); err != nil {
+			clientsMu.Lock()
+			delete(clients, conn)
+			clientsMu.Unlock()
+			log.TLogln("WebSocket client disconnected")
+			break
+		}
+	}
+}
+
 func Run() {
+	// This goroutine is now in the correct package.
+	// It starts AFTER torr.Init() and queries torr for data, breaking the cycle.
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			var statusList []*state.TorrentStatus
+			for _, t := range torr.ListTorrent() {
+				statusList = append(statusList, t.Status())
+			}
+			// We broadcast only if there is data to avoid sending empty messages.
+			if len(statusList) > 0 {
+				Broadcast(statusList)
+			}
+		}
+	}()
+
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -37,6 +127,10 @@ func Run() {
 	router.POST("/torrents", torr.Torrents)
 	router.GET("/stream/:hash/:id", torr.Stream)
 	router.HEAD("/stream/:hash/:id", torr.Stream)
+
+	// Add WebSocket endpoint
+	router.GET("/ws", handleWebSocket)
+
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "TorrServer Daemon: Core API is running")
@@ -67,6 +161,6 @@ func Run() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.TLogln(fmt.Sprintf("Server Shutdown error: %s", err))
 	}
-	
+
 	log.TLogln("Server exiting.")
 }

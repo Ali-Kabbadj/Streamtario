@@ -71,10 +71,17 @@ export const GetStreamsDocument = graphql(`
         fileIdx
         behaviorHints
         addonName
+        announce
+        files {
+          name
+          path
+          length
+        }
       }
     }
   }
 `);
+
 
 export const ManifestByUrlDocument = graphql(`
   query ManifestByUrl($url: String!) {

@@ -20,7 +20,7 @@ import (
 
 func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter) error {
 	if !t.GotInfo() {
-		http.NotFound(resp, req)
+		http.Error(resp, "Torrent metadata could not be retrieved. The torrent may be dead.", http.StatusNotFound)
 		return errors.New("torrent don't get info")
 	}
 

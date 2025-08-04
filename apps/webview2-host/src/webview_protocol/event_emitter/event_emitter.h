@@ -10,6 +10,7 @@ namespace WebViewProtocol
     {
         void emitPropertyChange(const std::string &property, const json &value);
         void emitPlaybackEnded();
+        void emitPlaybackError(const std::string &message); // ADD THIS DECLARATION
     } // namespace EventEmitter
 } // namespace WebViewProtocol
 

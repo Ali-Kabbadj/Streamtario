@@ -171,33 +171,48 @@ func (t *Torrent) progressEvent() {
 		t.bt.RemoveTorrent(t.Hash())
 		return
 	}
-
 	t.muTorrent.Lock()
+	defer t.muTorrent.Unlock()
+
+	// THE FIX: Set a more granular status
+	if t.Torrent == nil {
+		t.Stat = state.TorrentGettingInfo
+	} else if t.Torrent.Info() == nil {
+		t.Stat = state.TorrentGettingInfo
+	} else if t.PreloadedBytes < t.PreloadSize {
+		t.Stat = state.TorrentPreload
+	} else {
+		t.Stat = state.TorrentWorking
+	}
+
 	if t.Torrent != nil && t.Torrent.Info() != nil {
 		st := t.Torrent.Stats()
 		deltaDlBytes := st.BytesRead.Int64() - t.BytesReadUsefulData
 		deltaUpBytes := st.BytesWritten.Int64() - t.BytesWrittenData
 		deltaTime := time.Since(t.lastTimeSpeed).Seconds()
 
-		t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
-		t.UploadSpeed = float64(deltaUpBytes) / deltaTime
+		if deltaTime > 0 {
+			t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
+			t.UploadSpeed = float64(deltaUpBytes) / deltaTime
+		}
 
 		t.BytesReadUsefulData = st.BytesRead.Int64()
 		t.BytesWrittenData = st.BytesWritten.Int64()
 
 		if t.cache != nil {
-			t.PreloadedBytes = t.cache.GetState().Filled
+			cacheState := t.cache.GetState()
+			t.PreloadedBytes = cacheState.Filled
+			// THE FIX: Set the real preload goal size
+			t.PreloadSize = t.cache.GetCapacity()
 		}
 	} else {
 		t.DownloadSpeed = 0
 		t.UploadSpeed = 0
 	}
-	t.muTorrent.Unlock()
-
+	
 	t.lastTimeSpeed = time.Now()
 	t.updateRA()
 }
-
 func (t *Torrent) updateRA() {
 	adj := int64(16 << 20)
 	if t.cache != nil {

@@ -94,7 +94,18 @@ void HandleMpvEvents()
 
         case MPV_EVENT_END_FILE:
         {
-            if (g_isMpvPlaying)
+            mpv_event_end_file *end_file_info = (mpv_event_end_file *)ev->data;
+            if (end_file_info->reason == MPV_END_FILE_REASON_ERROR)
+            {
+                std::string error_message = "Playback failed. The file could not be read from the stream.";
+                if (end_file_info->error != 0)
+                {
+                    error_message = mpv_error_string(end_file_info->error);
+                }
+                LOG_ERROR("MPV_Event", "Playback ended with error: " + error_message);
+                WebViewProtocol::EventEmitter::emitPlaybackError(error_message);
+            }
+            else if (g_isMpvPlaying)
             {
                 LOG_INFO("MPV_Event", "Playback finished naturally.");
                 g_isMpvPlaying = false;
@@ -237,6 +248,7 @@ bool InitMPV(HWND hwnd)
     mpv_observe_property(g_mpv, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(g_mpv, 0, "volume", MPV_FORMAT_INT64);
     mpv_observe_property(g_mpv, 0, "mute", MPV_FORMAT_FLAG);
+    mpv_observe_property(g_mpv, 0, "paused-for-cache", MPV_FORMAT_FLAG);
 
     LOG_INFO("MPV_Init", "MPV Initialized Successfully.");
     return true;

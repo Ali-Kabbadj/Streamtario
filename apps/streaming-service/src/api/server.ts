@@ -10,101 +10,118 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TORRSERVER_ORIGIN = 'http://127.0.0.1:8090';
-const FAST_UPDATE_INTERVAL = 500;
-const NORMAL_UPDATE_INTERVAL = 2000;
+const DAEMON_WS_URL = 'ws://127.0.0.1:8090/ws';
 
 export function startServer(port: number) {
     const app = express();
+    app.use(express.json()); // Add JSON body parser for the new endpoint
+
     const keyPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2-key.pem');
     const certPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2.pem');
     const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
 
     const server = https.createServer(httpsOptions, app);
     const wss = new WebSocketServer({ server });
-    let statsInterval: NodeJS.Timeout | null = null;
-    const fastUpdateClients = new Set<WebSocket>();
 
-    const broadcastStats = async () => {
-        const stats = await torrServerClient.getStats();
-        const message = JSON.stringify({ type: 'stats-update', payload: { torrents: stats } });
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) client.send(message);
-        });
-    };
+    let daemonWs: WebSocket | null = null;
+    let reconnectInterval: NodeJS.Timeout | null = null;
 
-    const manageInterval = () => {
-        if (statsInterval) clearInterval(statsInterval);
-        const interval = fastUpdateClients.size > 0 ? FAST_UPDATE_INTERVAL : NORMAL_UPDATE_INTERVAL;
-        console.log(`[WSS] Adjusting broadcast interval to ${interval}ms`);
-        statsInterval = setInterval(broadcastStats, interval);
-    };
+    const connectToDaemon = () => {
+        console.log('[DAEMON-WS] Attempting to connect to Go daemon...');
+        daemonWs = new WebSocket(DAEMON_WS_URL);
 
-    wss.on('connection', (ws: WebSocket) => {
-        console.log('[WSS] Client connected.');
-
-        ws.on('message', (message: string) => {
-            try {
-                const data = JSON.parse(message);
-                if (data.action === 'request_fast_updates') {
-                    if (!fastUpdateClients.has(ws)) {
-                        fastUpdateClients.add(ws);
-                        manageInterval();
-                    }
-                } else if (data.action === 'request_normal_updates') {
-                    if (fastUpdateClients.has(ws)) {
-                        fastUpdateClients.delete(ws);
-                        manageInterval();
-                    }
-                }
-            } catch (e) { }
-        });
-
-        ws.on('close', () => {
-            console.log('[WSS] Client disconnected.');
-            if (fastUpdateClients.has(ws)) {
-                fastUpdateClients.delete(ws);
-                manageInterval();
+        daemonWs.on('open', () => {
+            console.log('[DAEMON-WS] Connection established with Go daemon.');
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
             }
         });
 
-        if (wss.clients.size === 1) {
-            manageInterval();
+        daemonWs.on('message', (message: Buffer) => {
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(message.toString());
+                }
+            });
+        });
+
+        daemonWs.on('close', () => {
+            console.log('[DAEMON-WS] Connection to Go daemon closed.');
+            daemonWs = null;
+            if (!reconnectInterval) {
+                reconnectInterval = setInterval(connectToDaemon, 3000);
+            }
+        });
+
+        daemonWs.on('error', (err) => {
+            console.error('[DAEMON-WS] Error connecting to Go daemon:', err.message);
+        });
+    };
+
+    connectToDaemon();
+
+    wss.on('connection', (ws: WebSocket) => {
+        console.log('[WSS] Frontend client connected.');
+        ws.on('close', () => {
+            console.log('[WSS] Frontend client disconnected.');
+        });
+    });
+
+    // NEW: Dedicated endpoint to set up the stream (called only ONCE)
+    app.post('/setup-stream', async (req, res) => {
+        const { infoHash, announce } = req.body; // Destructure announce
+        if (!infoHash) {
+            return res.status(400).send('infoHash is required');
+        }
+        try {
+            // Pass announce to the client
+            await torrServerClient.addTorrent(infoHash, announce);
+            res.status(200).send({ message: 'Stream setup initiated' });
+        } catch (error) {
+            console.error('[Controller] Error setting up stream:', error);
+            res.status(500).send('Failed to set up stream');
         }
     });
 
-    app.use('/direct/:infoHash/:fileIndex', async (req, res) => {
-        const { infoHash, fileIndex } = req.params;
-
-        try {
-            await torrServerClient.addTorrent(infoHash);
-            const proxyUrl = `${TORRSERVER_ORIGIN}/stream/${infoHash}/${fileIndex}`;
-            console.log(`[Proxy] Creating request to daemon: ${proxyUrl}`);
-
-            const proxyReq = http.request(proxyUrl, {
-                method: req.method,
-                headers: {
-                    ...req.headers,
-                    host: new URL(TORRSERVER_ORIGIN).host,
-                },
-            }, (proxyRes) => {
-                res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
-                proxyRes.pipe(res);
-            });
-
-            proxyReq.on('error', (err) => {
-                console.error('[Proxy] Error connecting to daemon:', err);
-                if (!res.headersSent) {
-                    res.status(502).send('Bad Gateway: Could not connect to torrent daemon.');
-                }
-            });
-            req.pipe(proxyReq);
-
-        } catch (error) {
-            console.error('[Controller] Top-level error setting up stream:', error);
-            if (!res.headersSent) {
-                res.status(500).send('Controller Error: Could not establish stream.');
-            }
+    app.post('/prepare-streams', async (req, res) => {
+        const { infoHashes } = req.body;
+        if (!Array.isArray(infoHashes)) {
+            return res.status(400).send('infoHashes must be an array');
         }
+        try {
+            await torrServerClient.prepareTorrents(infoHashes);
+            res.status(200).send({ message: 'Pre-fetch initiated' });
+        } catch (error) {
+            console.error('[Controller] Error preparing streams:', error);
+            res.status(500).send('Failed to prepare streams');
+        }
+    });
+
+
+    // MODIFIED: This is now a PURE PROXY for video data
+    app.use('/direct/:infoHash/:fileIndex', (req, res) => {
+        const { infoHash, fileIndex } = req.params;
+        const proxyUrl = `${TORRSERVER_ORIGIN}/stream/${infoHash}/${fileIndex}`;
+
+        const proxyReq = http.request(proxyUrl, {
+            method: req.method,
+            headers: {
+                ...req.headers,
+                host: new URL(TORRSERVER_ORIGIN).host,
+            },
+        }, (proxyRes) => {
+            res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+            proxyRes.pipe(res);
+        });
+
+        proxyReq.on('error', (err) => {
+            console.error('[Proxy] Error connecting to daemon:', err);
+            if (!res.headersSent) {
+                res.status(502).send('Bad Gateway: Could not connect to torrent daemon.');
+            }
+        });
+        req.pipe(proxyReq);
     });
 
     app.post('/cleanup/:infoHash', async (req, res) => {
@@ -121,9 +138,9 @@ export function startServer(port: number) {
             res.status(500).send('Failed to cleanup torrent on daemon.');
         }
     });
+
     server.listen(port, () => {
         console.log(`🚀 Streaming Controller ready at https://localhost:${port}`);
-        console.log(`   (Controlling TorrServer daemon at ${TORRSERVER_ORIGIN})`);
     });
     return server;
 }

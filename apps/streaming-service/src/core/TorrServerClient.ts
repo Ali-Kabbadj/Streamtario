@@ -13,12 +13,25 @@ class TorrServerClient {
         });
     }
 
-    public async addTorrent(infoHash: string): Promise<void> {
+    public async prepareTorrents(infoHashes: string[]): Promise<void> {
+        try {
+            await this.apiClient.post('/torrents', {
+                action: 'prepare',
+                links: infoHashes,
+            });
+            console.log(`[TorrServerClient] Prepare command sent for ${infoHashes.length} hashes.`);
+        } catch (error) {
+            console.error(`[TorrServerClient] Failed to prepare torrents:`, error instanceof Error ? error.message : error);
+        }
+    }
+
+    public async addTorrent(infoHash: string, announce?: string[]): Promise<void> {
         try {
             await this.apiClient.post('/torrents', {
                 action: 'add',
                 link: infoHash,
-                save_to_db: true
+                save_to_db: true,
+                announce: announce // Add announce list to the payload
             });
             console.log(`[TorrServerClient] Add command sent for hash: ${infoHash}`);
         } catch (error) {
