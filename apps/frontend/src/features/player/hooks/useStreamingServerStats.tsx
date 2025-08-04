@@ -1,14 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_CONFIG } from "@/config/env";
 
+// The interface is extended to include our new, calculated ETA.
 export interface TorrentStats {
-  infoHash: string;
-  name: string;
-  progress: number;
-  downloadSpeed: number;
-  uploadSpeed: number;
-  numPeers: number;
-  isPaused: boolean;
+  hash: string;
+  title: string;
+  stat: number;
+  stat_string: string;
+  loaded_size: number;
+  torrent_size: number;
+  preloaded_bytes: number;
+  preload_size: number;
+  download_speed: number;
+  upload_speed: number;
+  active_peers: number;
+  bufferingEtaSeconds?: number; // Estimated Time of Arrival for the buffer
 }
 
 interface StatsUpdateMessage {
@@ -29,17 +35,6 @@ export function useStreamingServerStats() {
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   const reconnectInterval = useRef<NodeJS.Timeout | null>(null);
-
-  const sendWsMessage = (message: object) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(message));
-    }
-  };
-
-  const requestFastUpdates = () =>
-    sendWsMessage({ action: "request_fast_updates" });
-  const requestNormalUpdates = () =>
-    sendWsMessage({ action: "request_normal_updates" });
 
   const disconnect = useCallback(() => {
     if (reconnectInterval.current) {
@@ -65,11 +60,9 @@ export function useStreamingServerStats() {
       return;
     }
 
-    console.log("[WSS Hook] Attempting to connect...");
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-      console.log("[WSS Hook] Connection established.");
       setIsConnected(true);
       if (reconnectInterval.current) {
         clearInterval(reconnectInterval.current);
@@ -81,7 +74,20 @@ export function useStreamingServerStats() {
       try {
         const data = JSON.parse(event.data) as StatsUpdateMessage;
         if (data.type === "stats-update" && data.payload?.torrents) {
-          setStats(data.payload.torrents);
+          // THE FIX: Calculate the ETA for each torrent.
+          const processedTorrents = data.payload.torrents.map((torrent) => {
+            const goalBytes =
+              torrent.preload_size > 0
+                ? torrent.preload_size
+                : 25 * 1024 * 1024;
+            const remainingBytes = goalBytes - torrent.preloaded_bytes;
+            if (remainingBytes > 0 && torrent.download_speed > 0) {
+              const eta = remainingBytes / torrent.download_speed;
+              return { ...torrent, bufferingEtaSeconds: eta };
+            }
+            return torrent;
+          });
+          setStats(processedTorrents);
         }
       } catch (e) {
         console.error("Failed to parse stats update from WebSocket:", e);
@@ -89,10 +95,9 @@ export function useStreamingServerStats() {
     };
 
     ws.current.onclose = () => {
-      console.log("[WSS Hook] Connection closed.");
       setIsConnected(false);
       ws.current = null;
-      reconnectInterval.current ??= setInterval(connect, 5000);
+      reconnectInterval.current ??= setInterval(connect, 3000);
     };
 
     ws.current.onerror = (err) => {
@@ -105,5 +110,5 @@ export function useStreamingServerStats() {
     return () => disconnect();
   }, [connect, disconnect]);
 
-  return { isConnected, stats, requestFastUpdates, requestNormalUpdates };
+  return { isConnected, stats };
 }

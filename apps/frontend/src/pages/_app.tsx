@@ -8,23 +8,9 @@ import { ThemeProvider } from "@/providers/theme-provider";
 import { ProfileProvider } from "@/providers/profile-provider";
 import { ViewProvider } from "@/providers/view-provider";
 import { DiscoverProvider } from "@/providers/discover-provider";
-import { useEffect } from "react";
-import { PlayerProvider, usePlayer } from "@/providers/PlayerProvider";
+import { PlayerProvider } from "@/providers/PlayerProvider";
 
-const AppContainer = ({ children }: { children: React.ReactNode }) => {
-  const { status } = usePlayer();
-
-  useEffect(() => {
-    if (status === "playing" || status === "preparing" || status === "error") {
-      document.body.classList.add("player-active");
-    } else {
-      document.body.classList.remove("player-active");
-    }
-  }, [status]);
-
-  return <div id="app-root">{children}</div>;
-};
-
+// The AppContainer is no longer needed, as its logic has moved to the PlayerProvider.
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <GoogleOAuthProvider clientId={APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
@@ -40,9 +26,9 @@ export default function App({ Component, pageProps }: AppProps) {
               <ViewProvider>
                 <DiscoverProvider>
                   <PlayerProvider>
-                    <AppContainer>
+                    <div id="app-root">
                       <Component {...pageProps} />
-                    </AppContainer>
+                    </div>
                   </PlayerProvider>
                 </DiscoverProvider>
               </ViewProvider>

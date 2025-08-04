@@ -11,16 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// This struct is copied from the old web/api/torrents.go
 type torrReqJS struct {
-	Action   string `json:"action"`
-	Link     string `json:"link"`
-	Hash     string `json:"hash"`
-	Title    string `json:"title"`
-	Poster   string `json:"poster"`
-	Category string `json:"category"`
-	Data     string `json:"data"`
-	Save     bool   `json:"save_to_db"`
+	Action   string   `json:"action"`
+	Link     string   `json:"link"`
+	Hash     string   `json:"hash"`
+	Title    string   `json:"title"`
+	Poster   string   `json:"poster"`
+	Category string   `json:"category"`
+	Data     string   `json:"data"`
+	Save     bool     `json:"save_to_db"`
+	Announce []string `json:"announce,omitempty"`
+	Links    []string `json:"links,omitempty"`
 }
 
 func Torrents(c *gin.Context) {
@@ -37,6 +38,9 @@ func Torrents(c *gin.Context) {
 			c.String(http.StatusBadRequest, "Invalid torrent link")
 			return
 		}
+		if len(req.Announce) > 0 {
+            spec.Trackers = append(spec.Trackers, [][]string{req.Announce}...)
+        }
 		torr, err := AddTorrent(spec, req.Title, req.Poster, req.Data, req.Category)
 		if err != nil {
 			log.TLogln("Error add torrent", err)
@@ -47,6 +51,14 @@ func Torrents(c *gin.Context) {
 			SaveTorrentToDB(torr)
 		}
 		c.JSON(http.StatusOK, torr.Status())
+	case "prepare":
+		for _, link := range req.Links {
+			spec, err := utils.ParseLink(link)
+			if err == nil {
+				go AddTorrent(spec, "", "", "", "")
+			}
+		}
+		c.Status(http.StatusOK)
 	case "list":
 		list := ListTorrent()
 		var ret []*state.TorrentStatus

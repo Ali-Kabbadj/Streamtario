@@ -10,49 +10,55 @@ using json = nlohmann::json;
 namespace WebViewProtocol
 {
 
-//================================================================
-// INCOMING COMMANDS (From Frontend -> C++)
-//================================================================
+    //================================================================
+    // INCOMING COMMANDS (From Frontend -> C++)
+    //================================================================
 
-struct PlayPayload
-{
-    std::string infoHash;
-    int         fileIndex;
-};
+    struct PlayPayload
+    {
+        std::string url; // Changed from infoHash/fileIndex to a direct URL
+    };
 
-struct SeekPayload
-{
-    double time;
-};
+    struct SeekPayload
+    {
+        double time;
+    };
 
-struct SetVolumePayload
-{
-    int volume;
-};
+    struct SetVolumePayload
+    {
+        int volume;
+    };
 
-struct SetWebViewVisibilityPayload
-{
-    bool visible;
-};
+    struct SetWebViewVisibilityPayload
+    {
+        bool visible;
+    };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlayPayload, infoHash, fileIndex)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SeekPayload, time)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetVolumePayload, volume)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetWebViewVisibilityPayload, visible)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlayPayload, url)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SeekPayload, time)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetVolumePayload, volume)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetWebViewVisibilityPayload, visible)
 
-//================================================================
-// OUTGOING EVENTS (From C++ -> Frontend)
-//================================================================
+    //================================================================
+    // OUTGOING EVENTS (From C++ -> Frontend)
+    //================================================================
 
-struct PropertyChangeEventPayload
-{
-    std::string property;
-    json        value;
-};
+    struct PropertyChangeEventPayload
+    {
+        std::string property;
+        json value;
+    };
 
-// This macro serializes our C++ structs into JSON.
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PropertyChangeEventPayload, property, value)
+    // NEW: This defines the payload for our error event
+    struct PlaybackErrorEventPayload
+    {
+        std::string message;
+    };
 
-}// namespace WebViewProtocol
+    // This macro serializes our C++ structs into JSON.
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PropertyChangeEventPayload, property, value)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlaybackErrorEventPayload, message) // Add the macro for the new type
 
-#endif// WEBVIEW_PROTOCOL_TYPES_H
+} // namespace WebViewProtocol
+
+#endif // WEBVIEW_PROTOCOL_TYPES_H

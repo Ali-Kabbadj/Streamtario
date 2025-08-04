@@ -1,4 +1,3 @@
-
 interface PlayCommand {
     command: "play";
     payload: {
@@ -43,4 +42,4 @@ export type WebViewCommand =
     | SeekCommand
     | SetVolumeCommand
     | ToggleMuteCommand
-    | ToggleFullscreenCommand
+    | ToggleFullscreenCommand;

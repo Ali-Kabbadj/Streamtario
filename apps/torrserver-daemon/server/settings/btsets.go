@@ -130,7 +130,7 @@ func SetDefaultConfig() {
 	sets.PreloadCache = 50
 	sets.ConnectionsLimit = 25
 	sets.RetrackersMode = 1
-	sets.TorrentDisconnectTimeout = 30
+	sets.TorrentDisconnectTimeout = 300 
 	sets.ReaderReadAHead = 95 // 95%
 	BTsets = sets
 	if !ReadOnly {

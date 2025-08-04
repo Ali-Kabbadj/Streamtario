@@ -19,5 +19,13 @@ namespace WebViewProtocol
             SendMessageToJS(ev.dump());
         }
 
+        // ADD THIS IMPLEMENTATION
+        void emitPlaybackError(const std::string &message)
+        {
+            PlaybackErrorEventPayload p = {message};
+            json ev = {{"event", "playback-error"}, {"payload", p}};
+            SendMessageToJS(ev.dump());
+        }
+
     } // namespace EventEmitter
 } // namespace WebViewProtocol
