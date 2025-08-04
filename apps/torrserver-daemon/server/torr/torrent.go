@@ -2,11 +2,8 @@ package torr
 
 import (
 	"errors"
-	"sort"
 	"sync"
 	"time"
-
-	utils2 "server/utils"
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
@@ -342,9 +339,6 @@ func (t *Torrent) Status() *state.TorrentStatus {
 			st.TorrentSize = t.Torrent.Length()
 
 			files := t.Files()
-			sort.Slice(files, func(i, j int) bool {
-				return utils2.CompareStrings(files[i].Path(), files[j].Path())
-			})
 			for i, f := range files {
 				st.FileStats = append(st.FileStats, &state.TorrentFileStat{
 					Id:     i, // CORRECT: Use 0-based index

@@ -26,30 +26,81 @@ export function PlayerOverlay() {
   const activeTorrentStats =
     stats?.find((t) => t.hash === activeStream?.infoHash) ?? null;
 
-  // --- ETA-Driven Animation Logic ---
   const progressControls = useAnimationControls();
-  const etaRef = useRef(activeTorrentStats?.bufferingEtaSeconds);
+  const lastAnimationState = useRef<"determinate" | "indeterminate" | "idle">(
+    "idle",
+  );
 
+  // Main animation logic effect
   useEffect(() => {
-    const newEta = activeTorrentStats?.bufferingEtaSeconds;
-    // Only update the animation if the new ETA is significantly different,
-    // to prevent jerky movements.
-    if (newEta !== undefined && newEta !== etaRef.current) {
-      etaRef.current = newEta;
+    // Determine the current required state for the splash screen
+    const isInitialBuffering = !hasPlaybackStarted;
+    const isSeekBuffering = hasPlaybackStarted && playerState.isBuffering;
+    const shouldShowBufferingSplash = isInitialBuffering || isSeekBuffering;
+
+    if (!shouldShowBufferingSplash) {
+      // If no splash is needed, stop all animations and hide the bar
+      if (lastAnimationState.current !== "idle") {
+        progressControls.stop();
+        progressControls.set({ width: "0%" });
+        lastAnimationState.current = "idle";
+      }
+      return;
+    }
+
+    // --- Case 1: Mid-playback (Seek) Buffering ---
+    // We show an indeterminate, pulsing animation because we can't measure progress.
+    if (isSeekBuffering) {
+      // Only start the animation if it's not already running
+      if (lastAnimationState.current !== "indeterminate") {
+        lastAnimationState.current = "indeterminate";
+        void progressControls.start({
+          width: ["30%", "70%"], // Animate back and forth
+          transition: {
+            duration: 1,
+            ease: "easeInOut",
+            repeat: Infinity,
+            repeatType: "mirror",
+          },
+        });
+      }
+    }
+    // --- Case 2: Initial Buffering ---
+    // We show a determinate progress bar filling up to 99%.
+    else if (isInitialBuffering && activeTorrentStats) {
+      lastAnimationState.current = "determinate";
+
+      const bufferGoal =
+        activeTorrentStats.preload_size > 0
+          ? activeTorrentStats.preload_size
+          : 25 * 1024 * 1024; // 25MB default
+
+      const loadedBytes = activeTorrentStats.preloaded_bytes;
+      const rawProgress = bufferGoal > 0 ? loadedBytes / bufferGoal : 0;
+      const cappedProgress = Math.min(rawProgress, 0.99); // Cap at 99%
+      const progressPercentage = cappedProgress * 100;
+
       void progressControls.start({
-        width: "100%",
-        transition: { duration: newEta, ease: "linear" },
+        width: `${progressPercentage}%`,
+        transition: { type: "tween", ease: "linear", duration: 0.4 },
       });
     }
-    // If buffering is done (no ETA), instantly set to 100%
-    if (
-      activeTorrentStats &&
-      newEta === undefined &&
-      activeTorrentStats.preloaded_bytes > 0
-    ) {
-      progressControls.set({ width: "100%" });
+  }, [
+    activeTorrentStats,
+    hasPlaybackStarted,
+    playerState.isBuffering,
+    progressControls,
+  ]);
+
+  // Once playback actually starts, we force the bar to 100% to finish the animation
+  useEffect(() => {
+    if (hasPlaybackStarted) {
+      void progressControls.start({
+        width: "100%",
+        transition: { duration: 0.2 },
+      });
     }
-  }, [activeTorrentStats, progressControls]);
+  }, [hasPlaybackStarted, progressControls]);
 
   useEffect(() => {
     const handleActivity = () => {
@@ -102,7 +153,7 @@ export function PlayerOverlay() {
   }
 
   const shouldShowBufferingSplash =
-    !hasPlaybackStarted || playerState.isBuffering || playerState.isPaused;
+    !hasPlaybackStarted || playerState.isBuffering;
 
   return (
     <AnimatePresence>
@@ -134,7 +185,6 @@ export function PlayerOverlay() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 z-20 flex items-center justify-center bg-black/80"
                 >
-                  {/* Pass the animation controls down to the splash component */}
                   <PreparingSplash
                     logoUrl={activeStream?.logo}
                     animationControls={progressControls}

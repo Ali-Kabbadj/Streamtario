@@ -24,6 +24,7 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 		return errors.New("torrent don't get info")
 	}
 
+	// This logic correctly finds the file metadata based on the sorted index from Status()
 	st := t.Status()
 	var stFile *state.TorrentFileStat
 	for _, fileStat := range st.FileStats {
@@ -33,22 +34,34 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 		}
 	}
 	if stFile == nil {
-		return fmt.Errorf("file with id %v not found", fileID)
+		return fmt.Errorf("file with id %v not found in torrent status", fileID)
 	}
 
-	files := t.Files()
-	var file *torrent.File
-	for _, tfile := range files {
-		if tfile.Path() == stFile.Path {
-			file = tfile
+	// Now, find the actual file object using its unique path.
+	var fileToStream *torrent.File
+	for _, f := range t.Files() {
+		if f.Path() == stFile.Path {
+			fileToStream = f
 			break
 		}
 	}
-	if file == nil {
-		return fmt.Errorf("file with id %v not found", fileID)
+	if fileToStream == nil {
+		return fmt.Errorf("file with path %s not found in torrent", stFile.Path)
 	}
 
-	reader := t.NewReader(file)
+	// THIS IS THE CRITICAL FIX:
+	// Explicitly de-prioritize all other files in the torrent to prevent them from being downloaded.
+	for _, f := range t.Files() {
+		if f.Path() == fileToStream.Path() {
+			// This is the file we want. Set its priority to normal to begin downloading.
+			f.SetPriority(torrent.PiecePriorityNormal)
+		} else {
+			// We do not want this file. Set its priority to none to ignore it.
+			f.SetPriority(torrent.PiecePriorityNone)
+		}
+	}
+
+	reader := t.NewReader(fileToStream)
 	if sets.Get().ResponsiveMode {
 		reader.SetResponsive()
 	}
@@ -65,10 +78,10 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 	sets.SetViewed(&sets.Viewed{Hash: t.Hash().HexString(), FileIndex: fileID})
 
 	resp.Header().Set("Connection", "close")
-	etag := hex.EncodeToString([]byte(fmt.Sprintf("%s/%s", t.Hash().HexString(), file.Path())))
+	etag := hex.EncodeToString([]byte(fmt.Sprintf("%s/%s", t.Hash().HexString(), fileToStream.Path())))
 	resp.Header().Set("ETag", httptoo.EncodeQuotedString(etag))
 	resp.Header().Set("transferMode.dlna.org", "Streaming")
-	mime, err := mt.ByPath(file.Path())
+	mime, err := mt.ByPath(fileToStream.Path())
 	if err == nil && mime.IsMedia() {
 		resp.Header().Set("content-type", mime.String())
 	}
@@ -79,7 +92,7 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 		}.String())
 	}
 
-	http.ServeContent(resp, req, file.Path(), time.Unix(t.Timestamp, 0), reader)
+	http.ServeContent(resp, req, fileToStream.Path(), time.Unix(t.Timestamp, 0), reader)
 
 	t.CloseReader(reader)
 	if sets.Get().EnableDebug {

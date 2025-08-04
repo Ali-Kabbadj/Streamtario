@@ -2,6 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_CONFIG } from "@/config/env";
 
 // The interface is extended to include our new, calculated ETA.
+export interface FileStat {
+  path: string;
+  length: number;
+}
+
 export interface TorrentStats {
   hash: string;
   title: string;
@@ -15,6 +20,21 @@ export interface TorrentStats {
   upload_speed: number;
   active_peers: number;
   bufferingEtaSeconds?: number; // Estimated Time of Arrival for the buffer
+  chunks_read_useful?: number;
+  category: string;
+  chunks_read: number;
+  chunks_read_wasted: number;
+  connected_seeders: number;
+  data: string; // JSON string
+  file_stats: FileStat[];
+  half_open_peers: number;
+  name: string;
+  pending_peers: number;
+  pieces_dirtied_bad: number;
+  pieces_dirtied_good: number;
+  poster: string;
+  timestamp: number;
+  total_peers: number;
 }
 
 interface StatsUpdateMessage {
