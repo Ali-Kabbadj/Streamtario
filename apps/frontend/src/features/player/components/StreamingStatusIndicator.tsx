@@ -1,7 +1,7 @@
 "use client";
 
 import { useStreamingServerStats } from "../hooks/useStreamingServerStats";
-import { Wifi, WifiOff, ArrowDown, ArrowUp, Users } from "lucide-react";
+import { Wifi, WifiOff, ArrowDown, ArrowUp, Users, File } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -68,6 +68,9 @@ export function StreamingStatusIndicator() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <ArrowUp size={14} /> {formatSpeed(uploadSpeed)}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <File size={14} /> {stats?.length}
                 </div>
               </>
             )}
