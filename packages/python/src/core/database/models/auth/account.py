@@ -1,10 +1,11 @@
 import uuid
 from sqlalchemy import String, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List
-
+from typing import List, TYPE_CHECKING
 from core.database.models.base import Base
-from .addon import InstalledAddonOrm
+
+if TYPE_CHECKING:
+    from .addon import InstalledAddonOrm
 
 
 class AccountOrm(Base):
