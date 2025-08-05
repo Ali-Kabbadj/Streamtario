@@ -31,15 +31,12 @@ export function PlayerOverlay() {
     "idle",
   );
 
-  // Main animation logic effect
   useEffect(() => {
-    // Determine the current required state for the splash screen
     const isInitialBuffering = !hasPlaybackStarted;
     const isSeekBuffering = hasPlaybackStarted && playerState.isBuffering;
     const shouldShowBufferingSplash = isInitialBuffering || isSeekBuffering;
 
     if (!shouldShowBufferingSplash) {
-      // If no splash is needed, stop all animations and hide the bar
       if (lastAnimationState.current !== "idle") {
         progressControls.stop();
         progressControls.set({ width: "0%" });
@@ -48,14 +45,11 @@ export function PlayerOverlay() {
       return;
     }
 
-    // --- Case 1: Mid-playback (Seek) Buffering ---
-    // We show an indeterminate, pulsing animation because we can't measure progress.
     if (isSeekBuffering) {
-      // Only start the animation if it's not already running
       if (lastAnimationState.current !== "indeterminate") {
         lastAnimationState.current = "indeterminate";
         void progressControls.start({
-          width: ["30%", "70%"], // Animate back and forth
+          width: ["30%", "70%"],
           transition: {
             duration: 1,
             ease: "easeInOut",
@@ -64,20 +58,17 @@ export function PlayerOverlay() {
           },
         });
       }
-    }
-    // --- Case 2: Initial Buffering ---
-    // We show a determinate progress bar filling up to 99%.
-    else if (isInitialBuffering && activeTorrentStats) {
+    } else if (isInitialBuffering && activeTorrentStats) {
       lastAnimationState.current = "determinate";
 
       const bufferGoal =
         activeTorrentStats.preload_size > 0
           ? activeTorrentStats.preload_size
-          : 25 * 1024 * 1024; // 25MB default
+          : 25 * 1024 * 1024;
 
       const loadedBytes = activeTorrentStats.preloaded_bytes;
       const rawProgress = bufferGoal > 0 ? loadedBytes / bufferGoal : 0;
-      const cappedProgress = Math.min(rawProgress, 0.99); // Cap at 99%
+      const cappedProgress = Math.min(rawProgress, 0.99);
       const progressPercentage = cappedProgress * 100;
 
       void progressControls.start({
@@ -92,7 +83,6 @@ export function PlayerOverlay() {
     progressControls,
   ]);
 
-  // Once playback actually starts, we force the bar to 100% to finish the animation
   useEffect(() => {
     if (hasPlaybackStarted) {
       void progressControls.start({

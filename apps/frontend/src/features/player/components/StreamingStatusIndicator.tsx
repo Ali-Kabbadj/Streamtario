@@ -26,8 +26,6 @@ export function StreamingStatusIndicator() {
 
   const activeTorrentStats =
     stats?.find((t) => t.hash === activeStream?.infoHash) ?? null;
-
-  // THE FIX: Use the correct snake_case properties from the stats object.
   const downloadSpeed = activeTorrentStats?.download_speed ?? 0;
   const uploadSpeed = activeTorrentStats?.upload_speed ?? 0;
   const peers = activeTorrentStats?.active_peers ?? 0;

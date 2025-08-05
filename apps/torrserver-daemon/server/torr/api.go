@@ -74,7 +74,6 @@ func Torrents(c *gin.Context) {
 	}
 }
 
-// Stream is the public API handler for the /stream endpoint.
 func Stream(c *gin.Context) {
 	hash := c.Param("hash")
 	id := c.Param("id")

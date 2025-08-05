@@ -7,8 +7,7 @@ import React, {
   type ReactNode,
 } from "react";
 
-// The shape of our state
-interface DiscoverState {
+export interface DiscoverState {
   selectedType: string;
   selectedProvider: string;
   selectedCatalogId: string;
@@ -16,7 +15,6 @@ interface DiscoverState {
   scrollPosition: number;
 }
 
-// All the actions that can be performed on the state
 type Action =
   | { type: "SET_STATE"; payload: Partial<DiscoverState> }
   | { type: "RESET_FILTERS" };
@@ -50,7 +48,6 @@ const initialState: DiscoverState = {
   scrollPosition: 0,
 };
 
-// The context that will be provided to the components
 interface DiscoverContextType extends DiscoverState {
   dispatch: React.Dispatch<Action>;
 }

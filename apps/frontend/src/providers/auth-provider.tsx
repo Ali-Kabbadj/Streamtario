@@ -68,18 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log(
           `[Auth] Scheduling token refresh in ${Math.round(refreshIn / 1000)}s`,
         );
-        refreshTimeoutRef.current = setTimeout(async () => {
-          try {
-            console.log("[Auth] Proactively refreshing session...");
-            await refreshSession();
-            scheduleRefresh();
-          } catch (error) {
-            console.error(
-              "[Auth] Proactive refresh failed, logging out.",
-              error,
-            );
-            logout();
-          }
+        refreshTimeoutRef.current = setTimeout(() => {
+          console.log("[Auth] Proactively refreshing session...");
+          refreshSession()
+            .then(() => {
+              scheduleRefresh();
+            })
+            .catch((error) => {
+              console.error(
+                "[Auth] Proactive refresh failed, logging out.",
+                error,
+              );
+              logout();
+            });
         }, refreshIn);
       } else {
         refreshSession().catch(() => logout());

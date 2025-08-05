@@ -18,17 +18,12 @@ class Stream(BaseModel):
     file_idx: Optional[int] = Field(None, alias="fileIdx")
     behavior_hints: Optional[Dict[str, Any]] = Field(None, alias="behaviorHints")
     addon_name: Optional[str] = Field(None, alias="addonName")
-
-    # THE FIX: Parse the correct 'sources' field from the addon response.
     sources: Optional[List[str]] = None
-    files: Optional[List[StreamFile]] = None
 
     @property
     def announce(self) -> List[str]:
-        # This computed property provides the clean list of trackers for the daemon.
         if not self.sources:
             return []
-        # This correctly handles both "tracker:udp://..." and "dht:..." by filtering.
         return [
             source.split("tracker:", 1)[1]
             for source in self.sources
@@ -38,7 +33,6 @@ class Stream(BaseModel):
     class Config:
         populate_by_name = True
         extra = "ignore"
-        # Make the computed property available during model serialization
         computed_fields = ["announce"]
 
 

@@ -10,7 +10,6 @@ import { ViewProvider } from "@/providers/view-provider";
 import { DiscoverProvider } from "@/providers/discover-provider";
 import { PlayerProvider } from "@/providers/PlayerProvider";
 
-// The AppContainer is no longer needed, as its logic has moved to the PlayerProvider.
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <GoogleOAuthProvider clientId={APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>

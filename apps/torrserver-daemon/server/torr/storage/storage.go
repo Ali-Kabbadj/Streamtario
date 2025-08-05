@@ -5,7 +5,6 @@ import (
 	"github.com/anacrolix/torrent/storage"
 )
 
-// Storage is an interface
 type Storage interface {
 	storage.ClientImpl
 

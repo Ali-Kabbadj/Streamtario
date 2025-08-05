@@ -7,7 +7,10 @@ import { useCatalog } from "@/features/discover/hooks/useCatalog";
 import { DiscoverFilters } from "@/features/discover/components/DiscoverFilters";
 import { CatalogGrid } from "@/features/discover/components/CatalogGrid";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDiscoverContext } from "@/providers/discover-provider";
+import {
+  useDiscoverContext,
+  type DiscoverState,
+} from "@/providers/discover-provider";
 
 export function DiscoverView() {
   const { selectedProfile } = useProfileContext();
@@ -24,7 +27,7 @@ export function DiscoverView() {
   } = useDiscoverContext();
 
   const setState = useCallback(
-    (payload: Partial<Parameters<typeof dispatch>[0]["payload"]>) => {
+    (payload: Partial<DiscoverState>) => {
       dispatch({ type: "SET_STATE", payload });
     },
     [dispatch],

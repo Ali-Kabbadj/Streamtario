@@ -85,8 +85,6 @@ func (mt MimeType) String() string {
 	return string(mt)
 }
 
-// ByPath gets the mime type for a given path.
-// It first checks the file extension, and if that fails it sniffs the content.
 func ByPath(filePath string) (ret MimeType, err error) {
 	ret = mimeTypeByBaseName(path.Base(filePath))
 	if ret == "" {

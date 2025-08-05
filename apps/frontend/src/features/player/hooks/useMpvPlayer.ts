@@ -22,7 +22,7 @@ interface State {
     status: "idle" | "playing" | "error";
     hasPlaybackStarted: boolean;
     errorMessage: string | null;
-    activeStream: { infoHash: string | null; fileIndex: number | null; title: string; logo?: string | null; } | null;
+    activeStream: { infoHash: string | null | undefined; fileIndex: number | null | undefined; title: string; logo?: string | null; } | null;
     playerState: PlayerState;
 }
 
@@ -133,13 +133,11 @@ export function useMpvPlayer() {
     const actions = {
         prepareStream: useCallback((stream: Stream) => {
             if (!stream.infoHash) return;
-            // This is a fire-and-forget call to warm up the cache
             fetch(`${streamingApiUrl}/prepare-streams`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ infoHashes: [stream.infoHash] }),
             }).catch(err => {
-                // We don't need to bother the user if pre-fetch fails
                 console.warn("Stream pre-fetch failed:", err);
             });
         }, [streamingApiUrl]),

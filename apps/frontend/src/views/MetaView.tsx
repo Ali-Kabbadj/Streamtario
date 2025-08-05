@@ -10,12 +10,7 @@ import type {
   TrailerStreamType,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { StreamPanel } from "@/features/meta/components/StreamPanel";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import Image from "next/image";
 
 import { MetaHeader } from "@/features/meta/layout/MetaHeader";
@@ -118,8 +113,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
       __typename: "TrailerStreamType" as const,
       ytId: t.source,
       title: t.type ?? "Trailer",
-    })) || []),
-    ...(meta.trailerStreams || []),
+    })) ?? []),
+    ...(meta.trailerStreams ?? []),
   ].filter((t): t is TrailerStreamType => !!t?.ytId);
 
   return (
@@ -170,7 +165,6 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
             {meta.type !== "movie" && (
               <MetaEpisodes
                 videos={meta.videos}
-                metaId={meta.id}
                 onEpisodeClick={handleEpisodeClick}
               />
             )}

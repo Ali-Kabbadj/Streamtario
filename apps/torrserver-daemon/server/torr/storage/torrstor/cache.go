@@ -233,7 +233,6 @@ func (c *Cache) getRemPieces() []*Piece {
 				}
 			}
 		} else {
-			// on preload clean
 			if p.Size > 0 && !c.isIdInFileBE(ranges, id) {
 				piecesRemove = append(piecesRemove, p)
 			}
@@ -286,7 +285,6 @@ func (c *Cache) setLoadPriority(ranges []Range) {
 }
 
 func (c *Cache) isIdInFileBE(ranges []Range, id int) bool {
-	// keep 8/16 MB
 	FileRangeNotDelete := int64(c.pieceLength)
 	if FileRangeNotDelete < 8<<20 {
 		FileRangeNotDelete = 8 << 20

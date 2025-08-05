@@ -185,20 +185,10 @@ class StreamType:
     behavior_hints: Optional[JSON] = None  # type: ignore
     addon_name: Optional[str] = None
     announce: Optional[List[str]] = None
-    # THE FIX: Use a forward reference (quotes) for the nested type.
-    # This resolves the TypeError during schema construction.
     files: Optional[List["StreamFileType"]] = None
 
     @classmethod
     def from_pydantic(cls, model: Stream) -> "StreamType":
-        stream_files = None
-        if model.files:
-            # model.files is a list of Pydantic StreamFile objects.
-            # This conversion will now work because StreamFileType will be correctly defined.
-            stream_files = [
-                StreamFileType(name=f.name, path=f.path, length=f.length)
-                for f in model.files
-            ]
 
         return cls(
             name=model.name,
@@ -210,7 +200,6 @@ class StreamType:
             behavior_hints=model.behavior_hints,
             addon_name=model.addon_name,
             announce=model.announce,
-            files=stream_files,
         )
 
 
