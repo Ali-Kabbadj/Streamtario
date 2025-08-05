@@ -82,20 +82,6 @@ export function startServer(port: number) {
         }
     });
 
-    app.post('/prepare-streams', async (req, res) => {
-        const { infoHashes } = req.body;
-        if (!Array.isArray(infoHashes)) {
-            return res.status(400).send('infoHashes must be an array');
-        }
-        try {
-            await torrServerClient.prepareTorrents(infoHashes);
-            res.status(200).send({ message: 'Pre-fetch initiated' });
-        } catch (error) {
-            console.error('[Controller] Error preparing streams:', error);
-            res.status(500).send('Failed to prepare streams');
-        }
-    });
-
 
     app.use('/direct/:infoHash/:fileIndex', (req, res) => {
         const { infoHash, fileIndex } = req.params;

@@ -56,18 +56,20 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer) (*Torrent, error) {
 	if bt == nil || bt.client == nil {
 		return nil, errors.New("BT client not connected")
 	}
-	switch settings.Get().RetrackersMode {
-	case 1:
-		spec.Trackers = append(spec.Trackers, [][]string{utils.GetDefTrackers()}...)
-	case 2:
-		spec.Trackers = nil
-	case 3:
-		spec.Trackers = [][]string{utils.GetDefTrackers()}
-	}
+	if len(spec.Trackers) == 0 {
+		switch settings.Get().RetrackersMode {
+		case 1:
+			spec.Trackers = append(spec.Trackers, [][]string{utils.GetDefTrackers()}...)
+		case 2:
+			spec.Trackers = nil
+		case 3:
+			spec.Trackers = [][]string{utils.GetDefTrackers()}
+		}
 
-	trackers := utils.GetTrackerFromFile()
-	if len(trackers) > 0 {
-		spec.Trackers = append(spec.Trackers, [][]string{trackers}...)
+		trackers := utils.GetTrackerFromFile()
+		if len(trackers) > 0 {
+			spec.Trackers = append(spec.Trackers, [][]string{trackers}...)
+		}
 	}
 
 	goTorrent, _, err := bt.client.AddTorrentSpec(spec)
