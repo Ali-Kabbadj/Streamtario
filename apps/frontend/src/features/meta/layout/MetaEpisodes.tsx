@@ -12,15 +12,10 @@ type GroupedVideos = Record<string, Video[]>;
 
 interface MetaEpisodesProps {
   videos: (Video | null)[] | null | undefined;
-  metaId: string;
   onEpisodeClick: (episode: Video) => void;
 }
 
-export function MetaEpisodes({
-  videos,
-  metaId,
-  onEpisodeClick,
-}: MetaEpisodesProps) {
+export function MetaEpisodes({ videos, onEpisodeClick }: MetaEpisodesProps) {
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
   const tabsListRef = useRef<HTMLDivElement | null>(null);
 

@@ -14,7 +14,7 @@ const DAEMON_WS_URL = 'ws://127.0.0.1:8090/ws';
 
 export function startServer(port: number) {
     const app = express();
-    app.use(express.json()); // Add JSON body parser for the new endpoint
+    app.use(express.json());
 
     const keyPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2-key.pem');
     const certPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2.pem');
@@ -68,14 +68,12 @@ export function startServer(port: number) {
         });
     });
 
-    // NEW: Dedicated endpoint to set up the stream (called only ONCE)
     app.post('/setup-stream', async (req, res) => {
         const { infoHash, announce } = req.body; // Destructure announce
         if (!infoHash) {
             return res.status(400).send('infoHash is required');
         }
         try {
-            // Pass announce to the client
             await torrServerClient.addTorrent(infoHash, announce);
             res.status(200).send({ message: 'Stream setup initiated' });
         } catch (error) {
@@ -99,7 +97,6 @@ export function startServer(port: number) {
     });
 
 
-    // MODIFIED: This is now a PURE PROXY for video data
     app.use('/direct/:infoHash/:fileIndex', (req, res) => {
         const { infoHash, fileIndex } = req.params;
         const proxyUrl = `${TORRSERVER_ORIGIN}/stream/${infoHash}/${fileIndex}`;

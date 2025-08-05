@@ -28,7 +28,7 @@ export interface ParsedStreamDetails {
   originalIndex: number;
 }
 
-const TAG_LIBRARY = {
+export const TAG_LIBRARY = {
   quality: {
     "4K": [/\b(2160p|4k|uhd)\b/i],
     "2K": [/\b(1440p|2k)\b/i],

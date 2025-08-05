@@ -21,23 +21,20 @@ import (
 	"server/torr/state"
 )
 
-// WebSocket Hub to manage clients
 var (
 	upgrader = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all connections
+			return true 
 		},
 	}
 	clients   = make(map[*websocket.Conn]bool)
 	clientsMu sync.Mutex
 )
 
-// Broadcast sends a message to all connected WebSocket clients
 func Broadcast(status []*state.TorrentStatus) {
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 
-	// Only broadcast if there are actual clients to prevent unnecessary work
 	if len(clients) == 0 {
 		return
 	}
@@ -66,7 +63,6 @@ func handleWebSocket(c *gin.Context) {
 	clientsMu.Unlock()
 	log.TLogln("WebSocket client connected")
 
-	// Send initial state immediately
 	var statusList []*state.TorrentStatus
 	for _, t := range torr.ListTorrent() {
 		statusList = append(statusList, t.Status())
@@ -76,9 +72,7 @@ func handleWebSocket(c *gin.Context) {
 	}
 
 
-	// Keep the connection alive
 	for {
-		// Read message to detect client disconnect
 		if _, _, err := conn.ReadMessage(); err != nil {
 			clientsMu.Lock()
 			delete(clients, conn)
@@ -90,8 +84,6 @@ func handleWebSocket(c *gin.Context) {
 }
 
 func Run() {
-	// This goroutine is now in the correct package.
-	// It starts AFTER torr.Init() and queries torr for data, breaking the cycle.
 	go func() {
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
@@ -101,7 +93,6 @@ func Run() {
 			for _, t := range torr.ListTorrent() {
 				statusList = append(statusList, t.Status())
 			}
-			// We broadcast only if there is data to avoid sending empty messages.
 			if len(statusList) > 0 {
 				Broadcast(statusList)
 			}
@@ -128,7 +119,6 @@ func Run() {
 	router.GET("/stream/:hash/:id", torr.Stream)
 	router.HEAD("/stream/:hash/:id", torr.Stream)
 
-	// Add WebSocket endpoint
 	router.GET("/ws", handleWebSocket)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

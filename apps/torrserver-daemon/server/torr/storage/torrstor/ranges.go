@@ -24,7 +24,6 @@ func mergeRange(ranges []Range) []Range {
 	if len(ranges) <= 1 {
 		return ranges
 	}
-	// copy ranges
 	merged := append([]Range(nil), ranges...)
 
 	sort.Slice(merged, func(i, j int) bool {

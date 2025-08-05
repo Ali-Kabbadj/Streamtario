@@ -36,7 +36,6 @@ export function AddonCard({
       onClick={onViewDetails}
       className="relative flex h-full cursor-pointer flex-col bg-slate-900/50 transition-colors hover:bg-slate-800/80"
     >
-      {/* --- FIX: Added an 'Installed' badge for quick status view --- */}
       {isInstalled && (
         <Badge className="absolute top-4 right-4" variant="default">
           Installed
@@ -63,7 +62,6 @@ export function AddonCard({
         </div>
       </CardHeader>
       <CardContent className="flex flex-grow flex-col">
-        {/* --- FIX: Description is now truncated to 3 lines --- */}
         <p className="text-muted-foreground mb-4 line-clamp-3 flex-grow text-sm">
           {manifest.description}
         </p>

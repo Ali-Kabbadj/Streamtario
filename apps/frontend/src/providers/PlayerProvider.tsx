@@ -27,15 +27,14 @@ interface PlayerActions {
   toggleMute: () => void;
 }
 
-// The context now provides the full return value of the hook
 interface PlayerContextType {
   status: "idle" | "playing" | "error";
   errorMessage: string | null;
   activeStream: {
-    infoHash: string | null;
-    fileIndex: number | null;
+    infoHash: string | null | undefined;
+    fileIndex: number | null | undefined;
     title: string;
-    logo: string | null;
+    logo?: string | null;
   } | null;
   playerState: PlayerState;
   actions: PlayerActions;
@@ -45,10 +44,8 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  // The provider is now the single source of truth. It calls the hook.
   const player = useMpvPlayer();
 
-  // The side effect for managing the body class now lives here, where it belongs.
   useEffect(() => {
     if (player.status === "playing" || player.status === "error") {
       document.body.classList.add("player-active");
@@ -58,7 +55,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [player.status]);
 
   return (
-    // The entire player object is provided to the context.
     <PlayerContext.Provider value={player}>
       {children}
       <PlayerOverlay />

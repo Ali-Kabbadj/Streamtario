@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_CONFIG } from "@/config/env";
 
-// The interface is extended to include our new, calculated ETA.
 export interface FileStat {
   path: string;
   length: number;
@@ -19,13 +18,13 @@ export interface TorrentStats {
   download_speed: number;
   upload_speed: number;
   active_peers: number;
-  bufferingEtaSeconds?: number; // Estimated Time of Arrival for the buffer
+  bufferingEtaSeconds?: number;
   chunks_read_useful?: number;
   category: string;
   chunks_read: number;
   chunks_read_wasted: number;
   connected_seeders: number;
-  data: string; // JSON string
+  data: string;
   file_stats: FileStat[];
   half_open_peers: number;
   name: string;
@@ -94,7 +93,6 @@ export function useStreamingServerStats() {
       try {
         const data = JSON.parse(event.data) as StatsUpdateMessage;
         if (data.type === "stats-update" && data.payload?.torrents) {
-          // THE FIX: Calculate the ETA for each torrent.
           const processedTorrents = data.payload.torrents.map((torrent) => {
             const goalBytes =
               torrent.preload_size > 0

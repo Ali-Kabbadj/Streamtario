@@ -67,8 +67,8 @@ export const useCatalog = ({ profileId, itemType, catalogId, providerId, extraPr
       return (allPages.length + 1) * pageSize;
     },
     enabled: isEnabled,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10, // 10 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   });
 }
   ;

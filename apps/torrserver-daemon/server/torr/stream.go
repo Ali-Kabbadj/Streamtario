@@ -24,7 +24,6 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 		return errors.New("torrent don't get info")
 	}
 
-	// This logic correctly finds the file metadata based on the sorted index from Status()
 	st := t.Status()
 	var stFile *state.TorrentFileStat
 	for _, fileStat := range st.FileStats {
@@ -37,7 +36,6 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 		return fmt.Errorf("file with id %v not found in torrent status", fileID)
 	}
 
-	// Now, find the actual file object using its unique path.
 	var fileToStream *torrent.File
 	for _, f := range t.Files() {
 		if f.Path() == stFile.Path {
@@ -49,14 +47,12 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 		return fmt.Errorf("file with path %s not found in torrent", stFile.Path)
 	}
 
-	// THIS IS THE CRITICAL FIX:
-	// Explicitly de-prioritize all other files in the torrent to prevent them from being downloaded.
+
 	for _, f := range t.Files() {
 		if f.Path() == fileToStream.Path() {
-			// This is the file we want. Set its priority to normal to begin downloading.
+
 			f.SetPriority(torrent.PiecePriorityNormal)
 		} else {
-			// We do not want this file. Set its priority to none to ignore it.
 			f.SetPriority(torrent.PiecePriorityNone)
 		}
 	}

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MetaCastProps {
-  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   cast?: (CastType | null)[] | null;
 }
 

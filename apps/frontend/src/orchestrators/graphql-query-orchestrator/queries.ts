@@ -72,11 +72,11 @@ export const GetStreamsDocument = graphql(`
         behaviorHints
         addonName
         announce
-        files {
-          name
-          path
-          length
-        }
+        # files {
+        #   name
+        #   path
+        #   length
+        # }
       }
     }
   }

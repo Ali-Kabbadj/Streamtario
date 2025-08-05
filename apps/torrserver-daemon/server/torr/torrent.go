@@ -171,7 +171,6 @@ func (t *Torrent) progressEvent() {
 	t.muTorrent.Lock()
 	defer t.muTorrent.Unlock()
 
-	// THE FIX: Set a more granular status
 	if t.Torrent == nil {
 		t.Stat = state.TorrentGettingInfo
 	} else if t.Torrent.Info() == nil {
@@ -199,7 +198,6 @@ func (t *Torrent) progressEvent() {
 		if t.cache != nil {
 			cacheState := t.cache.GetState()
 			t.PreloadedBytes = cacheState.Filled
-			// THE FIX: Set the real preload goal size
 			t.PreloadSize = t.cache.GetCapacity()
 		}
 	} else {
