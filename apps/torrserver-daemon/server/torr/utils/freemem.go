@@ -5,9 +5,6 @@ import (
 	"runtime/debug"
 )
 
-func FreeOSMem() {
-	debug.FreeOSMemory()
-}
 
 func FreeOSMemGC() {
 	runtime.GC()

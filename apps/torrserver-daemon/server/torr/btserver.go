@@ -8,25 +8,25 @@ import (
 	"net"
 	"sync"
 
+	"server/settings"
+	custom_storage "server/storage"
+	"server/torr/utils"
+	"server/version"
+
 	"github.com/anacrolix/publicip"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
+	torrent_storage "github.com/anacrolix/torrent/storage"
 	"github.com/wlynxg/anet"
-
-	"server/settings"
-	"server/torr/storage/torrstor"
-	"server/torr/utils"
-	"server/version"
 )
 
 type BTServer struct {
-	config   *torrent.ClientConfig
-	client   *torrent.Client
-	storage  *torrstor.Storage
+	config *torrent.ClientConfig
+	client *torrent.Client
+	storage  torrent_storage.ClientImpl
 	torrents map[metainfo.Hash]*Torrent
 	mu       sync.Mutex
 }
-
 var privateIPBlocks []*net.IPNet
 
 func init() {
@@ -55,7 +55,6 @@ func (bt *BTServer) Connect() error {
 	bt.configure(context.TODO())
 	bt.client, err = torrent.NewClient(bt.config)
 	bt.torrents = make(map[metainfo.Hash]*Torrent)
-	// THE CALL TO InitApiHelper IS NOW GONE
 	return err
 }
 
@@ -69,13 +68,22 @@ func (bt *BTServer) Disconnect() {
 	}
 }
 
+
+
 func (bt *BTServer) configure(ctx context.Context) {
+	s := settings.Get()
 	blocklist, _ := utils.ReadBlockedIP()
+	
 	bt.config = torrent.NewDefaultClientConfig()
 
-	bt.storage = torrstor.NewStorage(settings.Get().CacheSize)
-	bt.config.DefaultStorage = bt.storage
-
+	if s.UseDisk && s.TorrentsSavePath != "" {
+		log.Println("Using persistent file cache at:", s.TorrentsSavePath)
+		bt.storage = custom_storage.New(s.TorrentsSavePath)
+		bt.config.DefaultStorage = bt.storage
+	} else {
+		log.Println("Using ephemeral in-memory cache.")
+	}
+	
 	userAgent := "qBittorrent/4.3.9"
 	peerID := "-qB4390-"
 	bt.config.PeerID = utils.PeerIDRandom(peerID)
@@ -84,7 +92,6 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config.ExtendedHandshakeClientVersion = userAgent
 	bt.config.Bep20 = peerID
 
-	s := settings.Get()
 	bt.config.Debug = s.EnableDebug
 	bt.config.DisableIPv6 = !s.EnableIPv6
 	bt.config.DisableTCP = s.DisableTCP
@@ -96,7 +103,15 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config.IPBlocklist = blocklist
 	bt.config.EstablishedConnsPerTorrent = s.ConnectionsLimit
 	bt.config.TotalHalfOpenConns = 500
-	bt.config.EncryptionPolicy = torrent.EncryptionPolicy{ForceEncryption: s.ForceEncrypt}
+	
+	// // Corrected Encryption Settings
+	// if s.ForceEncrypt {
+	// 	bt.config.HeaderObfuscationPolicy = torrent.HeaderObfuscationPolicyRequired
+	// 	bt.config.CryptoProvides = mse.CryptoMethodRC4
+	// } else {
+	// 	bt.config.HeaderObfuscationPolicy = torrent.HeaderObfuscationPolicyPrefer
+	// 	bt.config.CryptoProvides = mse.CryptoMethodAll
+	// }
 
 	if s.DownloadRateLimit > 0 {
 		bt.config.DownloadRateLimiter = utils.Limit(s.DownloadRateLimit * 1024)
@@ -124,9 +139,8 @@ func (bt *BTServer) configure(ctx context.Context) {
 	}
 }
 
+
 func (bt *BTServer) GetTorrent(hash torrent.InfoHash) *Torrent {
-	bt.mu.Lock()
-	defer bt.mu.Unlock()
 	if torr, ok := bt.torrents[hash]; ok {
 		return torr
 	}
@@ -134,16 +148,12 @@ func (bt *BTServer) GetTorrent(hash torrent.InfoHash) *Torrent {
 }
 
 func (bt *BTServer) ListTorrents() map[metainfo.Hash]*Torrent {
-	bt.mu.Lock()
-	defer bt.mu.Unlock()
 	list := make(map[metainfo.Hash]*Torrent)
 	maps.Copy(list, bt.torrents)
 	return list
 }
 
 func (bt *BTServer) RemoveTorrent(hash torrent.InfoHash) bool {
-	bt.mu.Lock()
-	defer bt.mu.Unlock()
 	if torr, ok := bt.torrents[hash]; ok {
 		return torr.Close()
 	}

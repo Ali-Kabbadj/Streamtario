@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"sync"
 	"syscall"
 	"time"
@@ -32,22 +33,21 @@ var (
 )
 
 func Broadcast(status []*state.TorrentStatus) {
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
+    clientsMu.Lock()
+    defer clientsMu.Unlock()
 
-	if len(clients) == 0 {
-		return
-	}
-	
-	message := gin.H{"type": "stats-update", "payload": gin.H{"torrents": status}}
-	for client := range clients {
-		err := client.WriteJSON(message)
-		if err != nil {
-			log.TLogln("ws write error:", err)
-			client.Close()
-			delete(clients, client)
-		}
-	}
+    if len(clients) == 0 {
+        return
+    }
+
+    message := gin.H{"type": "stats-update", "payload": gin.H{"torrents": status}}
+    for client := range clients {
+        if err := client.WriteJSON(message); err != nil {
+            log.TLogln("ws write error:", err)
+            client.Close()
+            delete(clients, client)
+        }
+    }
 }
 
 func handleWebSocket(c *gin.Context) {
@@ -84,20 +84,30 @@ func handleWebSocket(c *gin.Context) {
 }
 
 func Run() {
-	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			<-ticker.C
-			var statusList []*state.TorrentStatus
-			for _, t := range torr.ListTorrent() {
-				statusList = append(statusList, t.Status())
-			}
-			if len(statusList) > 0 {
-				Broadcast(statusList)
-			}
-		}
-	}()
+	    go func() {
+        ticker := time.NewTicker(500 * time.Millisecond)
+        defer ticker.Stop()
+
+        var lastStats []*state.TorrentStatus
+
+        for range ticker.C {
+            // 1) gather current statuses
+            var current []*state.TorrentStatus
+            for _, t := range torr.ListTorrent() {
+                current = append(current, t.Status())
+            }
+
+            // 2) compare deep-equal to last snapshot
+            if !reflect.DeepEqual(current, lastStats) {
+                Broadcast(current)
+
+                // 3) store a copy for next comparison
+                lastStats = make([]*state.TorrentStatus, len(current))
+                copy(lastStats, current)
+            }
+        }
+    }()
+
 
 
 	gin.SetMode(gin.ReleaseMode)
@@ -118,7 +128,6 @@ func Run() {
 	router.POST("/torrents", torr.Torrents)
 	router.GET("/stream/:hash/:id", torr.Stream)
 	router.HEAD("/stream/:hash/:id", torr.Stream)
-
 	router.GET("/ws", handleWebSocket)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

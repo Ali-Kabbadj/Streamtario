@@ -19,8 +19,7 @@ class TorrServerClient {
             await this.apiClient.post('/torrents', {
                 action: 'add',
                 link: infoHash,
-                save_to_db: true,
-                announce: announce // Add announce list to the payload
+                announce: announce
             });
             console.log(`[TorrServerClient] Add command sent for hash: ${infoHash}`);
         } catch (error) {
@@ -29,15 +28,18 @@ class TorrServerClient {
         }
     }
 
-    public async removeTorrent(infoHash: string): Promise<void> {
+
+
+
+    public async cleanupTorrent(infoHash: string): Promise<void> {
         try {
             await this.apiClient.post('/torrents', {
-                action: 'rem',
+                action: 'cleanup', // Use the new, specific action
                 hash: infoHash,
             });
-            console.log(`[TorrServerClient] Remove command sent for hash: ${infoHash}`);
+            console.log(`[TorrServerClient] Cleanup command sent for hash: ${infoHash}`);
         } catch (error) {
-            console.error(`[TorrServerClient] Failed to remove torrent ${infoHash}:`, error instanceof Error ? error.message : error);
+            console.error(`[TorrServerClient] Failed to cleanup torrent ${infoHash}:`, error instanceof Error ? error.message : error);
         }
     }
 

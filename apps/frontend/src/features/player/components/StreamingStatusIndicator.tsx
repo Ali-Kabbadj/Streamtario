@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
-import { useStreamingServerStats } from "../hooks/useStreamingServerStats";
+import React, { useState } from "react";
+import {
+  useStreamingServerStats,
+  type TorrentStats,
+} from "../hooks/useStreamingServerStats";
 import { Wifi, WifiOff, ArrowDown, ArrowUp, Users, File } from "lucide-react";
 import {
   Tooltip,
@@ -25,30 +28,18 @@ export function StreamingStatusIndicator() {
   const { isConnected, stats } = useStreamingServerStats();
   const { activeStream } = usePlayer();
 
-  const activeTorrentStats = useMemo(
-    () => stats?.find((t) => t.hash === activeStream?.infoHash) ?? null,
-    [stats, activeStream],
-  );
+  const activeTorrentStats: TorrentStats | null =
+    stats.find((t) => t.hash === activeStream?.infoHash) ?? null;
 
-  const aggregateStats = useMemo(() => {
-    if (!stats || stats.length === 0) {
-      return null;
-    }
-    // If there's an active stream, the aggregate should represent *other* torrents.
-    const otherTorrents = activeStream
-      ? stats.filter((t) => t.hash !== activeStream.infoHash)
-      : stats;
+  const aggregateStats = {
+    downloadSpeed: stats.reduce((acc, t) => acc + t.download_speed, 0),
+    uploadSpeed: stats.reduce((acc, t) => acc + t.upload_speed, 0),
+    peers: stats.reduce((acc, t) => acc + t.active_peers, 0),
+    count: stats.length,
+  };
 
-    return {
-      downloadSpeed: otherTorrents.reduce(
-        (acc, t) => acc + t.download_speed,
-        0,
-      ),
-      uploadSpeed: otherTorrents.reduce((acc, t) => acc + t.upload_speed, 0),
-      peers: otherTorrents.reduce((acc, t) => acc + t.active_peers, 0),
-      count: otherTorrents.length,
-    };
-  }, [stats, activeStream]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0);
 
   const renderTooltipContent = () => {
     if (!isConnected) {
@@ -59,7 +50,7 @@ export function StreamingStatusIndicator() {
       );
     }
 
-    if (!stats || stats.length === 0) {
+    if (aggregateStats.count === 0) {
       return (
         <p>
           Status: <span className="text-green-400">Connected & Idle</span>
@@ -73,11 +64,7 @@ export function StreamingStatusIndicator() {
           <div className="mb-2 border-b border-slate-700 pb-2">
             <p className="font-bold">Active Stream</p>
             <div className="flex items-center gap-1.5">
-              <Users size={14} />{" "}
-              {Number.isNaN(activeTorrentStats?.active_peers ?? NaN)
-                ? 0
-                : (activeTorrentStats?.active_peers ?? 0)}{" "}
-              Peers
+              <Users size={14} /> {activeTorrentStats.active_peers} Peers
             </div>
             <div className="flex items-center gap-1.5">
               <ArrowDown size={14} />{" "}
@@ -90,58 +77,34 @@ export function StreamingStatusIndicator() {
           </div>
         )}
 
-        {!activeTorrentStats && aggregateStats && aggregateStats.count > 0 && (
-          <div>
-            <p className="font-bold">Daemon Stats</p>
-            <div className="flex items-center gap-1.5">
-              <File size={14} /> {aggregateStats.count} Active Torrents
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Users size={14} />{" "}
-              {Number.isNaN(aggregateStats?.peers ?? NaN)
-                ? 0
-                : (aggregateStats?.peers ?? 0)}{" "}
-              Peers
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ArrowDown size={14} />{" "}
-              {formatSpeed(aggregateStats.downloadSpeed)}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ArrowUp size={14} /> {formatSpeed(aggregateStats.uploadSpeed)}
-            </div>
+        <div>
+          <p className="font-bold">Daemon Totals</p>
+          <div className="flex items-center gap-1.5">
+            <File size={14} /> {aggregateStats.count} Torrent(s)
           </div>
-        )}
-
-        {aggregateStats && aggregateStats.count > 0 && (
-          <div>
-            <p className="font-bold">Other Activity</p>
-            <div className="flex items-center gap-1.5">
-              <File size={14} /> {aggregateStats.count} Other Torrents
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Users size={14} />{" "}
-              {Number.isNaN(aggregateStats?.peers ?? NaN)
-                ? 0
-                : (aggregateStats?.peers ?? 0)}{" "}
-              Peers
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ArrowDown size={14} />{" "}
-              {formatSpeed(aggregateStats.downloadSpeed)}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ArrowUp size={14} /> {formatSpeed(aggregateStats.uploadSpeed)}
-            </div>
+          <div className="flex items-center gap-1.5">
+            <Users size={14} /> {aggregateStats.peers} Total Peers
           </div>
-        )}
+          <div className="flex items-center gap-1.5">
+            <ArrowDown size={14} /> {formatSpeed(aggregateStats.downloadSpeed)}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ArrowUp size={14} /> {formatSpeed(aggregateStats.uploadSpeed)}
+          </div>
+        </div>
       </>
     );
   };
 
   return (
     <TooltipProvider delayDuration={0}>
-      <Tooltip>
+      <Tooltip
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (open) setOpenKey((k) => k + 1);
+        }}
+      >
         <TooltipTrigger asChild>
           <div
             className={cn(
@@ -154,7 +117,7 @@ export function StreamingStatusIndicator() {
             {isConnected ? <Wifi size={18} /> : <WifiOff size={18} />}
           </div>
         </TooltipTrigger>
-        <TooltipContent className="z-[999999]">
+        <TooltipContent key={openKey} className="z-[999999]">
           <div className="space-y-1 p-2 text-sm">{renderTooltipContent()}</div>
         </TooltipContent>
       </Tooltip>
