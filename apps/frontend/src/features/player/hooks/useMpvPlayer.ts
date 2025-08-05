@@ -124,36 +124,54 @@ export function useMpvPlayer() {
     const stopAction = useCallback(() => {
         if (state.activeStream?.infoHash) {
             const cleanupUrl = `${streamingApiUrl}/cleanup/${state.activeStream.infoHash}`;
-            navigator.sendBeacon(cleanupUrl);
+
+            // Using fetch with keepalive is more robust and debuggable than sendBeacon.
+            // This ensures the cleanup command is sent reliably when the player closes.
+            fetch(cleanupUrl, {
+                method: 'POST',
+                keepalive: true,
+            })
+                .then(response => {
+                    if (response.ok) {
+                        console.log(`[Player] Successfully sent cleanup command for ${state.activeStream?.infoHash}`);
+                    } else {
+                        console.error(`[Player] Cleanup command failed with status: ${response.status}`);
+                    }
+                })
+                .catch(err => {
+                    console.error("[Player] Error sending cleanup command:", err);
+                });
         }
+
+        // These commands stop the local player and UI.
         sendCommand({ command: "stop" });
         dispatch({ type: 'STOP_PLAYBACK' });
     }, [sendCommand, streamingApiUrl, state.activeStream]);
 
     const actions = {
         playStream: useCallback((stream: Stream, title: string, logo?: string | null) => {
-            if (!stream.infoHash || stream.fileIdx === null) {
+            if (!stream.infoHash || stream.fileIdx === null || typeof stream.fileIdx === 'undefined') {
                 dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'This stream is not a valid torrent.' } });
                 return;
             }
 
-            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo } });
+            const { infoHash, fileIdx } = stream;
+            const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
 
-            fetch(`${streamingApiUrl}/setup-stream`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ infoHash: stream.infoHash, announce: stream.announce }),
-            })
-                .then(response => {
-                    if (!response.ok) return response.text().then(text => { throw new Error(text || 'Setup failed') });
-                    const streamUrl = `${streamingApiUrl}/direct/${stream.infoHash}/${stream.fileIdx}`;
-                    sendCommand({ command: "play", payload: { url: streamUrl } });
-                })
-                .catch(err => {
-                    console.error("Stream setup error:", err);
-                    dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: err.message } });
-                });
+            // Instantly update the UI and tell the player to start.
+            // The daemon's /stream endpoint is now extremely fast for cached content.
+            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo } });
+            sendCommand({ command: "play", payload: { url: streamUrl } });
+
         }, [sendCommand, streamingApiUrl]),
+
+        stopAction: useCallback(() => {
+            // The frontend's only job is to stop the local player.
+            // The daemon's idle timer will handle cleanup automatically and safely.
+            sendCommand({ command: "stop" });
+            dispatch({ type: 'STOP_PLAYBACK' });
+        }, [sendCommand]),
+
 
         stop: stopAction,
         togglePause: useCallback(() => sendCommand({ command: "toggle-pause" }), [sendCommand]),

@@ -83,6 +83,7 @@ export function startServer(port: number) {
     });
 
 
+
     app.use('/direct/:infoHash/:fileIndex', (req, res) => {
         const { infoHash, fileIndex } = req.params;
         const proxyUrl = `${TORRSERVER_ORIGIN}/stream/${infoHash}/${fileIndex}`;
@@ -115,7 +116,7 @@ export function startServer(port: number) {
 
         console.log(`[Controller] Received cleanup request for ${infoHash}`);
         try {
-            await torrServerClient.removeTorrent(infoHash);
+            await torrServerClient.cleanupTorrent(infoHash);
             res.status(200).send('Cleanup successful.');
         } catch (error) {
             res.status(500).send('Failed to cleanup torrent on daemon.');

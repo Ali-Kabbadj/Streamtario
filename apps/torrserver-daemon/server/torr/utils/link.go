@@ -10,7 +10,8 @@ import (
 )
 
 func ParseLink(link string) (*torrent.TorrentSpec, error) {
-	if spec, err := torrent.TorrentSpecFromMagnetURI(link); err == nil {
+	// Corrected function name from TorrentSpecFromMagnetURI to TorrentSpecFromMagnetUri
+	if spec, err := torrent.TorrentSpecFromMagnetUri(link); err == nil {
 		return spec, nil
 	}
 

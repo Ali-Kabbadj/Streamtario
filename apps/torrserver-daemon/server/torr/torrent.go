@@ -1,27 +1,30 @@
 package torr
 
 import (
+	"encoding/json"
 	"errors"
+	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
 
-	"server/log"
 	"server/settings"
 	"server/torr/state"
-	cacheSt "server/torr/storage/state"
-	"server/torr/storage/torrstor"
 	"server/torr/utils"
 )
 
 type Torrent struct {
+	expiredTime   time.Time
 	Title    string
 	Category string
 	Poster   string
 	Data     string
 	*torrent.TorrentSpec
+	readerCount int
 
 	Stat      state.TorrentStat
 	Timestamp int64
@@ -30,22 +33,17 @@ type Torrent struct {
 	*torrent.Torrent
 	muTorrent sync.Mutex
 
-	bt    *BTServer
-	cache *torrstor.Cache
+    bt            *BTServer
 
-	lastTimeSpeed       time.Time
+    lastTimeSpeed       time.Time
 	DownloadSpeed       float64
 	UploadSpeed         float64
 	BytesReadUsefulData int64
 	BytesWrittenData    int64
 
-	PreloadSize    int64
-	PreloadedBytes int64
-
 	DurationSeconds float64
 	BitRate         string
 
-	expiredTime time.Time
 
 	closed <-chan struct{}
 
@@ -65,7 +63,7 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer) (*Torrent, error) {
 		case 3:
 			spec.Trackers = [][]string{utils.GetDefTrackers()}
 		}
-
+	
 		trackers := utils.GetTrackerFromFile()
 		if len(trackers) > 0 {
 			spec.Trackers = append(spec.Trackers, [][]string{trackers}...)
@@ -89,13 +87,12 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer) (*Torrent, error) {
 	}
 
 	torr := new(Torrent)
-	torr.Torrent = goTorrent
+    torr.Torrent = goTorrent
 	torr.Stat = state.TorrentAdded
 	torr.lastTimeSpeed = time.Now()
 	torr.bt = bt
 	torr.closed = goTorrent.Closed()
 	torr.TorrentSpec = spec
-	torr.AddExpiredTime(timeout)
 	torr.Timestamp = time.Now().Unix()
 
 	go torr.watch()
@@ -103,6 +100,8 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer) (*Torrent, error) {
 	bt.torrents[spec.InfoHash] = torr
 	return torr, nil
 }
+
+
 
 func (t *Torrent) WaitInfo() bool {
 	if t.Torrent == nil {
@@ -113,8 +112,6 @@ func (t *Torrent) WaitInfo() bool {
 
 	select {
 	case <-t.Torrent.GotInfo():
-		t.cache = t.bt.storage.GetCache(t.Hash())
-		t.cache.SetTorrent(t.Torrent)
 		return true
 	case <-t.closed:
 		return false
@@ -127,13 +124,20 @@ func (t *Torrent) GotInfo() bool {
 	if t.Stat == state.TorrentClosed {
 		return false
 	}
-	if t.Stat == state.TorrentPreload {
-		return true
-	}
 	t.Stat = state.TorrentGettingInfo
 	if t.WaitInfo() {
+		// --- SAVE METADATA ON SUCCESS ---
+		info := t.Info()
+		metaBytes, err := json.Marshal(info)
+		if err == nil {
+			torrentDir := filepath.Join(settings.Get().TorrentsSavePath, t.Hash().HexString())
+			metaFilePath := filepath.Join(torrentDir, ".metainfo.json")
+			// We don't need to check the error here, it's a best-effort cache.
+			os.WriteFile(metaFilePath, metaBytes, 0644)
+		}
+		// -----------------------------
+
 		t.Stat = state.TorrentWorking
-		t.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
 		return true
 	} else {
 		t.Close()
@@ -141,12 +145,8 @@ func (t *Torrent) GotInfo() bool {
 	}
 }
 
-func (t *Torrent) AddExpiredTime(duration time.Duration) {
-	newExpiredTime := time.Now().Add(duration)
-	if t.expiredTime.Before(newExpiredTime) {
-		t.expiredTime = newExpiredTime
-	}
-}
+
+
 
 func (t *Torrent) watch() {
 	t.progressTicker = time.NewTicker(time.Second)
@@ -163,66 +163,41 @@ func (t *Torrent) watch() {
 }
 
 func (t *Torrent) progressEvent() {
-	if t.expired() {
-		if t.TorrentSpec != nil {
-			log.TLogln("Torrent close by timeout", t.TorrentSpec.InfoHash.HexString())
-		}
-		t.bt.RemoveTorrent(t.Hash())
-		return
-	}
-	t.muTorrent.Lock()
-	defer t.muTorrent.Unlock()
+	 if t.expired() {
+        log.Println("Torrent closing due to idle timeout:", t.Hash().HexString())
+        t.Close()
+        return
+    }
+    t.muTorrent.Lock()
+    defer t.muTorrent.Unlock()
 
-	if t.Torrent == nil {
-		t.Stat = state.TorrentGettingInfo
-	} else if t.Torrent.Info() == nil {
-		t.Stat = state.TorrentGettingInfo
-	} else if t.PreloadedBytes < t.PreloadSize {
-		t.Stat = state.TorrentPreload
-	} else {
-		t.Stat = state.TorrentWorking
-	}
+    if t.Torrent == nil || t.Torrent.Info() == nil {
+        t.Stat = state.TorrentGettingInfo
+    } else {
+        t.Stat = state.TorrentWorking
+    }
 
-	if t.Torrent != nil && t.Torrent.Info() != nil {
-		st := t.Torrent.Stats()
-		deltaDlBytes := st.BytesRead.Int64() - t.BytesReadUsefulData
-		deltaUpBytes := st.BytesWritten.Int64() - t.BytesWrittenData
-		deltaTime := time.Since(t.lastTimeSpeed).Seconds()
+    if t.Torrent != nil && t.Torrent.Info() != nil {
+        st := t.Torrent.Stats()
+        deltaDlBytes := st.BytesReadData.Int64() - t.BytesReadUsefulData
+        deltaUpBytes := st.BytesWrittenData.Int64() - t.BytesWrittenData
+        deltaTime := time.Since(t.lastTimeSpeed).Seconds()
 
-		if deltaTime > 0 {
-			t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
-			t.UploadSpeed = float64(deltaUpBytes) / deltaTime
-		}
+        if deltaTime > 0 {
+            t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
+            t.UploadSpeed = float64(deltaUpBytes) / deltaTime
+        }
 
-		t.BytesReadUsefulData = st.BytesRead.Int64()
-		t.BytesWrittenData = st.BytesWritten.Int64()
-
-		if t.cache != nil {
-			cacheState := t.cache.GetState()
-			t.PreloadedBytes = cacheState.Filled
-			t.PreloadSize = t.cache.GetCapacity()
-		}
-	} else {
-		t.DownloadSpeed = 0
-		t.UploadSpeed = 0
-	}
-	
-	t.lastTimeSpeed = time.Now()
-	t.updateRA()
-}
-func (t *Torrent) updateRA() {
-	adj := int64(16 << 20)
-	if t.cache != nil {
-		go t.cache.AdjustRA(adj)
-	}
+        t.BytesReadUsefulData = st.BytesReadData.Int64()
+        t.BytesWrittenData = st.BytesWrittenData.Int64()
+    } else {
+        t.DownloadSpeed = 0
+        t.UploadSpeed = 0
+    }
+    
+    t.lastTimeSpeed = time.Now()
 }
 
-func (t *Torrent) expired() bool {
-	if t.cache == nil {
-		return time.Now().After(t.expiredTime)
-	}
-	return t.cache.Readers() == 0 && t.expiredTime.Before(time.Now()) && (t.Stat == state.TorrentWorking || t.Stat == state.TorrentClosed)
-}
 
 func (t *Torrent) Files() []*torrent.File {
 	if t.Torrent != nil && t.Torrent.Info() != nil {
@@ -248,20 +223,18 @@ func (t *Torrent) Length() int64 {
 	return t.Torrent.Length()
 }
 
-func (t *Torrent) NewReader(file *torrent.File) *torrstor.Reader {
-	if t.Stat == state.TorrentClosed {
-		return nil
-	}
-	return t.cache.NewReader(file)
+func (t *Torrent) NewReader(file *torrent.File) torrent.Reader {
+    t.muTorrent.Lock()
+    t.readerCount++
+    t.muTorrent.Unlock()
+    return file.NewReader()
 }
 
-func (t *Torrent) CloseReader(reader *torrstor.Reader) {
-	t.cache.CloseReader(reader)
-	t.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
-}
-
-func (t *Torrent) GetCache() *torrstor.Cache {
-	return t.cache
+func (t *Torrent) CloseReader(reader torrent.Reader) {
+    reader.Close()
+    t.muTorrent.Lock()
+    t.readerCount--
+    t.muTorrent.Unlock()
 }
 
 func (t *Torrent) drop() {
@@ -273,19 +246,6 @@ func (t *Torrent) drop() {
 	}
 }
 
-func (t *Torrent) Close() bool {
-	if settings.ReadOnly && t.cache != nil && t.cache.GetUseReaders() > 0 {
-		return false
-	}
-	t.Stat = state.TorrentClosed
-
-	t.bt.mu.Lock()
-	delete(t.bt.torrents, t.Hash())
-	t.bt.mu.Unlock()
-
-	t.drop()
-	return true
-}
 
 func (t *Torrent) Status() *state.TorrentStatus {
 	t.muTorrent.Lock()
@@ -311,9 +271,7 @@ func (t *Torrent) Status() *state.TorrentStatus {
 		st.Name = t.Torrent.Name()
 		st.Hash = t.Torrent.InfoHash().HexString()
 		st.LoadedSize = t.Torrent.BytesCompleted()
-
-		st.PreloadedBytes = t.PreloadedBytes
-		st.PreloadSize = t.PreloadSize
+		
 		st.DownloadSpeed = t.DownloadSpeed
 		st.UploadSpeed = t.UploadSpeed
 
@@ -341,7 +299,7 @@ func (t *Torrent) Status() *state.TorrentStatus {
 			files := t.Files()
 			for i, f := range files {
 				st.FileStats = append(st.FileStats, &state.TorrentFileStat{
-					Id:     i, // CORRECT: Use 0-based index
+					Id:     i,
 					Path:   f.Path(),
 					Length: f.Length(),
 				})
@@ -352,11 +310,38 @@ func (t *Torrent) Status() *state.TorrentStatus {
 	return st
 }
 
-func (t *Torrent) CacheState() *cacheSt.CacheState {
-	if t.Torrent != nil && t.cache != nil {
-		st := t.cache.GetState()
-		st.Torrent = t.Status()
-		return st
-	}
-	return nil
+func (t *Torrent) Close() bool {
+    t.muTorrent.Lock()
+    if t.Stat == state.TorrentClosed {
+        t.muTorrent.Unlock()
+        return true
+    }
+    t.Stat = state.TorrentClosed
+    t.muTorrent.Unlock()
+
+    if t.progressTicker != nil {
+        t.progressTicker.Stop()
+    }
+
+    if t.Torrent != nil {
+        t.Torrent.Drop()
+        <-t.closed
+    }
+    return true
+}
+
+func (t *Torrent) AddExpiredTime(duration time.Duration) {
+    t.muTorrent.Lock()
+    defer t.muTorrent.Unlock()
+    t.expiredTime = time.Now().Add(duration)
+}
+
+func (t *Torrent) expired() bool {
+    t.muTorrent.Lock()
+    defer t.muTorrent.Unlock()
+    // Never expire a torrent that hasn't finished getting its metadata.
+    if t.Info() == nil {
+        return false
+    }
+    return time.Now().After(t.expiredTime)
 }

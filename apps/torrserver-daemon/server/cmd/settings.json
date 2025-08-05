@@ -26,8 +26,8 @@
     "SslKey": "",
     "SslPort": 0,
     "TorrentDisconnectTimeout": 30,
-    "TorrentsSavePath": "",
+    "TorrentsSavePath": "cache",
     "UploadRateLimit": 0,
-    "UseDisk": false
+    "UseDisk": true
   }
 }

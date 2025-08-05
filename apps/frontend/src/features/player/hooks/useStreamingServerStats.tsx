@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_CONFIG } from "@/config/env";
 
 export interface FileStat {
+  index: number;
   path: string;
-  length: number;
+  bytes_read: number;
+  bytes_wasted: number;
 }
 
 export interface TorrentStats {
@@ -36,13 +38,6 @@ export interface TorrentStats {
   total_peers: number;
 }
 
-interface StatsUpdateMessage {
-  type: "stats-update";
-  payload: {
-    torrents: TorrentStats[];
-  };
-}
-
 const wsUrl =
   new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL).origin.replace(
     "https",
@@ -50,7 +45,7 @@ const wsUrl =
   ) + "/api/v1/stream";
 
 export function useStreamingServerStats() {
-  const [stats, setStats] = useState<TorrentStats[] | null>(null);
+  const [stats, setStats] = useState<TorrentStats[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   const reconnectInterval = useRef<NodeJS.Timeout | null>(null);
@@ -70,17 +65,14 @@ export function useStreamingServerStats() {
       }
       ws.current = null;
       setIsConnected(false);
-      setStats(null);
+      // keep stats array; empty payloads handled in onmessage
     }
   }, []);
 
   const connect = useCallback(() => {
-    if (ws.current && ws.current.readyState < 2) {
-      return;
-    }
+    if (ws.current && ws.current.readyState < 2) return;
 
     ws.current = new WebSocket(wsUrl);
-
     ws.current.onopen = () => {
       setIsConnected(true);
       if (reconnectInterval.current) {
@@ -89,26 +81,27 @@ export function useStreamingServerStats() {
       }
     };
 
-    ws.current.onmessage = (event: MessageEvent<string>) => {
+    ws.current.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as StatsUpdateMessage;
-        if (data.type === "stats-update" && data.payload?.torrents) {
-          const processedTorrents = data.payload.torrents.map((torrent) => {
-            const goalBytes =
-              torrent.preload_size > 0
-                ? torrent.preload_size
-                : 25 * 1024 * 1024;
-            const remainingBytes = goalBytes - torrent.preloaded_bytes;
-            if (remainingBytes > 0 && torrent.download_speed > 0) {
-              const eta = remainingBytes / torrent.download_speed;
-              return { ...torrent, bufferingEtaSeconds: eta };
+        const data = JSON.parse(event.data);
+        if (data.type === "stats-update") {
+          const incoming: unknown[] = Array.isArray(data.payload?.torrents)
+            ? data.payload.torrents
+            : [];
+          const processed: TorrentStats[] = incoming.map((torrent: unknown) => {
+            const torrentStats = torrent as TorrentStats;
+            const goal = torrentStats.preload_size ?? 25 * 1024 * 1024;
+            const remaining = goal - torrentStats.preloaded_bytes;
+            if (remaining > 0 && torrentStats.download_speed > 0) {
+              torrentStats.bufferingEtaSeconds =
+                remaining / torrentStats.download_speed;
             }
-            return torrent;
+            return torrentStats;
           });
-          setStats(processedTorrents);
+          setStats(processed);
         }
       } catch (e) {
-        console.error("Failed to parse stats update from WebSocket:", e);
+        console.error("WSS parse error:", e);
       }
     };
 
@@ -119,7 +112,7 @@ export function useStreamingServerStats() {
     };
 
     ws.current.onerror = (err) => {
-      console.error("[WSS Hook] WebSocket error:", err);
+      console.error("[WSS Hook] error:", err);
     };
   }, []);
 
