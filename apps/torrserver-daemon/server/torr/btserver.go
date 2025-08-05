@@ -125,6 +125,8 @@ func (bt *BTServer) configure(ctx context.Context) {
 }
 
 func (bt *BTServer) GetTorrent(hash torrent.InfoHash) *Torrent {
+	bt.mu.Lock()
+	defer bt.mu.Unlock()
 	if torr, ok := bt.torrents[hash]; ok {
 		return torr
 	}
@@ -132,12 +134,16 @@ func (bt *BTServer) GetTorrent(hash torrent.InfoHash) *Torrent {
 }
 
 func (bt *BTServer) ListTorrents() map[metainfo.Hash]*Torrent {
+	bt.mu.Lock()
+	defer bt.mu.Unlock()
 	list := make(map[metainfo.Hash]*Torrent)
 	maps.Copy(list, bt.torrents)
 	return list
 }
 
 func (bt *BTServer) RemoveTorrent(hash torrent.InfoHash) bool {
+	bt.mu.Lock()
+	defer bt.mu.Unlock()
 	if torr, ok := bt.torrents[hash]; ok {
 		return torr.Close()
 	}

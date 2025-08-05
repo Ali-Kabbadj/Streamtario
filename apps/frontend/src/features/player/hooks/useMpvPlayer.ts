@@ -131,17 +131,6 @@ export function useMpvPlayer() {
     }, [sendCommand, streamingApiUrl, state.activeStream]);
 
     const actions = {
-        prepareStream: useCallback((stream: Stream) => {
-            if (!stream.infoHash) return;
-            fetch(`${streamingApiUrl}/prepare-streams`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ infoHashes: [stream.infoHash] }),
-            }).catch(err => {
-                console.warn("Stream pre-fetch failed:", err);
-            });
-        }, [streamingApiUrl]),
-
         playStream: useCallback((stream: Stream, title: string, logo?: string | null) => {
             if (!stream.infoHash || stream.fileIdx === null) {
                 dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'This stream is not a valid torrent.' } });

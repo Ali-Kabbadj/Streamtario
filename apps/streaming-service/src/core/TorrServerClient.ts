@@ -13,17 +13,6 @@ class TorrServerClient {
         });
     }
 
-    public async prepareTorrents(infoHashes: string[]): Promise<void> {
-        try {
-            await this.apiClient.post('/torrents', {
-                action: 'prepare',
-                links: infoHashes,
-            });
-            console.log(`[TorrServerClient] Prepare command sent for ${infoHashes.length} hashes.`);
-        } catch (error) {
-            console.error(`[TorrServerClient] Failed to prepare torrents:`, error instanceof Error ? error.message : error);
-        }
-    }
 
     public async addTorrent(infoHash: string, announce?: string[]): Promise<void> {
         try {

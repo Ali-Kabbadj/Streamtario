@@ -21,7 +21,6 @@ type torrReqJS struct {
 	Data     string   `json:"data"`
 	Save     bool     `json:"save_to_db"`
 	Announce []string `json:"announce,omitempty"`
-	Links    []string `json:"links,omitempty"`
 }
 
 func Torrents(c *gin.Context) {
@@ -39,8 +38,8 @@ func Torrents(c *gin.Context) {
 			return
 		}
 		if len(req.Announce) > 0 {
-            spec.Trackers = append(spec.Trackers, [][]string{req.Announce}...)
-        }
+			spec.Trackers = [][]string{req.Announce}
+		}
 		torr, err := AddTorrent(spec, req.Title, req.Poster, req.Data, req.Category)
 		if err != nil {
 			log.TLogln("Error add torrent", err)
@@ -51,14 +50,6 @@ func Torrents(c *gin.Context) {
 			SaveTorrentToDB(torr)
 		}
 		c.JSON(http.StatusOK, torr.Status())
-	case "prepare":
-		for _, link := range req.Links {
-			spec, err := utils.ParseLink(link)
-			if err == nil {
-				go AddTorrent(spec, "", "", "", "")
-			}
-		}
-		c.Status(http.StatusOK)
 	case "list":
 		list := ListTorrent()
 		var ret []*state.TorrentStatus
