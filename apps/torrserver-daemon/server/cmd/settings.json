@@ -25,7 +25,7 @@
     "SslCert": "",
     "SslKey": "",
     "SslPort": 0,
-    "TorrentDisconnectTimeout": 30,
+    "TorrentDisconnectTimeout": 10,
     "TorrentsSavePath": "cache",
     "UploadRateLimit": 0,
     "UseDisk": true

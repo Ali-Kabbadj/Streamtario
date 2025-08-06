@@ -5,8 +5,6 @@ go 1.23.0
 toolchain go1.23.5
 
 require (
-	github.com/anacrolix/dms v1.7.1
-	github.com/anacrolix/missinggo/v2 v2.8.0
 	github.com/anacrolix/publicip v0.3.1
 	github.com/anacrolix/torrent v1.58.1
 	github.com/gin-contrib/location v1.0.3
@@ -18,7 +16,6 @@ require (
 	github.com/wlynxg/anet v0.0.5
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476
-	golang.org/x/image v0.28.0
 	golang.org/x/time v0.12.0
 )
 
@@ -40,6 +37,7 @@ require (
 	github.com/anacrolix/log v0.16.0 // indirect
 	github.com/anacrolix/missinggo v1.3.0 // indirect
 	github.com/anacrolix/missinggo/perf v1.0.0 // indirect
+	github.com/anacrolix/missinggo/v2 v2.8.0 // indirect
 	github.com/anacrolix/mmsg v1.0.1 // indirect
 	github.com/anacrolix/multiless v0.4.0 // indirect
 	github.com/anacrolix/stm v0.5.0 // indirect

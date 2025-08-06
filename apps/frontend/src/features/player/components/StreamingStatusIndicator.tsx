@@ -64,7 +64,11 @@ export function StreamingStatusIndicator() {
           <div className="mb-2 border-b border-slate-700 pb-2">
             <p className="font-bold">Active Stream</p>
             <div className="flex items-center gap-1.5">
-              <Users size={14} /> {activeTorrentStats.active_peers} Peers
+              <Users size={14} />{" "}
+              {Number.isNaN(activeTorrentStats?.active_peers ?? NaN)
+                ? 0
+                : (activeTorrentStats?.active_peers ?? 0)}{" "}
+              Peers
             </div>
             <div className="flex items-center gap-1.5">
               <ArrowDown size={14} />{" "}
@@ -83,7 +87,11 @@ export function StreamingStatusIndicator() {
             <File size={14} /> {aggregateStats.count} Torrent(s)
           </div>
           <div className="flex items-center gap-1.5">
-            <Users size={14} /> {aggregateStats.peers} Total Peers
+            <Users size={14} />{" "}
+            {Number.isNaN(aggregateStats?.peers ?? NaN)
+              ? 0
+              : (aggregateStats?.peers ?? 0)}{" "}
+            Total Peers
           </div>
           <div className="flex items-center gap-1.5">
             <ArrowDown size={14} /> {formatSpeed(aggregateStats.downloadSpeed)}
