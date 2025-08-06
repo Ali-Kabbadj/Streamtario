@@ -33,57 +33,45 @@ func Close() {
 	}
 }
 
-func AddTorrent(spec *torrent.TorrentSpec, title, poster string, data string, category string) (*Torrent, error) {
+func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int) (*Torrent, error) {
     spec.DisableInitialPieceCheck = true
 
-    // Use the client's internal lock to safely check for an existing torrent.
-    if _, ok := bts.client.Torrent(spec.InfoHash); ok {
-        // It exists in the client, but we need our wrapper.
-        if torr, ok := bts.torrents[spec.InfoHash]; ok {
-            log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
-            // Refresh the timer on the existing instance.
-            torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
-            return torr, nil
-        }
+    bts.mu.Lock()
+    existingTorrent, ok := bts.torrents[spec.InfoHash]
+    bts.mu.Unlock()
+
+    if ok && existingTorrent != nil {
+        log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
+        existingTorrent.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+        return existingTorrent, nil
     }
-    
-    torr, err := NewTorrent(spec, bts)
+
+    torr, err := NewTorrent(spec, bts, filename, fileIdx)
     if err != nil {
         log.TLogln("error creating new torrent:", err)
         return nil, err
     }
     
-    torr.Title = title
-    torr.Poster = poster
-    torr.Data = data
-    torr.Category = category
-
     return torr, nil
 }
 
 
-// RemTorrent finds an active torrent, closes it gracefully, and removes it from management.
 func RemTorrent(hashHex string) {
-	// Acquire the lock to ensure this operation is atomic.
-	torrentMu.Lock()
-	defer torrentMu.Unlock()
-
 	hash := metainfo.NewHashFromHex(hashHex)
 	
-	torr := bts.GetTorrent(hash)
-	if torr == nil {
-		log.TLogln("Attempted to remove torrent not found in active client:", hashHex)
-		return
-	}
-
-	// Remove from our map BEFORE telling the client to drop it.
 	bts.mu.Lock()
-	delete(bts.torrents, hash)
+	torr, ok := bts.torrents[hash]
+	if ok {
+		delete(bts.torrents, hash)
+	}
 	bts.mu.Unlock()
-	
-	// Now, safely and synchronously close the torrent instance.
-	torr.Close()
-	log.TLogln("Explicitly removed torrent from client and references:", hashHex)
+
+	if ok && torr != nil {
+		torr.Close()
+		log.TLogln("Explicitly removed torrent from client and references:", hashHex)
+	} else {
+		log.TLogln("Attempted to remove torrent not found in active client:", hashHex)
+	}
 }
 
 func GetTorrent(hash metainfo.Hash) *Torrent {
@@ -105,7 +93,7 @@ func ListTorrent() []*Torrent {
 		if ret[i].Timestamp != ret[j].Timestamp {
 			return ret[i].Timestamp > ret[j].Timestamp
 		} else {
-			return ret[i].Title > ret[j].Title
+			return ret[i].FileName > ret[j].FileName
 		}
 	})
 
@@ -113,8 +101,7 @@ func ListTorrent() []*Torrent {
 }
 
 func DropTorrent(hashHex string) {
-	hash := metainfo.NewHashFromHex(hashHex)
-	bts.RemoveTorrent(hash)
+	RemTorrent(hashHex)
 }
 
 func SetSettings(set *sets.BTSets) {
@@ -123,12 +110,12 @@ func SetSettings(set *sets.BTSets) {
 		return
 	}
 	sets.SetBTSets(set)
-	log.TLogln("drop all torrents")
+	log.TLogln("dropping all torrents for settings change")
 	dropAllTorrent()
 	time.Sleep(time.Second * 1)
-	log.TLogln("disconect")
+	log.TLogln("disconnecting BT client")
 	bts.Disconnect()
-	log.TLogln("connect")
+	log.TLogln("connecting BT client with new settings")
 	bts.Connect()
 	time.Sleep(time.Second * 1)
 	log.TLogln("end set settings")
@@ -140,21 +127,28 @@ func SetDefSettings() {
 		return
 	}
 	sets.SetDefaultConfig()
-	log.TLogln("drop all torrents")
+	log.TLogln("dropping all torrents for default settings change")
 	dropAllTorrent()
 	time.Sleep(time.Second * 1)
-	log.TLogln("disconect")
+	log.TLogln("disconnecting BT client")
 	bts.Disconnect()
-	log.TLogln("connect")
+	log.TLogln("connecting BT client with default settings")
 	bts.Connect()
 	time.Sleep(time.Second * 1)
 	log.TLogln("end set default settings")
 }
 
 func dropAllTorrent() {
-	for _, torr := range bts.torrents {
-		torr.drop()
-		<-torr.closed
+	bts.mu.Lock()
+	torrentsToDrop := make([]*Torrent, 0, len(bts.torrents))
+	for hash, torr := range bts.torrents {
+		torrentsToDrop = append(torrentsToDrop, torr)
+		delete(bts.torrents, hash)
+	}
+	bts.mu.Unlock()
+
+	for _, torr := range torrentsToDrop {
+		torr.Close()
 	}
 }
 
@@ -166,5 +160,9 @@ func Shutdown() {
 }
 
 func WriteStatus(w io.Writer) {
-	bts.client.WriteStatus(w)
+	if bts.client != nil {
+		bts.client.WriteStatus(w)
+	} else {
+		io.WriteString(w, "Torrent client is not connected.\n")
+	}
 }

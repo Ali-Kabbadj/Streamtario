@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
 	"sync"
 	"syscall"
 	"time"
@@ -24,32 +23,63 @@ import (
 
 var (
 	upgrader = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true 
-		},
+		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 	clients   = make(map[*websocket.Conn]bool)
 	clientsMu sync.Mutex
 )
 
+// Broadcast sends a stats-update message with the given slice of TorrentStatus
+// to every connected client.
 func Broadcast(status []*state.TorrentStatus) {
-    clientsMu.Lock()
-    defer clientsMu.Unlock()
+	clientsMu.Lock()
+	defer clientsMu.Unlock()
 
-    if len(clients) == 0 {
-        return
-    }
+	if len(clients) == 0 {
+		return
+	}
 
-    message := gin.H{"type": "stats-update", "payload": gin.H{"torrents": status}}
-    for client := range clients {
-        if err := client.WriteJSON(message); err != nil {
-            log.TLogln("ws write error:", err)
-            client.Close()
-            delete(clients, client)
-        }
-    }
+	message := gin.H{
+		"type":    "stats-update",
+		"payload": gin.H{"torrents": status},
+	}
+
+	for conn := range clients {
+		if err := conn.WriteJSON(message); err != nil {
+			log.TLogln("ws write error:", err)
+			conn.Close()
+			delete(clients, conn)
+		}
+	}
 }
 
+// StartStatsPusher begins a goroutine that polls every 500ms and
+// broadcasts when there is at least one torrent or when the
+// count drops from >0 to 0, ensuring the final empty update is sent.
+func StartStatsPusher() {
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+
+		lastCount := -1
+		for range ticker.C {
+			var statusList []*state.TorrentStatus
+			for _, t := range torr.ListTorrent() {
+				statusList = append(statusList, t.Status())
+			}
+
+			currCount := len(statusList)
+			// broadcast if there are torrents, or if we just dropped to zero
+			if currCount > 0 || (lastCount > 0 && currCount == 0) {
+				Broadcast(statusList)
+			}
+			lastCount = currCount
+		}
+	}()
+}
+
+// handleWebSocket upgrades the connection, registers the client,
+// sends an initial stats-update if >=1 torrent, then listens for disconnect.
 func handleWebSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -63,15 +93,16 @@ func handleWebSocket(c *gin.Context) {
 	clientsMu.Unlock()
 	log.TLogln("WebSocket client connected")
 
-	var statusList []*state.TorrentStatus
+	// initial push if torrents exist
+	var initial []*state.TorrentStatus
 	for _, t := range torr.ListTorrent() {
-		statusList = append(statusList, t.Status())
+		initial = append(initial, t.Status())
 	}
-	if len(statusList) > 0 {
-		conn.WriteJSON(gin.H{"type": "stats-update", "payload": gin.H{"torrents": statusList}})
+	if len(initial) > 0 {
+		conn.WriteJSON(gin.H{"type": "stats-update", "payload": gin.H{"torrents": initial}})
 	}
 
-
+	// keep connection open until client disconnects
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			clientsMu.Lock()
@@ -83,32 +114,10 @@ func handleWebSocket(c *gin.Context) {
 	}
 }
 
+// Run starts the HTTP server, WebSocket handler, and stats pusher.
 func Run() {
-	    go func() {
-        ticker := time.NewTicker(500 * time.Millisecond)
-        defer ticker.Stop()
-
-        var lastStats []*state.TorrentStatus
-
-        for range ticker.C {
-            // 1) gather current statuses
-            var current []*state.TorrentStatus
-            for _, t := range torr.ListTorrent() {
-                current = append(current, t.Status())
-            }
-
-            // 2) compare deep-equal to last snapshot
-            if !reflect.DeepEqual(current, lastStats) {
-                Broadcast(current)
-
-                // 3) store a copy for next comparison
-                lastStats = make([]*state.TorrentStatus, len(current))
-                copy(lastStats, current)
-            }
-        }
-    }()
-
-
+	// start the stats pusher
+	StartStatsPusher()
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -129,7 +138,6 @@ func Run() {
 	router.GET("/stream/:hash/:id", torr.Stream)
 	router.HEAD("/stream/:hash/:id", torr.Stream)
 	router.GET("/ws", handleWebSocket)
-
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "TorrServer Daemon: Core API is running")
@@ -145,7 +153,7 @@ func Run() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.TLogln(fmt.Sprintf("Listen error: %s\n", err))
+			log.TLogln(fmt.Sprintf("Listen error: %s", err))
 		}
 	}()
 

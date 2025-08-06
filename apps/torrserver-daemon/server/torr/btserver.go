@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net"
 	"sync"
+	"time"
 
 	"server/settings"
 	custom_storage "server/storage"
@@ -26,6 +27,7 @@ type BTServer struct {
 	storage  torrent_storage.ClientImpl
 	torrents map[metainfo.Hash]*Torrent
 	mu       sync.Mutex
+	stopJanitor chan struct{} // Channel to stop the janitor goroutine
 }
 var privateIPBlocks []*net.IPNet
 
@@ -45,6 +47,7 @@ func init() {
 func NewBTS() *BTServer {
 	bts := new(BTServer)
 	bts.torrents = make(map[metainfo.Hash]*Torrent)
+	bts.stopJanitor = make(chan struct{})
 	return bts
 }
 
@@ -54,13 +57,20 @@ func (bt *BTServer) Connect() error {
 	var err error
 	bt.configure(context.TODO())
 	bt.client, err = torrent.NewClient(bt.config)
+	if err != nil {
+		return err
+	}
 	bt.torrents = make(map[metainfo.Hash]*Torrent)
-	return err
+	// Start the torrent cleanup janitor
+	go bt.runTorrentJanitor()
+	return nil
 }
 
 func (bt *BTServer) Disconnect() {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
+	// Stop the janitor
+	close(bt.stopJanitor)
 	if bt.client != nil {
 		bt.client.Close()
 		bt.client = nil
@@ -68,7 +78,29 @@ func (bt *BTServer) Disconnect() {
 	}
 }
 
+// runTorrentJanitor periodically checks for and removes expired torrents.
+func (bt *BTServer) runTorrentJanitor() {
+	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
+	defer ticker.Stop()
 
+	for {
+		select {
+		case <-ticker.C:
+			bt.mu.Lock()
+			for hash, torr := range bt.torrents {
+				if torr.expired() {
+					log.Println("Janitor: torrent expired, cleaning up:", hash.HexString())
+					torr.Close() // Ensure it's fully closed
+					delete(bt.torrents, hash)
+				}
+			}
+			bt.mu.Unlock()
+		case <-bt.stopJanitor:
+			log.Println("Stopping torrent janitor.")
+			return
+		}
+	}
+}
 
 func (bt *BTServer) configure(ctx context.Context) {
 	s := settings.Get()
@@ -77,11 +109,12 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config = torrent.NewDefaultClientConfig()
 
 	if s.UseDisk && s.TorrentsSavePath != "" {
-		log.Println("Using persistent file cache at:", s.TorrentsSavePath)
-		bt.storage = custom_storage.New(s.TorrentsSavePath)
+		log.Println("Using custom file piece storage at:", s.TorrentsSavePath)
+		bt.storage = custom_storage.NewFilePieceStorage(s.TorrentsSavePath)
 		bt.config.DefaultStorage = bt.storage
 	} else {
 		log.Println("Using ephemeral in-memory cache.")
+		bt.config.DefaultStorage = nil 
 	}
 	
 	userAgent := "qBittorrent/4.3.9"
@@ -104,15 +137,6 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config.EstablishedConnsPerTorrent = s.ConnectionsLimit
 	bt.config.TotalHalfOpenConns = 500
 	
-	// // Corrected Encryption Settings
-	// if s.ForceEncrypt {
-	// 	bt.config.HeaderObfuscationPolicy = torrent.HeaderObfuscationPolicyRequired
-	// 	bt.config.CryptoProvides = mse.CryptoMethodRC4
-	// } else {
-	// 	bt.config.HeaderObfuscationPolicy = torrent.HeaderObfuscationPolicyPrefer
-	// 	bt.config.CryptoProvides = mse.CryptoMethodAll
-	// }
-
 	if s.DownloadRateLimit > 0 {
 		bt.config.DownloadRateLimiter = utils.Limit(s.DownloadRateLimit * 1024)
 	}
