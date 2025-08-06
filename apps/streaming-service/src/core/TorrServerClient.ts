@@ -34,7 +34,7 @@ class TorrServerClient {
     public async cleanupTorrent(infoHash: string): Promise<void> {
         try {
             await this.apiClient.post('/torrents', {
-                action: 'cleanup', // Use the new, specific action
+                action: 'cleanup',
                 hash: infoHash,
             });
             console.log(`[TorrServerClient] Cleanup command sent for hash: ${infoHash}`);

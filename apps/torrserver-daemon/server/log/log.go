@@ -39,7 +39,7 @@ func Init(path, webpath string) {
 
 	if path != "" {
 		if fi, err := os.Lstat(path); err == nil {
-			if fi.Size() >= 100*1024*1024 { // 100MB
+			if fi.Size() >= 100*1024*1024 {
 				os.Remove(path)
 			}
 		}

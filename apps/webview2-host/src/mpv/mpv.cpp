@@ -9,7 +9,6 @@
 
 static void MpvWakeup(void *ctx)
 {
-    // LOG_INFO("MPV_Thread", "MpvWakeup callback initiated.");
     PostMessage((HWND)ctx, WM_MPV_WAKEUP, 0, 0);
 }
 
@@ -66,7 +65,6 @@ void HandleMpvEvents()
             LOG_INFO("MPV_Event", "MPV_EVENT_FILE_LOADED received. Checking for resume position.");
 
             double startTime = 0;
-            // The "start" property is automatically populated by mpv from the watch_later file.
             if (mpv_get_property(g_mpv, "start", MPV_FORMAT_DOUBLE, &startTime) == 0 && startTime > 1.0)
             {
                 std::string timeStr = std::to_string(startTime);
@@ -74,7 +72,6 @@ void HandleMpvEvents()
                 LOG_INFO("MPV_Event", "Found resume time. Issued explicit seek to: " + timeStr + "s");
             }
 
-            // Proactively send the initial state to the frontend
             double duration = 0;
             int64_t volume = 0;
             int is_paused = 1;
@@ -130,7 +127,6 @@ void HandleMpvEvents()
     }
 }
 
-// Handles commands like "loadfile"
 void HandleMpvCommand(const std::vector<std::string> &args)
 {
     if (!g_mpv || args.empty())
@@ -141,19 +137,13 @@ void HandleMpvCommand(const std::vector<std::string> &args)
 
     LOG_INFO("UI_Thread", "Sending command to MPV: " + args[0]);
 
-    // Convert std::string to const char* for the C API
     std::vector<const char *> cargs;
     for (const auto &s : args)
     {
         cargs.push_back(s.c_str());
     }
-    cargs.push_back(nullptr); // The array must be null-terminated
-
-    // Send the command to the MPV engine
+    cargs.push_back(nullptr);
     mpv_command_async(g_mpv, 0, cargs.data());
-
-    // After sending a command, we must explicitly wake up the mpv event loop
-    // to ensure it processes the command and any resulting events immediately.
     mpv_wakeup(g_mpv);
 }
 
@@ -167,12 +157,9 @@ void HandleMpvSetProp(const std::vector<std::string> &args)
     if (val == "false")
         val = "no";
     mpv_set_property_string(g_mpv, args[0].c_str(), val.c_str());
-
-    // Also wake up after setting a property
     mpv_wakeup(g_mpv);
 }
 
-// Not used yet, but good to have
 void HandleMpvObserveProp(const std::vector<std::string> &args)
 {
     if (!g_mpv || args.empty())
@@ -204,7 +191,6 @@ bool InitMPV(HWND hwnd)
     mpv_set_option(g_mpv, "wid", MPV_FORMAT_INT64, &wid);
     mpv_set_option_string(g_mpv, "vo", "gpu-next");
 
-    // === USE PORTABLE CONFIGURATION ===
     std::wstring configDirW = AppConfig::GetConfigDirectory();
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, configDirW.c_str(), -1, NULL, 0, NULL, NULL);
     std::string configDirA(size_needed, 0);
@@ -213,7 +199,6 @@ bool InitMPV(HWND hwnd)
     mpv_set_option_string(g_mpv, "config", "yes");
     mpv_set_option_string(g_mpv, "config-dir", configDirA.c_str());
 
-    //  Enable and configure watch_later for position saving ---
     std::wstring watchLaterDirW = configDirW + L"\\watch_later";
     int size_needed_wl = WideCharToMultiByte(CP_UTF8, 0, watchLaterDirW.c_str(), -1, NULL, 0, NULL, NULL);
     std::string watchLaterDirA(size_needed_wl, 0);
@@ -221,17 +206,14 @@ bool InitMPV(HWND hwnd)
 
     mpv_set_option_string(g_mpv, "watch-later-directory", watchLaterDirA.c_str());
     mpv_set_option_string(g_mpv, "save-position-on-quit", "yes");
-    // --- END watch_later config ---
 
     mpv_set_option_string(g_mpv, "volume", "0");
 
-    // mpv logging
     mpv_set_option_string(g_mpv, "terminal", "no");
     mpv_set_option_string(g_mpv, "msg-level", "all=v");
     mpv_set_option_string(g_mpv, "log-file", "NUL");
     mpv_request_log_messages(g_mpv, "v");
 
-    // Other options
     mpv_set_property_string(g_mpv, "cache", "yes");
     mpv_set_property_string(g_mpv, "cache-secs", "60");
 
@@ -242,7 +224,6 @@ bool InitMPV(HWND hwnd)
         return false;
     }
 
-    // Observe properties for UI updates
     mpv_observe_property(g_mpv, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(g_mpv, 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(g_mpv, 0, "pause", MPV_FORMAT_FLAG);
@@ -264,8 +245,6 @@ void CleanupMPV()
         {
             g_mpvThread.join();
         }
-        // mpv_terminate_destroy is called by the shutdown event, but we can call it here as a fallback
-        // mpv_terminate_destroy(g_mpv);
         g_mpv = nullptr;
         LOG_INFO("MPV_Cleanup", "Cleaned up MPV instance.");
     }

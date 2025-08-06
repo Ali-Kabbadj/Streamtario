@@ -32,3 +32,4 @@ go.work.sum
 # .vscode/
 config.db
 cache
+go.sum

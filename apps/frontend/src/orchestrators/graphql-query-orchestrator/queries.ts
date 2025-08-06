@@ -72,15 +72,29 @@ export const GetStreamsDocument = graphql(`
         behaviorHints
         addonName
         announce
-        # files {
-        #   name
-        #   path
-        #   length
-        # }
       }
     }
   }
 `);
+
+export const GetPlaybackHistoryDocument = graphql(`
+  query GetPlaybackHistory($profileId: ID!, $contentIds: [String!]!) {
+    playbackHistory(profileId: $profileId, contentIds: $contentIds) {
+      contentId
+      positionSeconds
+      durationSeconds
+    }
+  }
+`);
+
+export const UpdatePlaybackHistoryDocument = graphql(`
+  mutation UpdatePlaybackHistory($input: UpdatePlaybackHistoryInput!) {
+    updatePlaybackHistory(input: $input) {
+      id
+    }
+  }
+`);
+
 
 
 export const ManifestByUrlDocument = graphql(`

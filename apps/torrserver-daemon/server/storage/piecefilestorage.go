@@ -53,7 +53,7 @@ func (fsc *FilePieceStorageClient) Close() error {
 type filePieceTorrentImpl struct {
 	torrentDir  string
 	info        *metainfo.Info
-	infoHash    metainfo.Hash 
+	infoHash    metainfo.Hash
 	fileOffsets []int64
 	fileHandles map[int]*os.File
 	completion  storage.PieceCompletion
@@ -83,11 +83,10 @@ func newFilePieceTorrentImpl(torrentDir string, info *metainfo.Info, infoHash me
 	}, nil
 }
 
-
 func (fpt *filePieceTorrentImpl) Piece(p metainfo.Piece) storage.PieceImpl {
 	return &filePieceImpl{
-		fpt:     fpt,
-		piece:   p,
+		fpt:   fpt,
+		piece: p,
 	}
 }
 

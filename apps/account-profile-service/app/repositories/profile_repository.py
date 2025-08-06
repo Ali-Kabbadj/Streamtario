@@ -2,11 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete
 from sqlalchemy.orm import selectinload
+from sqlalchemy.dialects.postgresql import insert
 from core.database.models.auth.account import ProfileOrm
 from core.database.models.auth.addon import InstalledAddonOrm
-from typing import Optional
+from core.database.models.auth.account import PlaybackHistoryOrm
+from typing import List, Optional
 from app.domain.repositories.i_profile_repository import IProfileRepository
-from core.pydantic.domain.profile import Profile
+from core.pydantic.domain.profile import PlaybackHistory, Profile
 from core.pydantic.domain.addon import InstalledAddon
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
@@ -78,11 +80,14 @@ class ProfileRepository(IProfileRepository):
         return Profile.model_validate(updated_orm)
 
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
-        """Fetches a single profile by its ID, eagerly loading its addons."""
+        """Fetches a single profile by its ID, eagerly loading its addons and history."""
         stmt = (
             select(ProfileOrm)
             .where(ProfileOrm.id == profile_id)
-            .options(selectinload(ProfileOrm.installed_addons))
+            .options(
+                selectinload(ProfileOrm.installed_addons),
+                selectinload(ProfileOrm.playback_history),
+            )
         )
         result = await self.session.execute(stmt)
         profile_orm = result.scalars().first()
@@ -123,3 +128,36 @@ class ProfileRepository(IProfileRepository):
         )
         result = await self.session.execute(stmt)
         return result.rowcount
+
+    async def upsert_playback_history(
+        self,
+        profile_id: str,
+        content_id: str,
+        position_seconds: int,
+        duration_seconds: int,
+    ) -> PlaybackHistory:
+        """
+        Creates a new playback history entry or updates an existing one
+        for the same profile and content.
+        """
+        stmt = (
+            insert(PlaybackHistoryOrm)
+            .values(
+                profile_id=profile_id,
+                content_id=content_id,
+                position_seconds=position_seconds,
+                duration_seconds=duration_seconds,
+            )
+            .on_conflict_do_update(
+                index_elements=["profile_id", "content_id"],
+                set_={
+                    "position_seconds": position_seconds,
+                    "duration_seconds": duration_seconds,
+                },
+            )
+            .returning(PlaybackHistoryOrm)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        updated_orm = result.scalars().one()
+        return PlaybackHistory.model_validate(updated_orm)

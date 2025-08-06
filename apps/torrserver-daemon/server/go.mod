@@ -7,7 +7,6 @@ toolchain go1.23.5
 require (
 	github.com/anacrolix/publicip v0.3.1
 	github.com/anacrolix/torrent v1.58.1
-	github.com/gin-contrib/location v1.0.3
 	github.com/gin-gonic/gin v1.10.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/swaggo/files v1.0.1

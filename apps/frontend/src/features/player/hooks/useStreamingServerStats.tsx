@@ -65,7 +65,6 @@ export function useStreamingServerStats() {
       }
       ws.current = null;
       setIsConnected(false);
-      // keep stats array; empty payloads handled in onmessage
     }
   }, []);
 

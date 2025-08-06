@@ -34,8 +34,6 @@ func (v *XPathDBRouter) RegisterRoute(db TorrServerDB, xPath string) error {
 	if slices.Contains(v.routes, newRoute) {
 		return fmt.Errorf("route \"%s\" already in routing table", newRoute)
 	}
-
-	// First DB becomes Default DB with default route
 	if len(v.dbs) == 0 && len(newRoute) != 0 {
 		v.RegisterRoute(db, "")
 	}
@@ -48,10 +46,6 @@ func (v *XPathDBRouter) RegisterRoute(db TorrServerDB, xPath string) error {
 
 	v.route2db[newRoute] = db
 	v.routes = append(v.routes, newRoute)
-
-	// Sort routes by length descending.
-	//   It is important later to help selecting
-	//   most suitable route in getDBForXPath(xPath)
 	sort.Slice(v.routes, func(iLeft, iRight int) bool {
 		return len(v.routes[iLeft]) > len(v.routes[iRight])
 	})

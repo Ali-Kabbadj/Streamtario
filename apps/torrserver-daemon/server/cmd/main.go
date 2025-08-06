@@ -5,7 +5,6 @@ import (
 	"runtime"
 
 	"server"
-	_ "server/docs"
 	"server/log"
 	"server/settings"
 	"server/torr"

@@ -8,7 +8,6 @@
 
 using namespace Microsoft::WRL;
 
-// Initializes the main application WebView, RESTORING your original debug/production logic
 void InitMainWebView(HWND hWnd, const std::wstring &app_path)
 {
   std::wstring webview_data_dir = AppConfig::GetConfigDirectory() + L"\\WebView2_Data";
@@ -28,11 +27,10 @@ void InitMainWebView(HWND hWnd, const std::wstring &app_path)
                                                       g_webviewController = controller;
                                                       g_webviewController->get_CoreWebView2(&g_webview);
 
-                                                      // --- THIS IS CRITICAL ---
                                                       wil::com_ptr<ICoreWebView2Controller2> controller2 = g_webviewController.try_query<ICoreWebView2Controller2>();
                                                       if (controller2)
                                                       {
-                                                        controller2->put_DefaultBackgroundColor({0, 0, 0, 0}); // Transparent
+                                                        controller2->put_DefaultBackgroundColor({0, 0, 0, 0});
                                                       }
                                                     }
 
@@ -41,10 +39,8 @@ void InitMainWebView(HWND hWnd, const std::wstring &app_path)
                                                     g_webviewController->put_Bounds(bounds);
 
 #ifdef _DEBUG
-                                                    // =========== DEVELOPMENT MODE (HTTPS) ===========
                                                     g_webview->Navigate(L"https://localhost:3000");
 #else
-                                                    // =========== PRODUCTION MODE ===========
                                                     std::wstring web_assets_path = app_path + L"\\www";
                                                     wil::com_ptr<ICoreWebView2_3> webview3 = g_webview.try_query<ICoreWebView2_3>();
                                                     if (webview3)
@@ -54,7 +50,6 @@ void InitMainWebView(HWND hWnd, const std::wstring &app_path)
                                                     }
                                                     g_webview->Navigate(L"https://streamtario.app/index.html");
 #endif
-                                                    // =================================================================
 
                                                     EventRegistrationToken token;
                                                     g_webview->add_WebMessageReceived(
