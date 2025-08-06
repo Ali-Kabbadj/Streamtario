@@ -44,7 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
     }
-    // Invalidate all queries to ensure a clean state on re-login
     queryClient.clear();
     window.location.href = "/";
   }, [queryClient]);
@@ -61,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const decoded = jwtDecode<{ exp: number }>(accessToken);
       const expiresIn = decoded.exp * 1000 - Date.now();
-      // Refresh 60 seconds before the token actually expires
       const refreshIn = expiresIn - 60000;
 
       if (refreshIn > 0) {

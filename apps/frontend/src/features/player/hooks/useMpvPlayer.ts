@@ -125,8 +125,6 @@ export function useMpvPlayer() {
         if (state.activeStream?.infoHash) {
             const cleanupUrl = `${streamingApiUrl}/cleanup/${state.activeStream.infoHash}`;
 
-            // Using fetch with keepalive is more robust and debuggable than sendBeacon.
-            // This ensures the cleanup command is sent reliably when the player closes.
             fetch(cleanupUrl, {
                 method: 'POST',
                 keepalive: true,
@@ -143,7 +141,6 @@ export function useMpvPlayer() {
                 });
         }
 
-        // These commands stop the local player and UI.
         sendCommand({ command: "stop" });
         dispatch({ type: 'STOP_PLAYBACK' });
     }, [sendCommand, streamingApiUrl, state.activeStream]);
@@ -158,16 +155,13 @@ export function useMpvPlayer() {
             const { infoHash, fileIdx } = stream;
             const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
 
-            // Instantly update the UI and tell the player to start.
-            // The daemon's /stream endpoint is now extremely fast for cached content.
             dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo } });
             sendCommand({ command: "play", payload: { url: streamUrl } });
 
         }, [sendCommand, streamingApiUrl]),
 
         stopAction: useCallback(() => {
-            // The frontend's only job is to stop the local player.
-            // The daemon's idle timer will handle cleanup automatically and safely.
+
             sendCommand({ command: "stop" });
             dispatch({ type: 'STOP_PLAYBACK' });
         }, [sendCommand]),

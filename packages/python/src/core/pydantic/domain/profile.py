@@ -2,6 +2,16 @@ import uuid
 from typing import List, Optional
 from core.pydantic.domain.addon import InstalledAddon
 from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
+
+
+class PlaybackHistory(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content_id: str = Field(..., alias="contentId")
+    position_seconds: int = Field(..., alias="positionSeconds")
+    duration_seconds: int = Field(..., alias="durationSeconds")
+    watched_at: datetime = Field(..., alias="watchedAt")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class Profile(BaseModel):
@@ -14,6 +24,9 @@ class Profile(BaseModel):
     pin_hash: Optional[str] = Field(None, alias="pinHash")
     installed_addons: List[InstalledAddon] = Field(
         default_factory=list, alias="installedAddons"
+    )
+    playback_history: List[PlaybackHistory] = Field(
+        default_factory=list, alias="playbackHistory"
     )
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

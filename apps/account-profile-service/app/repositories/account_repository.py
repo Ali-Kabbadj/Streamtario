@@ -13,62 +13,39 @@ class AccountRepository(IAccountRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, account_id: str) -> Optional[Account]:
-        """Fetches an account by ID, eagerly loading its profiles and their addons."""
-        stmt = (
-            select(AccountOrm)
-            .where(AccountOrm.id == account_id)
-            .options(
-                selectinload(AccountOrm.profiles).selectinload(
-                    ProfileOrm.installed_addons
-                )
+    def _get_base_query(self):
+        """Creates a base query with all necessary eager loads."""
+        return select(AccountOrm).options(
+            selectinload(AccountOrm.profiles).options(
+                selectinload(ProfileOrm.installed_addons),
+                selectinload(ProfileOrm.playback_history),
             )
         )
+
+    async def get_by_id(self, account_id: str) -> Optional[Account]:
+        """Fetches an account by ID, eagerly loading all relationships."""
+        stmt = self._get_base_query().where(AccountOrm.id == account_id)
         result = await self.session.execute(stmt)
         account_orm = result.scalars().first()
         return Account.model_validate(account_orm) if account_orm else None
 
     async def get_by_email(self, email: str) -> Optional[Account]:
-        """Fetches an account by email, eagerly loading its profiles and their addons."""
-        stmt = (
-            select(AccountOrm)
-            .where(AccountOrm.email == email)
-            .options(
-                selectinload(AccountOrm.profiles).selectinload(
-                    ProfileOrm.installed_addons
-                )
-            )
-        )
+        """Fetches an account by email, eagerly loading all relationships."""
+        stmt = self._get_base_query().where(AccountOrm.email == email)
         result = await self.session.execute(stmt)
         account_orm = result.scalars().first()
         return Account.model_validate(account_orm) if account_orm else None
 
     async def get_by_google_id(self, google_id: str) -> Optional[Account]:
-        """Fetches an account by Google ID."""
-        stmt = (
-            select(AccountOrm)
-            .where(AccountOrm.google_id == google_id)
-            .options(
-                selectinload(AccountOrm.profiles).selectinload(
-                    ProfileOrm.installed_addons
-                )
-            )
-        )
+        """Fetches an account by Google ID, eagerly loading all relationships."""
+        stmt = self._get_base_query().where(AccountOrm.google_id == google_id)
         result = await self.session.execute(stmt)
         account_orm = result.scalars().first()
         return Account.model_validate(account_orm) if account_orm else None
 
     async def get_by_facebook_id(self, facebook_id: str) -> Optional[Account]:
-        """Fetches an account by Facebook ID."""
-        stmt = (
-            select(AccountOrm)
-            .where(AccountOrm.facebook_id == facebook_id)
-            .options(
-                selectinload(AccountOrm.profiles).selectinload(
-                    ProfileOrm.installed_addons
-                )
-            )
-        )
+        """Fetches an account by Facebook ID, eagerly loading all relationships."""
+        stmt = self._get_base_query().where(AccountOrm.facebook_id == facebook_id)
         result = await self.session.execute(stmt)
         account_orm = result.scalars().first()
         return Account.model_validate(account_orm) if account_orm else None

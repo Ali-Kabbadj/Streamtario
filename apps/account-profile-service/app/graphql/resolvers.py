@@ -1,9 +1,11 @@
+from typing import List
 from dependency_injector.wiring import inject, Provide
 from strawberry.types import Info
 from app.security.dependencies import get_current_user_payload
 from security.schemas import TokenPayload
 from app.containers import Container
 from app.use_cases.account.get_account import GetAccountUseCase
+from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
 from app.use_cases.account.create_account import CreateAccountUseCase
 from app.use_cases.profile.install_addon import InstallAddonUseCase
@@ -15,6 +17,7 @@ from app.use_cases.profile.create_profile import CreateProfileUseCase
 from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
+from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
 from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from domain_exceptions.exceptions import ApiException
@@ -47,6 +50,8 @@ from .types import (
     VerifyProfilePinInput,
     VerifyProfilePinSuccess,
     VerifyProfilePinError,
+    PlaybackHistoryType,
+    UpdatePlaybackHistoryInput,
 )
 import strawberry
 from core.utils.logging import log_info, log_error
@@ -55,6 +60,24 @@ from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
 
 # --- QUERIES ---
+
+
+@inject
+async def resolve_playback_history(
+    info: Info,
+    profile_id: strawberry.ID,
+    content_ids: List[str],
+    use_case: GetPlaybackHistoryUseCase = Provide[
+        Container.get_playback_history_use_case
+    ],
+) -> List[PlaybackHistoryType]:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    history_items = await use_case.execute(
+        requesting_account_id=current_user.sub,
+        profile_id=str(profile_id),
+        content_ids=content_ids,
+    )
+    return [PlaybackHistoryType.from_pydantic(item) for item in history_items]
 
 
 @inject
@@ -92,6 +115,25 @@ async def resolve_account(
 
 
 # --- MUTATIONS ---
+
+
+@inject
+async def resolve_update_playback_history(
+    info: Info,
+    input: UpdatePlaybackHistoryInput,
+    use_case: UpdatePlaybackHistoryUseCase = Provide[
+        Container.update_playback_history_use_case
+    ],
+) -> PlaybackHistoryType:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    history_item = await use_case.execute(
+        requesting_account_id=current_user.sub,
+        profile_id=str(input.profile_id),
+        content_id=input.content_id,
+        position_seconds=input.position_seconds,
+        duration_seconds=input.duration_seconds,
+    )
+    return PlaybackHistoryType.from_pydantic(history_item)
 
 
 @inject

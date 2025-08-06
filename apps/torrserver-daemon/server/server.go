@@ -29,8 +29,6 @@ var (
 	clientsMu sync.Mutex
 )
 
-// Broadcast sends a stats-update message with the given slice of TorrentStatus
-// to every connected client.
 func Broadcast(status []*state.TorrentStatus) {
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
@@ -53,9 +51,6 @@ func Broadcast(status []*state.TorrentStatus) {
 	}
 }
 
-// StartStatsPusher begins a goroutine that polls every 500ms and
-// broadcasts when there is at least one torrent or when the
-// count drops from >0 to 0, ensuring the final empty update is sent.
 func StartStatsPusher() {
 	go func() {
 		ticker := time.NewTicker(500 * time.Millisecond)
@@ -69,7 +64,6 @@ func StartStatsPusher() {
 			}
 
 			currCount := len(statusList)
-			// broadcast if there are torrents, or if we just dropped to zero
 			if currCount > 0 || (lastCount > 0 && currCount == 0) {
 				Broadcast(statusList)
 			}
@@ -78,8 +72,6 @@ func StartStatsPusher() {
 	}()
 }
 
-// handleWebSocket upgrades the connection, registers the client,
-// sends an initial stats-update if >=1 torrent, then listens for disconnect.
 func handleWebSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -93,7 +85,6 @@ func handleWebSocket(c *gin.Context) {
 	clientsMu.Unlock()
 	log.TLogln("WebSocket client connected")
 
-	// initial push if torrents exist
 	var initial []*state.TorrentStatus
 	for _, t := range torr.ListTorrent() {
 		initial = append(initial, t.Status())
@@ -102,7 +93,6 @@ func handleWebSocket(c *gin.Context) {
 		conn.WriteJSON(gin.H{"type": "stats-update", "payload": gin.H{"torrents": initial}})
 	}
 
-	// keep connection open until client disconnects
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			clientsMu.Lock()
@@ -114,9 +104,7 @@ func handleWebSocket(c *gin.Context) {
 	}
 }
 
-// Run starts the HTTP server, WebSocket handler, and stats pusher.
 func Run() {
-	// start the stats pusher
 	StartStatsPusher()
 
 	gin.SetMode(gin.ReleaseMode)

@@ -11,9 +11,9 @@ import (
 
 // bitfieldPieceCompletion implements storage.PieceCompletion using a simple file.
 type bitfieldPieceCompletion struct {
-	file *os.File
+	file      *os.File
 	numPieces int
-	mu   sync.RWMutex
+	mu        sync.RWMutex
 }
 
 // newBitfieldPieceCompletion creates or opens a bitfield file for a torrent.
@@ -22,7 +22,7 @@ func newBitfieldPieceCompletion(filePath string, numPieces int) (storage.PieceCo
 	if err != nil {
 		return nil, fmt.Errorf("could not open bitfield file: %w", err)
 	}
-	
+
 	// Ensure the file is large enough to hold the bitfield for all pieces.
 	expectedSize := (numPieces + 7) / 8
 	stat, err := f.Stat()
@@ -52,7 +52,7 @@ func (pc *bitfieldPieceCompletion) Get(pk metainfo.PieceKey) (ret storage.Comple
 
 	byteIndex := idx / 8
 	bitIndex := uint(idx % 8)
-	
+
 	buf := make([]byte, 1)
 	_, err = pc.file.ReadAt(buf, int64(byteIndex))
 	if err != nil {
@@ -72,10 +72,10 @@ func (pc *bitfieldPieceCompletion) Set(pk metainfo.PieceKey, complete bool) erro
 	if idx >= pc.numPieces {
 		return fmt.Errorf("piece index %d out of bounds", idx)
 	}
-	
+
 	byteIndex := idx / 8
 	bitIndex := uint(idx % 8)
-	
+
 	buf := make([]byte, 1)
 	// Read-modify-write
 	_, err := pc.file.ReadAt(buf, int64(byteIndex))

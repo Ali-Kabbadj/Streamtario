@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
-from core.pydantic.domain.profile import Profile
+from core.pydantic.domain.profile import Profile, PlaybackHistory
 from core.pydantic.domain.addon import InstalledAddon
 
 
@@ -40,4 +40,14 @@ class IProfileRepository(ABC):
 
     @abstractmethod
     async def remove_addons_by_account(self, account_id: str, manifest_id: str) -> int:
+        pass
+
+    @abstractmethod
+    async def upsert_playback_history(
+        self,
+        profile_id: str,
+        content_id: str,
+        position_seconds: int,
+        duration_seconds: int,
+    ) -> PlaybackHistory:
         pass

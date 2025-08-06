@@ -69,7 +69,7 @@ export function startServer(port: number) {
     });
 
     app.post('/setup-stream', async (req, res) => {
-        const { infoHash, announce } = req.body; // Destructure announce
+        const { infoHash, announce } = req.body;
         if (!infoHash) {
             return res.status(400).send('infoHash is required');
         }

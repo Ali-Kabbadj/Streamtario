@@ -34,31 +34,30 @@ func Close() {
 }
 
 func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int) (*Torrent, error) {
-    spec.DisableInitialPieceCheck = true
+	spec.DisableInitialPieceCheck = true
 
-    bts.mu.Lock()
-    existingTorrent, ok := bts.torrents[spec.InfoHash]
-    bts.mu.Unlock()
+	bts.mu.Lock()
+	existingTorrent, ok := bts.torrents[spec.InfoHash]
+	bts.mu.Unlock()
 
-    if ok && existingTorrent != nil {
-        log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
-        existingTorrent.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
-        return existingTorrent, nil
-    }
+	if ok && existingTorrent != nil {
+		log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
+		existingTorrent.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+		return existingTorrent, nil
+	}
 
-    torr, err := NewTorrent(spec, bts, filename, fileIdx)
-    if err != nil {
-        log.TLogln("error creating new torrent:", err)
-        return nil, err
-    }
-    
-    return torr, nil
+	torr, err := NewTorrent(spec, bts, filename, fileIdx)
+	if err != nil {
+		log.TLogln("error creating new torrent:", err)
+		return nil, err
+	}
+
+	return torr, nil
 }
-
 
 func RemTorrent(hashHex string) {
 	hash := metainfo.NewHashFromHex(hashHex)
-	
+
 	bts.mu.Lock()
 	torr, ok := bts.torrents[hash]
 	if ok {
@@ -75,15 +74,14 @@ func RemTorrent(hashHex string) {
 }
 
 func GetTorrent(hash metainfo.Hash) *Torrent {
-    bts.mu.Lock()
-    defer bts.mu.Unlock()
-    return bts.torrents[hash]
+	bts.mu.Lock()
+	defer bts.mu.Unlock()
+	return bts.torrents[hash]
 }
-
 
 func ListTorrent() []*Torrent {
 	btlist := bts.ListTorrents()
-	
+
 	var ret []*Torrent
 	for _, t := range btlist {
 		ret = append(ret, t)

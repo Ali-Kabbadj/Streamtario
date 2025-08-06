@@ -14,7 +14,7 @@ extern bool g_isMpvPlaying;
 
 // App info
 const WCHAR g_szWindowClass[] = L"WebViewMPVWindowClass";
-const WCHAR g_szTitle[] = L"Streamtario"; // Changed from GayTorrents
+const WCHAR g_szTitle[] = L"Streamtario";
 
 // Globals
 extern HINSTANCE g_hInst;

@@ -6,6 +6,8 @@ from core.pydantic.domain.account import Account as PydanticAccount
 from core.pydantic.domain.profile import Profile as PydanticProfile
 from core.pydantic.domain.addon import InstalledAddon as PydanticInstalledAddon
 from strawberry.scalars import JSON
+from core.pydantic.domain.profile import PlaybackHistory as PydanticPlaybackHistory
+
 
 # ========= INPUT TYPES =========
 
@@ -67,6 +69,14 @@ class VerifyProfilePinInput:
     pin: str
 
 
+@strawberry.input
+class UpdatePlaybackHistoryInput:
+    profile_id: strawberry.ID
+    content_id: str
+    position_seconds: int
+    duration_seconds: int
+
+
 # ========= OBJECT TYPES =========
 
 
@@ -87,6 +97,25 @@ class InstalledAddonType:
         )
 
 
+@strawberry.type
+class PlaybackHistoryType:
+    id: strawberry.ID
+    content_id: str
+    position_seconds: int
+    duration_seconds: int
+    watched_at: str
+
+    @classmethod
+    def from_pydantic(cls, model: PydanticPlaybackHistory) -> "PlaybackHistoryType":
+        return cls(
+            id=strawberry.ID(model.id),
+            content_id=model.content_id,
+            position_seconds=model.position_seconds,
+            duration_seconds=model.duration_seconds,
+            watched_at=model.watched_at.isoformat(),
+        )
+
+
 @strawberry.federation.type(keys=["id"], name="Profile")
 class ProfileType:
     id: strawberry.ID
@@ -95,6 +124,7 @@ class ProfileType:
     is_private: bool
     installed_addons: List[InstalledAddonType]
     manifest_urls: List[str]
+    playback_history: List[PlaybackHistoryType]
 
     @classmethod
     def from_pydantic(cls, model: PydanticProfile) -> "ProfileType":
@@ -107,6 +137,9 @@ class ProfileType:
                 InstalledAddonType.from_pydantic(a) for a in model.installed_addons
             ],
             manifest_urls=model.manifest_urls,
+            playback_history=[
+                PlaybackHistoryType.from_pydantic(h) for h in model.playback_history
+            ],
         )
 
 

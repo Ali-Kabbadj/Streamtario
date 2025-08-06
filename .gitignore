@@ -9,3 +9,4 @@ dev_resources
 .vscode
 .env
 .env.local
+build

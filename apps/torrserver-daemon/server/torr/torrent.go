@@ -20,9 +20,9 @@ import (
 )
 
 type Torrent struct {
-	expiredTime   time.Time
-	FileName string
-	FileIdx  int
+	expiredTime time.Time
+	FileName    string
+	FileIdx     int
 
 	*torrent.TorrentSpec
 	// readerCount is no longer needed and has been removed.
@@ -33,14 +33,14 @@ type Torrent struct {
 	*torrent.Torrent
 	muTorrent sync.Mutex
 
-    bt            *BTServer
+	bt *BTServer
 
-    lastTimeSpeed       time.Time
+	lastTimeSpeed       time.Time
 	DownloadSpeed       float64
 	UploadSpeed         float64
 	BytesReadUsefulData int64
 
-	closed chan struct{}
+	closed         chan struct{}
 	progressTicker *time.Ticker
 }
 
@@ -48,7 +48,7 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 	if bt == nil || bt.client == nil {
 		return nil, errors.New("BT client not connected")
 	}
-	
+
 	if len(spec.Trackers) == 0 {
 		switch settings.Get().RetrackersMode {
 		case 1:
@@ -80,7 +80,7 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 			}
 		}
 	}
-	
+
 	goTorrent, _, err = bt.client.AddTorrentSpec(spec)
 
 	if err != nil {
@@ -113,18 +113,17 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 
 	bt.torrents[spec.InfoHash] = torr
 	log.Println("New torrent instance created and added for:", spec.InfoHash.HexString())
-	
+
 	torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
 
 	return torr, nil
 }
 
-
 func (t *Torrent) WaitInfo() bool {
 	if t.Torrent == nil {
 		return false
 	}
-	
+
 	if t.Info() != nil {
 		t.saveMetadataAndSetFilePriorities()
 		return true
@@ -173,7 +172,7 @@ func (t *Torrent) saveMetadataAndSetFilePriorities() {
 	}
 
 	info := t.Torrent.Info()
-	
+
 	torrentDir := filepath.Join(settings.Get().TorrentsSavePath, t.Hash().HexString())
 	metaFilePath := filepath.Join(torrentDir, ".metainfo.json")
 
@@ -187,7 +186,7 @@ func (t *Torrent) saveMetadataAndSetFilePriorities() {
 			}
 		}
 	}
-	
+
 	files := t.Torrent.Files()
 	if t.FileIdx < 0 || t.FileIdx >= len(files) {
 		return
@@ -217,32 +216,31 @@ func (t *Torrent) watchStats() {
 }
 
 func (t *Torrent) progressEvent() {
-    t.muTorrent.Lock()
-    defer t.muTorrent.Unlock()
+	t.muTorrent.Lock()
+	defer t.muTorrent.Unlock()
 
-    if t.Torrent == nil {
-        t.Stat = state.TorrentClosed
-        return
-    }
+	if t.Torrent == nil {
+		t.Stat = state.TorrentClosed
+		return
+	}
 
-    if t.Torrent.Info() == nil {
-        t.Stat = state.TorrentGettingInfo
-    } else {
-        t.Stat = state.TorrentWorking
-    }
+	if t.Torrent.Info() == nil {
+		t.Stat = state.TorrentGettingInfo
+	} else {
+		t.Stat = state.TorrentWorking
+	}
 
-    st := t.Torrent.Stats()
-    deltaDlBytes := st.BytesReadData.Int64() - t.BytesReadUsefulData
-    deltaTime := time.Since(t.lastTimeSpeed).Seconds()
+	st := t.Torrent.Stats()
+	deltaDlBytes := st.BytesReadData.Int64() - t.BytesReadUsefulData
+	deltaTime := time.Since(t.lastTimeSpeed).Seconds()
 
-    if deltaTime > 0 {
-        t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
-    }
+	if deltaTime > 0 {
+		t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
+	}
 
-    t.BytesReadUsefulData = st.BytesReadData.Int64()
-    t.lastTimeSpeed = time.Now()
+	t.BytesReadUsefulData = st.BytesReadData.Int64()
+	t.lastTimeSpeed = time.Now()
 }
-
 
 func (t *Torrent) Files() []*torrent.File {
 	if t.Torrent != nil && t.Torrent.Info() != nil {
@@ -261,15 +259,12 @@ func (t *Torrent) Hash() metainfo.Hash {
 	return metainfo.Hash{}
 }
 
-
 func (t *Torrent) Length() int64 {
 	if t.Info() == nil {
 		return 0
 	}
 	return t.Torrent.Length()
 }
-
-
 
 func (t *Torrent) Status() *state.TorrentStatus {
 	t.muTorrent.Lock()
@@ -298,39 +293,37 @@ func (t *Torrent) Status() *state.TorrentStatus {
 	return st
 }
 
-
 func (t *Torrent) Close() bool {
-    t.muTorrent.Lock()
-    if t.Stat == state.TorrentClosed {
-        t.muTorrent.Unlock()
-        return true
-    }
-    t.Stat = state.TorrentClosed
-    close(t.closed)
-    t.muTorrent.Unlock()
+	t.muTorrent.Lock()
+	if t.Stat == state.TorrentClosed {
+		t.muTorrent.Unlock()
+		return true
+	}
+	t.Stat = state.TorrentClosed
+	close(t.closed)
+	t.muTorrent.Unlock()
 
-    if t.progressTicker != nil {
-        t.progressTicker.Stop()
-    }
+	if t.progressTicker != nil {
+		t.progressTicker.Stop()
+	}
 
-    if t.Torrent != nil {
+	if t.Torrent != nil {
 		log.Println("Calling Torrent.Drop() for:", t.Hash().HexString())
-        t.Torrent.Drop()
-    }
-    return true
+		t.Torrent.Drop()
+	}
+	return true
 }
 
-
 func (t *Torrent) AddExpiredTime(duration time.Duration) {
-    t.muTorrent.Lock()
-    defer t.muTorrent.Unlock()
-    t.expiredTime = time.Now().Add(duration)
+	t.muTorrent.Lock()
+	defer t.muTorrent.Unlock()
+	t.expiredTime = time.Now().Add(duration)
 }
 
 func (t *Torrent) expired() bool {
-    t.muTorrent.Lock()
-    defer t.muTorrent.Unlock()
-    
-    // The torrent is expired if the current time is after its last known heartbeat.
-    return time.Now().After(t.expiredTime)
+	t.muTorrent.Lock()
+	defer t.muTorrent.Unlock()
+
+	// The torrent is expired if the current time is after its last known heartbeat.
+	return time.Now().After(t.expiredTime)
 }

@@ -13,7 +13,6 @@ var (
 	ReadOnly bool
 )
 
-// Get provides public access to the current settings.
 func Get() *BTSets {
 	return BTsets
 }

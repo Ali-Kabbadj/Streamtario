@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 func Stream(c *gin.Context) {
 
 	infoHashHex := c.Param("hash")
@@ -78,6 +77,6 @@ func Stream(c *gin.Context) {
 	}
 
 	log.Printf("Streaming file %s (index %d, size %d) from torrent %s", torr.FileName, fileIdx, targetFile.Length(), infoHashHex)
-	
+
 	http.ServeContent(c.Writer, c.Request, torr.FileName, time.Unix(torr.Timestamp, 0), reader)
 }

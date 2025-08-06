@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"server/log"
-	"server/version" // Assuming version is in its own package
+	"server/version"
 )
 
 type BTSets struct {
@@ -65,24 +65,21 @@ func (v *BTSets) String() string {
 
 var BTsets *BTSets
 
-// getFactoryDefaults provides the hardcoded, initial state for the settings.
-// This is now the single source of truth for default values.
 func getFactoryDefaults() *BTSets {
 	return &BTSets{
 		Port:                     8090,
-		CacheSize:                64 * 1024 * 1024, // 64 MB
+		CacheSize:                64 * 1024 * 1024,
 		PreloadCache:             50,
 		ConnectionsLimit:         25,
 		RetrackersMode:           1,
-		TorrentDisconnectTimeout: 30, // Lowered to 30s as per our successful tests
-		ReaderReadAHead:          95, // 95%
+		TorrentDisconnectTimeout: 30,
+		ReaderReadAHead:          95,
 		UseDisk:                  true,
 		TorrentsSavePath:         "cache",
 		FriendlyName:             "TorrServer " + version.Version,
 	}
 }
 
-// saveToDB serializes the current global BTsets to the database.
 func saveToDB() {
 	if ReadOnly {
 		return
@@ -95,7 +92,6 @@ func saveToDB() {
 	tdb.Set("Settings", "BitTorr", buf)
 }
 
-// applyFailsafes ensures that critical values are within a valid range.
 func applyFailsafes(sets *BTSets) {
 	if sets.CacheSize == 0 {
 		sets.CacheSize = 64 * 1024 * 1024
@@ -121,31 +117,24 @@ func applyFailsafes(sets *BTSets) {
 	}
 }
 
-// loadBTSets is called by InitSets to populate the settings.
-// It now correctly handles the "first run" scenario.
 func loadBTSets() {
 	buf := tdb.Get("Settings", "BitTorr")
 	if len(buf) > 0 {
-		// Settings exist in the database, so we load them.
 		if err := json.Unmarshal(buf, &BTsets); err != nil {
 			log.TLogln("Error unmarshaling btsets, falling back to defaults:", err)
-			// If unmarshal fails, it's safer to start with defaults.
 			BTsets = getFactoryDefaults()
-			saveToDB() // Save the clean defaults to fix the corrupted entry.
+			saveToDB()
 		} else {
 			log.TLogln("Successfully loaded settings from database.")
 		}
 	} else {
-		// No settings found in the database (first run).
 		log.TLogln("No settings found in database, creating and saving defaults.")
 		BTsets = getFactoryDefaults()
 		saveToDB()
 	}
-	// Always apply failsafes after loading or creating.
 	applyFailsafes(BTsets)
 }
 
-// SetBTSets is called by the API to update settings.
 func SetBTSets(sets *BTSets) {
 	if ReadOnly {
 		log.TLogln("Attempted to set settings in read-only mode.")
@@ -155,8 +144,6 @@ func SetBTSets(sets *BTSets) {
 	applyFailsafes(sets)
 
 	if sets.UseDisk {
-		// This directory walk logic seems custom for finding a specific folder.
-		// We'll keep it as it seems intentional for your setup.
 		go filepath.WalkDir(sets.TorrentsSavePath, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -177,7 +164,6 @@ func SetBTSets(sets *BTSets) {
 	saveToDB()
 }
 
-// SetDefaultConfig is called by the API to reset settings.
 func SetDefaultConfig() {
 	if ReadOnly {
 		log.TLogln("Attempted to set default settings in read-only mode.")

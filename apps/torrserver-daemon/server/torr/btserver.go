@@ -22,13 +22,14 @@ import (
 )
 
 type BTServer struct {
-	config *torrent.ClientConfig
-	client *torrent.Client
-	storage  torrent_storage.ClientImpl
-	torrents map[metainfo.Hash]*Torrent
-	mu       sync.Mutex
+	config      *torrent.ClientConfig
+	client      *torrent.Client
+	storage     torrent_storage.ClientImpl
+	torrents    map[metainfo.Hash]*Torrent
+	mu          sync.Mutex
 	stopJanitor chan struct{} // Channel to stop the janitor goroutine
 }
+
 var privateIPBlocks []*net.IPNet
 
 func init() {
@@ -105,7 +106,7 @@ func (bt *BTServer) runTorrentJanitor() {
 func (bt *BTServer) configure(ctx context.Context) {
 	s := settings.Get()
 	blocklist, _ := utils.ReadBlockedIP()
-	
+
 	bt.config = torrent.NewDefaultClientConfig()
 
 	if s.UseDisk && s.TorrentsSavePath != "" {
@@ -114,9 +115,9 @@ func (bt *BTServer) configure(ctx context.Context) {
 		bt.config.DefaultStorage = bt.storage
 	} else {
 		log.Println("Using ephemeral in-memory cache.")
-		bt.config.DefaultStorage = nil 
+		bt.config.DefaultStorage = nil
 	}
-	
+
 	userAgent := "qBittorrent/4.3.9"
 	peerID := "-qB4390-"
 	bt.config.PeerID = utils.PeerIDRandom(peerID)
@@ -136,7 +137,7 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config.IPBlocklist = blocklist
 	bt.config.EstablishedConnsPerTorrent = s.ConnectionsLimit
 	bt.config.TotalHalfOpenConns = 500
-	
+
 	if s.DownloadRateLimit > 0 {
 		bt.config.DownloadRateLimiter = utils.Limit(s.DownloadRateLimit * 1024)
 	}
@@ -162,7 +163,6 @@ func (bt *BTServer) configure(ctx context.Context) {
 		}
 	}
 }
-
 
 func (bt *BTServer) GetTorrent(hash torrent.InfoHash) *Torrent {
 	if torr, ok := bt.torrents[hash]; ok {

@@ -32,6 +32,8 @@ from .types import (
     VerifyProfilePinError,
     VerifyProfilePinInput,
     VerifyProfilePinSuccess,
+    PlaybackHistoryType,
+    UpdatePlaybackHistoryInput,
 )
 from .resolvers import (
     resolve_account,
@@ -43,8 +45,9 @@ from .resolvers import (
     resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
     resolve_update_profile,
-    # --- IMPORT THE NEW RESOLVER ---
     resolve_verify_profile_pin,
+    resolve_playback_history,
+    resolve_update_playback_history,
 )
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
@@ -105,9 +108,25 @@ class Query:
                 results.append(profile)
         return results
 
+    @strawberry.field
+    async def playback_history(
+        self,
+        info: Info,
+        profile_id: strawberry.ID,
+        content_ids: List[str],
+    ) -> List[PlaybackHistoryType]:
+        return await resolve_playback_history(info, profile_id, content_ids)
+
 
 @strawberry.type
 class Mutation:
+
+    @strawberry.mutation
+    async def update_playback_history(
+        self, info: Info, input: UpdatePlaybackHistoryInput
+    ) -> PlaybackHistoryType:
+        return await resolve_update_playback_history(info, input)
+
     @strawberry.mutation
     async def create_account(
         self, input: CreateAccountInput

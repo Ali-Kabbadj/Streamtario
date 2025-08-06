@@ -32,6 +32,8 @@ from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from app.use_cases.profile.get_manifest_urls_for_profile import (
     GetManifestUrlsForProfileUseCase,
 )
+from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
+from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from security.jwt_service import IJwtService, JwtService
 
 
@@ -177,4 +179,20 @@ class Container(containers.DeclarativeContainer):
         UninstallAddonFromAllProfilesUseCase,
         uow_factory=uow.provider,
         uninstall_addon_use_case=uninstall_addon_use_case,
+    )
+
+    get_playback_history_use_case: providers.Factory[GetPlaybackHistoryUseCase] = (
+        providers.Factory(
+            GetPlaybackHistoryUseCase,
+            uow_factory=uow.provider,
+            authorization_policy=authorization_policy,
+        )
+    )
+
+    update_playback_history_use_case: providers.Factory[
+        UpdatePlaybackHistoryUseCase
+    ] = providers.Factory(
+        UpdatePlaybackHistoryUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
     )

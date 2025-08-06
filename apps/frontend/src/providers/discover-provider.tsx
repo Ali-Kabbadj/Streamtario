@@ -19,7 +19,6 @@ type Action =
   | { type: "SET_STATE"; payload: Partial<DiscoverState> }
   | { type: "RESET_FILTERS" };
 
-// The reducer function to handle state updates
 const discoverReducer = (
   state: DiscoverState,
   action: Action,
