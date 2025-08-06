@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict, Any, Optional
 from core.pydantic.domain.profile import PlaybackHistory
 from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.policies.i_authorization_policy import IAuthorizationPolicy
@@ -19,8 +19,10 @@ class UpdatePlaybackHistoryUseCase:
         requesting_account_id: str,
         profile_id: str,
         content_id: str,
+        item_type: str,  # ADD THIS ARGUMENT
         position_seconds: int,
         duration_seconds: int,
+        last_stream_details: Optional[Dict[str, Any]] = None,
     ) -> PlaybackHistory:
         log_info(
             f"Updating playback history for profile {profile_id}",
@@ -38,8 +40,10 @@ class UpdatePlaybackHistoryUseCase:
             history_item = await uow.profiles.upsert_playback_history(
                 profile_id=profile_id,
                 content_id=content_id,
+                item_type=item_type,  # ADD THIS LINE
                 position_seconds=position_seconds,
                 duration_seconds=duration_seconds,
+                last_stream_details=last_stream_details,
             )
             await uow.commit()
 

@@ -23,6 +23,8 @@ interface StreamItemProps {
   parsed: ParsedStreamDetails;
   mediaTitle: string;
   logoUrl?: string | null;
+  contentId: string;
+  itemType: string;
 }
 
 const tagIcons: Record<string, JSX.Element> = {
@@ -69,6 +71,8 @@ export function StreamItem({
   parsed,
   mediaTitle,
   logoUrl = null,
+  contentId,
+  itemType,
 }: StreamItemProps) {
   const { actions } = usePlayer();
   const { tags } = parsed;
@@ -83,7 +87,7 @@ export function StreamItem({
   ].filter(Boolean) as string[];
 
   const handlePlayClick = () => {
-    actions.playStream(stream, mediaTitle, logoUrl);
+    actions.playStream(stream, mediaTitle, logoUrl, contentId, itemType);
   };
 
   return (

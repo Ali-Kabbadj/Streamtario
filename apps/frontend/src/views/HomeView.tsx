@@ -4,6 +4,7 @@ import { useProfileContext } from "@/providers/profile-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHomeData } from "@/features/home/hooks/useHomeData";
 import { AddonSection } from "@/features/home/components/AddonSection";
+import { ContinueWatchingSection } from "@/features/home/components/ContinueWatchingSection";
 
 export function HomeView() {
   const { selectedProfile } = useProfileContext();
@@ -47,14 +48,7 @@ export function HomeView() {
         <h1 className="mb-4 text-6xl font-bold tracking-tight">Home</h1>
       </div>
 
-      <div>
-        <h2 className="mb-4 pt-4 text-3xl font-bold tracking-tight">
-          Continue Watching
-        </h2>
-        <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50">
-          <p className="text-muted-foreground">Functionality coming soon!</p>
-        </div>
-      </div>
+      <ContinueWatchingSection />
 
       {(isLoading || isPending) && renderSkeletons()}
 

@@ -1,12 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete
+from sqlalchemy import delete, desc
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 from core.database.models.auth.account import ProfileOrm
 from core.database.models.auth.addon import InstalledAddonOrm
 from core.database.models.auth.account import PlaybackHistoryOrm
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.domain.repositories.i_profile_repository import IProfileRepository
 from core.pydantic.domain.profile import PlaybackHistory, Profile
 from core.pydantic.domain.addon import InstalledAddon
@@ -19,6 +19,19 @@ class ProfileRepository(IProfileRepository):
 
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def get_playback_history_for_profile(
+        self, profile_id: str, limit: int
+    ) -> List[PlaybackHistory]:
+        stmt = (
+            select(PlaybackHistoryOrm)
+            .where(PlaybackHistoryOrm.profile_id == profile_id)
+            .order_by(desc(PlaybackHistoryOrm.watched_at))
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        history_orms = result.scalars().all()
+        return [PlaybackHistory.model_validate(h) for h in history_orms]
 
     async def create(
         self,
@@ -65,6 +78,7 @@ class ProfileRepository(IProfileRepository):
         )
         profile_orm.is_private = profile.is_private
         profile_orm.pin_hash = profile.pin_hash or ""
+        profile_orm.settings = profile.settings
 
         await self.session.flush()
         self.session.expire(profile_orm)
@@ -72,7 +86,10 @@ class ProfileRepository(IProfileRepository):
         stmt = (
             select(ProfileOrm)
             .where(ProfileOrm.id == profile.id)
-            .options(selectinload(ProfileOrm.installed_addons))
+            .options(
+                selectinload(ProfileOrm.installed_addons),
+                selectinload(ProfileOrm.playback_history),
+            )
         )
         result = await self.session.execute(stmt)
         updated_orm = result.scalars().one()
@@ -133,26 +150,28 @@ class ProfileRepository(IProfileRepository):
         self,
         profile_id: str,
         content_id: str,
+        item_type: str,  # ADD THIS ARGUMENT
         position_seconds: int,
         duration_seconds: int,
+        last_stream_details: Optional[Dict[str, Any]],
     ) -> PlaybackHistory:
-        """
-        Creates a new playback history entry or updates an existing one
-        for the same profile and content.
-        """
         stmt = (
             insert(PlaybackHistoryOrm)
             .values(
                 profile_id=profile_id,
                 content_id=content_id,
+                item_type=item_type,  # ADD THIS LINE
                 position_seconds=position_seconds,
                 duration_seconds=duration_seconds,
+                last_stream_details=last_stream_details,
             )
             .on_conflict_do_update(
                 index_elements=["profile_id", "content_id"],
                 set_={
+                    "item_type": item_type,  # ADD THIS LINE
                     "position_seconds": position_seconds,
                     "duration_seconds": duration_seconds,
+                    "last_stream_details": last_stream_details,
                 },
             )
             .returning(PlaybackHistoryOrm)

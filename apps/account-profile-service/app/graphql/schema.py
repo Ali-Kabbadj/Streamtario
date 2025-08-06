@@ -29,6 +29,9 @@ from .types import (
     UpdateProfileError,
     UpdateProfileInput,
     UpdateProfileSuccess,
+    UpdateProfileSettingsInput,
+    UpdateProfileSettingsSuccess,
+    UpdateProfileSettingsError,
     VerifyProfilePinError,
     VerifyProfilePinInput,
     VerifyProfilePinSuccess,
@@ -41,12 +44,13 @@ from .resolvers import (
     resolve_create_profile,
     resolve_install_addon,
     resolve_install_addon_for_all_profiles,
+    resolve_playback_history,
     resolve_profile,
     resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
     resolve_update_profile,
+    resolve_update_profile_settings,
     resolve_verify_profile_pin,
-    resolve_playback_history,
     resolve_update_playback_history,
 )
 from domain_exceptions.exceptions import ApiException
@@ -146,6 +150,12 @@ class Mutation:
         return await resolve_update_profile(info, input)
 
     @strawberry.mutation
+    async def update_profile_settings(
+        self, info: Info, input: UpdateProfileSettingsInput
+    ) -> UpdateProfileSettingsSuccess | UpdateProfileSettingsError:
+        return await resolve_update_profile_settings(info, input)
+
+    @strawberry.mutation
     async def verify_profile_pin(
         self, info: Info, input: VerifyProfilePinInput
     ) -> VerifyProfilePinSuccess | VerifyProfilePinError:
@@ -191,6 +201,8 @@ schema = strawberry.federation.Schema(
         CreateProfileError,
         UpdateProfileSuccess,
         UpdateProfileError,
+        UpdateProfileSettingsSuccess,
+        UpdateProfileSettingsError,
         InstallAddonForAllProfilesSuccess,
         InstallAddonForAllProfilesError,
         UninstallAddonFromAllProfilesSuccess,

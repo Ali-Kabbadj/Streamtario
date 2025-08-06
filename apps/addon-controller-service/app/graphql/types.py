@@ -1,11 +1,12 @@
 from xmlrpc.client import boolean
 import strawberry
-from typing import List, Optional, AsyncGenerator
-from strawberry.federation.schema_directives import Requires
+from typing import List, Optional
 from strawberry.scalars import JSON
 from core.pydantic.catalog.catalog import CatalogItem
 from core.pydantic.stream.stream import Stream
 from core.pydantic.addons.manifest import AddonManifest
+from core.pydantic.meta.meta import MetaItem as PydanticMetaItem
+from strawberry.federation.schema_directives import Requires
 
 
 @strawberry.type
@@ -77,7 +78,7 @@ class LinkType:
 @strawberry.type
 class BehaviorHintType:
     defaultVideoId: Optional[str] = None
-    hasScheduledVideos: boolean
+    hasScheduledVideos: bool
 
 
 @strawberry.type
@@ -119,6 +120,84 @@ class MetaItemType:
     app_extras: Optional[AppExtrasType] = None
     videos: Optional[List[VideoType]] = None
 
+    @classmethod
+    def from_pydantic(cls, model: PydanticMetaItem) -> "MetaItemType":
+        return cls(
+            id=strawberry.ID(model.id),
+            type=model.type,
+            name=model.name,
+            slug=model.slug,
+            imdb_id=model.imdb_id,
+            imdbRating=model.imdbRating,
+            genres=model.genres,
+            country=model.country,
+            director=model.director,
+            writer=model.writer,
+            year=model.year,
+            poster=model.poster,
+            background=model.background,
+            logo=model.logo,
+            description=model.description,
+            runtime=model.runtime,
+            release_info=model.release_info,
+            videos=(
+                [
+                    VideoType(id=strawberry.ID(v.id), **v.model_dump(exclude={"id"}))
+                    for v in model.videos
+                ]
+                if model.videos
+                else []
+            ),
+            trailers=(
+                [TrailerType(**t.model_dump()) for t in model.trailers]
+                if model.trailers
+                else []
+            ),
+            trailerStreams=(
+                [TrailerStreamType(**ts.model_dump()) for ts in model.trailerStreams]
+                if model.trailerStreams
+                else []
+            ),
+            links=(
+                [LinkType(**l.model_dump()) for l in model.links] if model.links else []
+            ),
+            behaviorHints=(
+                BehaviorHintType(**model.behaviorHints.model_dump())
+                if model.behaviorHints
+                else None
+            ),
+            app_extras=(
+                AppExtrasType(
+                    cast=[CastType(**c.model_dump()) for c in model.app_extras.cast]
+                )
+                if model.app_extras and model.app_extras.cast
+                else None
+            ),
+        )
+
+
+from strawberry.types import Info
+from strawberry.federation.schema_directives import Requires
+
+
+@strawberry.federation.type(extend=True, keys=["id"])
+class PlaybackHistoryType:
+    id: strawberry.ID = strawberry.federation.field(external=True)
+
+    # These are the fields our resolver needs from the accounts service.
+    profile_id: strawberry.ID = strawberry.federation.field(
+        external=True, name="profileId"
+    )
+    content_id: str = strawberry.federation.field(external=True)
+    item_type: str = strawberry.federation.field(external=True)
+
+    # The @requires directive tells the gateway to provide these fields to our resolver.
+    @strawberry.field(directives=[Requires(fields="profileId contentId itemType")])
+    async def meta(self) -> Optional["MetaItemType"]:
+        from .resolvers import resolve_meta_for_playback_history
+
+        return await resolve_meta_for_playback_history(self)
+
 
 @strawberry.type
 class AddonManifestType:
@@ -141,6 +220,7 @@ class AddonManifestType:
         )
 
 
+# ... (The rest of the types file remains the same)
 @strawberry.type
 class CatalogResult:
     items: List[CatalogItemType]
@@ -149,7 +229,7 @@ class CatalogResult:
 @strawberry.type
 class AddonSearchResultType:
     addon_name: str
-    results_by_type: JSON  # type: ignore
+    results_by_type: JSON
     error: Optional[str] = None
 
 
@@ -161,8 +241,6 @@ class HomeContentRowType:
 
 @strawberry.type
 class StreamFileType:
-    """Represents a single file within a torrent stream in the GraphQL schema."""
-
     name: str
     path: str
     length: int
@@ -182,14 +260,13 @@ class StreamType:
     yt_id: Optional[str] = None
     info_hash: Optional[str] = None
     file_idx: Optional[int] = None
-    behavior_hints: Optional[JSON] = None  # type: ignore
+    behavior_hints: Optional[JSON] = None
     addon_name: Optional[str] = None
     announce: Optional[List[str]] = None
     files: Optional[List["StreamFileType"]] = None
 
     @classmethod
     def from_pydantic(cls, model: Stream) -> "StreamType":
-
         return cls(
             name=model.name,
             title=model.title,
@@ -219,7 +296,7 @@ class ProfileExtension:
         itemType: str,
         catalogId: Optional[str] = None,
         manifestId: Optional[str] = None,
-        extraProps: Optional[JSON] = None,  # type: ignore
+        extraProps: Optional[JSON] = None,
         filterByType: Optional[str] = None,
     ) -> "CatalogResult":
         from .resolvers import resolve_profile_catalog

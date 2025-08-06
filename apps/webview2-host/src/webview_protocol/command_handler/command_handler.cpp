@@ -12,14 +12,18 @@ namespace WebViewProtocol
     {
         m_commands["play"] = [](const json &payload)
         {
-            std::string url = payload.at("url").get<std::string>();
-            if (url.empty())
+            auto p = payload.get<PlayPayload>();
+            if (p.url.empty())
             {
                 LOG_ERROR("CommandHandler", "Play command received with empty URL.");
                 return;
             }
             g_isMpvPlaying = true;
-            HandleMpvCommand({"loadfile", url});
+
+            // Always set the start time to ensure no stale state from previous playback
+            HandleMpvCommand({"set", "start", std::to_string(p.startTime)});
+
+            HandleMpvCommand({"loadfile", p.url, "replace"});
         };
 
         m_commands["stop"] = [](const json &)
@@ -27,7 +31,6 @@ namespace WebViewProtocol
             if (g_isMpvPlaying)
             {
                 g_isMpvPlaying = false;
-                HandleMpvCommand({"write-watch-later-config"});
                 HandleMpvCommand({"stop"});
             }
         };

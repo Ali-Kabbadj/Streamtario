@@ -9,8 +9,9 @@ from sqlalchemy import (
     func,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Dict, Any
 from core.database.models.base import Base
 from datetime import datetime
 
@@ -46,6 +47,7 @@ class ProfileOrm(Base):
     avatar: Mapped[str] = mapped_column(String, nullable=True)
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     pin_hash: Mapped[str] = mapped_column(String, nullable=True)
+    settings: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), nullable=False)
     account: Mapped["AccountOrm"] = relationship(back_populates="profiles")
     installed_addons: Mapped[List["InstalledAddonOrm"]] = relationship(
@@ -70,8 +72,10 @@ class PlaybackHistoryOrm(Base):
     )
     profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False)
     content_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    item_type: Mapped[str] = mapped_column(String, nullable=False)  # ADD THIS LINE
     position_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    last_stream_details: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=True)
     watched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

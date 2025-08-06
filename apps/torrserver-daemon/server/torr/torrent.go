@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/anacrolix/torrent"
-	"github.com/anacrolix/torrent/bencode" // <<< IMPORT THE BENCODE LIBRARY
+	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
 
 	"server/settings"
@@ -25,7 +25,6 @@ type Torrent struct {
 	FileIdx     int
 
 	*torrent.TorrentSpec
-	// readerCount is no longer needed and has been removed.
 
 	Stat      state.TorrentStat
 	Timestamp int64
@@ -67,12 +66,10 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 	var goTorrent *torrent.Torrent
 	var err error
 
-	// The crucial optimization: If we have the metadata cached, use it.
 	metaFilePath := filepath.Join(settings.Get().TorrentsSavePath, spec.InfoHash.HexString(), ".metainfo.json")
 	if metaBytes, readErr := os.ReadFile(metaFilePath); readErr == nil {
 		var info metainfo.Info
 		if json.Unmarshal(metaBytes, &info) == nil {
-			// FIX: Use bencode.Marshal(&info) instead of the non-existent info.Bencode()
 			infoBytes, bencodeErr := bencode.Marshal(&info)
 			if bencodeErr == nil {
 				spec.InfoBytes = infoBytes
@@ -324,6 +321,5 @@ func (t *Torrent) expired() bool {
 	t.muTorrent.Lock()
 	defer t.muTorrent.Unlock()
 
-	// The torrent is expired if the current time is after its last known heartbeat.
 	return time.Now().After(t.expiredTime)
 }

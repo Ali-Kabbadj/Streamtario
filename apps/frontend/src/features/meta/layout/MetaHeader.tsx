@@ -6,8 +6,17 @@ import { Button } from "@/components/ui/button";
 import type {
   MetaItemType,
   TrailerStreamType,
+  GetPlaybackHistoryQuery,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-import { Clapperboard, Clock, Star, Youtube } from "lucide-react";
+import { usePlayer } from "@/providers/PlayerProvider";
+import {
+  Clapperboard,
+  Clock,
+  Star,
+  Youtube,
+  CheckCircle2,
+  Play,
+} from "lucide-react";
 
 interface MetaHeaderProps {
   meta: MetaItemType;
@@ -15,6 +24,7 @@ interface MetaHeaderProps {
   isMovieReleased: boolean;
   onViewSources: () => void;
   onWatchTrailer: (trailer: TrailerStreamType) => void;
+  playbackHistory?: GetPlaybackHistoryQuery["playbackHistory"][0];
 }
 
 export function MetaHeader({
@@ -23,7 +33,24 @@ export function MetaHeader({
   isMovieReleased,
   onViewSources,
   onWatchTrailer,
+  playbackHistory,
 }: MetaHeaderProps) {
+  const { actions } = usePlayer();
+
+  const progressPercent =
+    playbackHistory && playbackHistory.durationSeconds > 0
+      ? (playbackHistory.positionSeconds / playbackHistory.durationSeconds) *
+        100
+      : 0;
+  const isWatched = progressPercent >= 95;
+  const canResume = !!playbackHistory?.lastStreamDetails;
+
+  const handleResumeClick = () => {
+    if (meta.id) {
+      actions.resumeStream(meta.id);
+    }
+  };
+
   return (
     <>
       <div className="mt-40 flex flex-col gap-8 px-4 md:flex-row md:items-end md:px-0">
@@ -35,6 +62,11 @@ export function MetaHeader({
             fill
             className="rounded-lg"
           />
+          {isWatched && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+              <CheckCircle2 className="h-24 w-24 text-white" />
+            </div>
+          )}
         </div>
         <div className="flex-grow space-y-4 py-4 text-center md:text-left">
           {meta.logo && (
@@ -77,22 +109,44 @@ export function MetaHeader({
         </div>
       </div>
       <div className="mt-8 px-4 md:px-0">
-        <div className="flex flex-wrap gap-4">
-          {meta.type === "movie" && isMovieReleased && (
-            <Button onClick={onViewSources} size="lg">
-              <Clapperboard className="mr-2 h-5 w-5" />
-              View Sources
-            </Button>
-          )}
-          {allTrailers.length > 0 && allTrailers[0] && (
-            <Button
-              onClick={() => onWatchTrailer(allTrailers[0]!)}
-              size="lg"
-              variant="outline"
-            >
-              <Youtube className="mr-2 h-5 w-5" />
-              Watch Trailer
-            </Button>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-4">
+            {meta.type === "movie" && isMovieReleased && canResume && (
+              <Button onClick={handleResumeClick} size="lg">
+                <Play className="mr-2 h-5 w-5" />
+                Resume
+              </Button>
+            )}
+            {meta.type === "movie" && isMovieReleased && (
+              <Button
+                onClick={onViewSources}
+                size="lg"
+                variant={canResume ? "secondary" : "default"}
+              >
+                <Clapperboard className="mr-2 h-5 w-5" />
+                View Sources
+              </Button>
+            )}
+            {allTrailers.length > 0 && allTrailers[0] && (
+              <Button
+                onClick={() => onWatchTrailer(allTrailers[0]!)}
+                size="lg"
+                variant="outline"
+              >
+                <Youtube className="mr-2 h-5 w-5" />
+                Watch Trailer
+              </Button>
+            )}
+          </div>
+          {progressPercent > 0 && !isWatched && (
+            <div className="w-full max-w-xs">
+              <div className="h-1.5 w-full rounded-full bg-slate-700">
+                <div
+                  className="bg-primary h-1.5 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>

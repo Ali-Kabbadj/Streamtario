@@ -44,11 +44,22 @@ const wsUrl =
     "wss",
   ) + "/api/v1/stream";
 
-export function useStreamingServerStats() {
+// Define a new type for the hook's return value for clarity
+interface StreamingServerStatsHook {
+  isConnected: boolean;
+  stats: TorrentStats[];
+  subscribeToTorrentReady: (
+    infoHash: string,
+    callback: () => void,
+  ) => () => void;
+}
+
+export function useStreamingServerStats(): StreamingServerStatsHook {
   const [stats, setStats] = useState<TorrentStats[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   const reconnectInterval = useRef<NodeJS.Timeout | null>(null);
+  const readyCallbacks = useRef<Map<string, Set<() => void>>>(new Map());
 
   const disconnect = useCallback(() => {
     if (reconnectInterval.current) {
@@ -98,6 +109,12 @@ export function useStreamingServerStats() {
             return torrentStats;
           });
           setStats(processed);
+        } else if (data.type === "torrent-ready") {
+          const infoHash = data.payload?.infoHash;
+          if (infoHash && readyCallbacks.current.has(infoHash)) {
+            readyCallbacks.current.get(infoHash)?.forEach((cb) => cb());
+            readyCallbacks.current.delete(infoHash);
+          }
         }
       } catch (e) {
         console.error("WSS parse error:", e);
@@ -115,10 +132,40 @@ export function useStreamingServerStats() {
     };
   }, []);
 
+  const subscribeToTorrentReady = useCallback(
+    (infoHash: string, callback: () => void) => {
+      if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+        console.error("WebSocket not connected, cannot subscribe.");
+        // Optionally, queue this up to be sent on connect
+        return () => {};
+      }
+      ws.current.send(
+        JSON.stringify({
+          type: "subscribe-to-torrent-ready",
+          payload: { infoHash },
+        }),
+      );
+
+      if (!readyCallbacks.current.has(infoHash)) {
+        readyCallbacks.current.set(infoHash, new Set());
+      }
+      readyCallbacks.current.get(infoHash)!.add(callback);
+
+      // Return an unsubscribe function
+      return () => {
+        readyCallbacks.current.get(infoHash)?.delete(callback);
+        if (readyCallbacks.current.get(infoHash)?.size === 0) {
+          readyCallbacks.current.delete(infoHash);
+        }
+      };
+    },
+    [],
+  );
+
   useEffect(() => {
     connect();
     return () => disconnect();
   }, [connect, disconnect]);
 
-  return { isConnected, stats };
+  return { isConnected, stats, subscribeToTorrentReady };
 }

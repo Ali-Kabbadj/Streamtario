@@ -1,5 +1,28 @@
 import { graphql } from './gen/gql';
 
+export const GetContinueWatchingDocument = graphql(`
+  query GetContinueWatching($profileId: ID!) {
+    profile(id: $profileId) {
+      continueWatching {
+        id
+        contentId
+        itemType
+        positionSeconds
+        durationSeconds
+        watchedAt
+        lastStreamDetails
+        meta {
+          id
+          name
+          type
+          poster
+          background
+        }
+      }
+    }
+  }
+`);
+
 export const GetMetaDetailsDocument = graphql(`
   query GetMetaDetails($profileId: ID!, $itemType: String!, $itemId: String!) {
     profile(id: $profileId) {
@@ -80,9 +103,12 @@ export const GetStreamsDocument = graphql(`
 export const GetPlaybackHistoryDocument = graphql(`
   query GetPlaybackHistory($profileId: ID!, $contentIds: [String!]!) {
     playbackHistory(profileId: $profileId, contentIds: $contentIds) {
+      id
       contentId
+      itemType
       positionSeconds
       durationSeconds
+      lastStreamDetails
     }
   }
 `);

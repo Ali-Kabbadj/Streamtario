@@ -2,20 +2,34 @@
 
 import { useState, useEffect, useRef, useMemo, type RefObject } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { VideoType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type {
+  VideoType,
+  GetPlaybackHistoryQuery,
+} from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { EpisodeCard } from "../components/EpisodeCard";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 
 type Video = VideoType;
 type GroupedVideos = Record<string, Video[]>;
+type PlaybackHistoryMap = Map<
+  string,
+  GetPlaybackHistoryQuery["playbackHistory"][0]
+>;
 
 interface MetaEpisodesProps {
   videos: (Video | null)[] | null | undefined;
   onEpisodeClick: (episode: Video) => void;
+  playbackHistoryMap: PlaybackHistoryMap;
+  metaId: string;
 }
 
-export function MetaEpisodes({ videos, onEpisodeClick }: MetaEpisodesProps) {
+export function MetaEpisodes({
+  videos,
+  onEpisodeClick,
+  playbackHistoryMap,
+  metaId,
+}: MetaEpisodesProps) {
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
   const tabsListRef = useRef<HTMLDivElement | null>(null);
 
@@ -109,12 +123,16 @@ export function MetaEpisodes({ videos, onEpisodeClick }: MetaEpisodesProps) {
               {seasons[selectedSeason]?.map((episode) => {
                 const isReleased =
                   new Date(episode.released ?? 0) <= new Date();
+                const contentId = `${metaId}:${episode.season}:${episode.episode}`;
+                const history = playbackHistoryMap.get(contentId);
+
                 return (
                   <EpisodeCard
                     key={episode.id}
                     episode={episode}
                     isReleased={isReleased}
                     onClick={() => onEpisodeClick(episode)}
+                    playbackHistory={history}
                   />
                 );
               })}
