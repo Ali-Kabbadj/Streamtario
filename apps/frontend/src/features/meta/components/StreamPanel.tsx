@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +41,7 @@ interface StreamPanelProps {
   content: StreamPanelContent | null;
   onClose: () => void;
   logoUrl?: string | null;
+  itemType: string;
 }
 
 interface Filters {
@@ -116,7 +117,12 @@ const FilterSection = ({
   );
 };
 
-export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
+export function StreamPanel({
+  content,
+  onClose,
+  logoUrl,
+  itemType,
+}: StreamPanelProps) {
   const { selectedProfile } = useProfileContext();
   const [sortKey, setSortKey] = useState<SortKey>("best");
   const [filters, setFilters] = useState<Filters>({
@@ -223,6 +229,8 @@ export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
   const activeFilterCount = (
     Object.values(filters) as Array<Set<string>>
   ).reduce((acc: number, current: Set<string>) => acc + current.size, 0);
+
+  const contentId = content?.itemId ?? "";
 
   return (
     <AnimatePresence>
@@ -342,6 +350,8 @@ export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
                 clearFilters={clearFilters}
                 mediaTitle={content.title}
                 logoUrl={logoUrl}
+                contentId={contentId}
+                itemType={itemType}
               />
             </div>
           </ScrollArea>

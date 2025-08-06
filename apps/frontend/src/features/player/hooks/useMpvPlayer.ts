@@ -22,7 +22,15 @@ interface State {
     status: "idle" | "playing" | "error";
     hasPlaybackStarted: boolean;
     errorMessage: string | null;
-    activeStream: { infoHash: string | null | undefined; fileIndex: number | null | undefined; title: string; logo?: string | null; } | null;
+    activeStream: {
+        stream: Stream;
+        infoHash: string | null | undefined;
+        fileIndex: number | null | undefined;
+        title: string;
+        logo?: string | null;
+        contentId: string;
+        itemType: string;
+    } | null;
     playerState: PlayerState;
 }
 
@@ -38,7 +46,7 @@ const initialState: State = {
 
 // --- ACTIONS ---
 type Action =
-    | { type: 'PLAY_STREAM_START'; payload: { stream: Stream; title: string; logo?: string | null; } }
+    | { type: 'PLAY_STREAM_START'; payload: { stream: Stream; title: string; logo?: string | null; contentId: string; itemType: string; } }
     | { type: 'PLAY_STREAM_FAILED'; payload: { message: string } }
     | { type: 'PROPERTY_CHANGE'; payload: { property: string; value: unknown } }
     | { type: 'STOP_PLAYBACK' };
@@ -51,10 +59,13 @@ function playerReducer(state: State, action: Action): State {
                 ...initialState,
                 status: 'playing',
                 activeStream: {
+                    stream: action.payload.stream,
                     infoHash: action.payload.stream.infoHash,
                     fileIndex: action.payload.stream.fileIdx,
                     title: action.payload.title,
                     logo: action.payload.logo,
+                    contentId: action.payload.contentId,
+                    itemType: action.payload.itemType,
                 },
             };
         case 'PLAY_STREAM_FAILED':
@@ -99,6 +110,23 @@ export function useMpvPlayer() {
         if (isWebView() && window.chrome?.webview) window.chrome.webview.postMessage(message);
         else console.log("WebView Outgoing:", message);
     }, []);
+
+    const setupStream = useCallback(async (infoHash: string, announce: readonly string[] | null | undefined) => {
+        const setupUrl = `${streamingApiUrl}/setup-stream`;
+        try {
+            const response = await fetch(setupUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ infoHash, announce }),
+            });
+            if (!response.ok) {
+                throw new Error(`Stream setup failed with status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error("[Player] Error setting up stream:", error);
+            dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'Could not prepare the stream on the server.' } });
+        }
+    }, [streamingApiUrl]);
 
     useEffect(() => {
         if (!isWebView()) return;
@@ -146,19 +174,21 @@ export function useMpvPlayer() {
     }, [sendCommand, streamingApiUrl, state.activeStream]);
 
     const actions = {
-        playStream: useCallback((stream: Stream, title: string, logo?: string | null) => {
+        playStream: useCallback(async (stream: Stream, title: string, logo: string | null, startTime: number, contentId: string, itemType: string) => { // ADD itemType
             if (!stream.infoHash || stream.fileIdx === null || typeof stream.fileIdx === 'undefined') {
                 dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'This stream is not a valid torrent.' } });
                 return;
             }
 
+            await setupStream(stream.infoHash, stream.announce);
+
             const { infoHash, fileIdx } = stream;
             const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
 
-            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo } });
-            sendCommand({ command: "play", payload: { url: streamUrl } });
+            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo, contentId, itemType } }); // ADD itemType
+            sendCommand({ command: "play", payload: { url: streamUrl, startTime } });
 
-        }, [sendCommand, streamingApiUrl]),
+        }, [sendCommand, streamingApiUrl, setupStream]),
 
         stopAction: useCallback(() => {
 

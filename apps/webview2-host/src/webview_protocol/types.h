@@ -16,7 +16,8 @@ namespace WebViewProtocol
 
     struct PlayPayload
     {
-        std::string url; // Changed from infoHash/fileIndex to a direct URL
+        std::string url;
+        double startTime = 0.0;
     };
 
     struct SeekPayload
@@ -34,7 +35,7 @@ namespace WebViewProtocol
         bool visible;
     };
 
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlayPayload, url)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlayPayload, url, startTime)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SeekPayload, time)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetVolumePayload, volume)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetWebViewVisibilityPayload, visible)

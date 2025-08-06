@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
+import { usePlayer } from "@/providers/PlayerProvider"; // Import usePlayer
 import { useMetaDetails } from "@/features/meta/hooks/useMetaDetails";
+import { useQuery } from "@tanstack/react-query";
+import { GetPlaybackHistoryDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
+import { graphqlClient } from "@/lib/graphql-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatePresence, motion } from "framer-motion";
 import type {
   VideoType,
   TrailerStreamType,
+  GetPlaybackHistoryQuery,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { StreamPanel } from "@/features/meta/components/StreamPanel";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -31,8 +36,14 @@ interface StreamPanelContent {
   imageUrl?: string | null;
 }
 
+type PlaybackHistoryMap = Map<
+  string,
+  GetPlaybackHistoryQuery["playbackHistory"][0]
+>;
+
 export function MetaView({ itemType, itemId }: MetaViewProps) {
   const { selectedProfile } = useProfileContext();
+  const { status: playerStatus } = usePlayer(); // Get player status
   const [streamPanelContent, setStreamPanelContent] =
     useState<StreamPanelContent | null>(null);
   const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
@@ -49,6 +60,39 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     itemType: itemType,
     itemId: itemId,
   });
+
+  const contentIds = useMemo(() => {
+    if (!meta) return [];
+    if (meta.type === "movie") {
+      return [meta.id];
+    }
+    if (!meta.videos) return [];
+    return meta.videos.map(
+      (video) => `${meta.id}:${video?.season}:${video?.episode}`,
+    );
+  }, [meta]);
+
+  const { data: playbackHistoryData } = useQuery({
+    queryKey: [
+      "playbackHistory",
+      selectedProfile?.id,
+      contentIds,
+      playerStatus,
+    ], // Add playerStatus to queryKey
+    queryFn: async () =>
+      graphqlClient.request(GetPlaybackHistoryDocument, {
+        profileId: selectedProfile?.id ?? "",
+        contentIds,
+      }),
+    enabled: !!selectedProfile?.id && contentIds.length > 0,
+  });
+
+  const playbackHistoryMap = useMemo<PlaybackHistoryMap>(() => {
+    if (!playbackHistoryData?.playbackHistory) return new Map();
+    return new Map(
+      playbackHistoryData.playbackHistory.map((item) => [item.contentId, item]),
+    );
+  }, [playbackHistoryData]);
 
   const handleEpisodeClick = (episode: VideoType) => {
     if (!meta) return;
@@ -117,6 +161,9 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     ...(meta.trailerStreams ?? []),
   ].filter((t): t is TrailerStreamType => !!t?.ytId);
 
+  const movieHistory =
+    meta.type === "movie" ? playbackHistoryMap.get(meta.id) : undefined;
+
   return (
     <AnimatePresence>
       <motion.div
@@ -159,6 +206,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
               isMovieReleased={isMovieReleased}
               onViewSources={handleMovieStreamsClick}
               onWatchTrailer={handleTrailerClick}
+              playbackHistory={movieHistory}
             />
             <MetaSynopsis meta={meta} />
             <MetaCast cast={meta.appExtras?.cast} />
@@ -166,6 +214,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
               <MetaEpisodes
                 videos={meta.videos}
                 onEpisodeClick={handleEpisodeClick}
+                playbackHistoryMap={playbackHistoryMap}
+                metaId={meta.id}
               />
             )}
             <MetaLinks links={meta.links} />
@@ -176,6 +226,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
           content={streamPanelContent}
           onClose={() => setStreamPanelContent(null)}
           logoUrl={meta.logo}
+          itemType={itemType}
         />
 
         <Dialog open={isTrailerModalOpen} onOpenChange={setTrailerModalOpen}>

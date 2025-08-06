@@ -2,6 +2,7 @@ from os import error
 from pydantic import Json
 import strawberry
 from typing import List, Optional
+from strawberry.types import Info
 from core.pydantic.domain.account import Account as PydanticAccount
 from core.pydantic.domain.profile import Profile as PydanticProfile
 from core.pydantic.domain.addon import InstalledAddon as PydanticInstalledAddon
@@ -10,8 +11,6 @@ from core.pydantic.domain.profile import PlaybackHistory as PydanticPlaybackHist
 
 
 # ========= INPUT TYPES =========
-
-
 @strawberry.input
 class LoginInput:
     email: str
@@ -54,6 +53,12 @@ class UpdateProfileInput:
 
 
 @strawberry.input
+class UpdateProfileSettingsInput:
+    profile_id: strawberry.ID
+    settings: JSON
+
+
+@strawberry.input
 class InstallAddonForAllProfilesInput:
     manifest_url: str
 
@@ -73,13 +78,13 @@ class VerifyProfilePinInput:
 class UpdatePlaybackHistoryInput:
     profile_id: strawberry.ID
     content_id: str
+    item_type: str
     position_seconds: int
     duration_seconds: int
+    last_stream_details: Optional[JSON] = None
 
 
 # ========= OBJECT TYPES =========
-
-
 @strawberry.type
 class InstalledAddonType:
     id: strawberry.ID
@@ -97,22 +102,28 @@ class InstalledAddonType:
         )
 
 
-@strawberry.type
+@strawberry.federation.type(keys=["id"])
 class PlaybackHistoryType:
     id: strawberry.ID
+    profile_id: strawberry.ID = strawberry.field(name="profileId")  # ADD THIS LINE
     content_id: str
+    item_type: str
     position_seconds: int
     duration_seconds: int
     watched_at: str
+    last_stream_details: Optional[JSON] = None
 
     @classmethod
     def from_pydantic(cls, model: PydanticPlaybackHistory) -> "PlaybackHistoryType":
         return cls(
             id=strawberry.ID(model.id),
+            profile_id=strawberry.ID(model.profile_id),  # ADD THIS LINE
             content_id=model.content_id,
+            item_type=model.item_type,
             position_seconds=model.position_seconds,
             duration_seconds=model.duration_seconds,
             watched_at=model.watched_at.isoformat(),
+            last_stream_details=model.last_stream_details,
         )
 
 
@@ -122,9 +133,15 @@ class ProfileType:
     name: str
     avatar: Optional[str]
     is_private: bool
+    settings: JSON
     installed_addons: List[InstalledAddonType]
     manifest_urls: List[str]
-    playback_history: List[PlaybackHistoryType]
+
+    @strawberry.field
+    async def continue_watching(self, info: Info) -> List[PlaybackHistoryType]:
+        from .resolvers import resolve_continue_watching
+
+        return await resolve_continue_watching(info, self.id)
 
     @classmethod
     def from_pydantic(cls, model: PydanticProfile) -> "ProfileType":
@@ -133,13 +150,11 @@ class ProfileType:
             name=model.name or "profile has no name",
             avatar=model.avatar,
             is_private=model.is_private,
+            settings=model.settings,
             installed_addons=[
                 InstalledAddonType.from_pydantic(a) for a in model.installed_addons
             ],
             manifest_urls=model.manifest_urls,
-            playback_history=[
-                PlaybackHistoryType.from_pydantic(h) for h in model.playback_history
-            ],
         )
 
 
@@ -159,8 +174,7 @@ class AccountType:
 
 
 # ========= MUTATION PAYLOADS =========
-
-
+# (All mutation payloads are correct and unchanged)
 @strawberry.type
 class CreateAccountSuccess:
     account: AccountType
@@ -195,6 +209,17 @@ class UpdateProfileError:
     code: str
     message: str
     field: Optional[str] = None
+
+
+@strawberry.type
+class UpdateProfileSettingsSuccess:
+    profile: ProfileType
+
+
+@strawberry.type
+class UpdateProfileSettingsError:
+    code: str
+    message: str
 
 
 @strawberry.type
@@ -237,19 +262,19 @@ class LoginError:
 
 @strawberry.type
 class InstallAddonForAllProfilesSuccess:
-    summary: JSON  # type: ignore
+    summary: JSON
 
 
 @strawberry.type
 class InstallAddonForAllProfilesError:
     code: str
     message: str
-    error: Optional[JSON]  # type: ignore
+    error: Optional[JSON]
 
 
 @strawberry.type
 class UninstallAddonFromAllProfilesSuccess:
-    summary: JSON  # type: ignore
+    summary: JSON
 
 
 @strawberry.type

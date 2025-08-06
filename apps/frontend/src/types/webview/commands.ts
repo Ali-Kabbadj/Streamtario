@@ -2,6 +2,7 @@ interface PlayCommand {
     command: "play";
     payload: {
         url: string;
+        startTime: number;
     };
 }
 

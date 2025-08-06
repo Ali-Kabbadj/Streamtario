@@ -5,10 +5,12 @@ from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
+from app.use_cases.get_meta import GetMetaUseCase
 from app.use_cases.get_streams import GetStreamsUseCase
 from app.use_cases.get_manifest import GetManifestUseCase
 from .types import (
     CatalogResult,
+    PlaybackHistoryType,
     ProfileExtension,
     CatalogItemType,
     MetaItemType,
@@ -28,8 +30,9 @@ from .types import (
 )
 import strawberry
 from core.utils.logging import log_info, log_error
-from app.use_cases.search_use_case import SearchUseCase
 from strawberry.scalars import JSON
+from .types import PlaybackHistoryType, MetaItemType
+from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 
 
 @inject
@@ -207,3 +210,32 @@ async def resolve_streams(
         item_id=itemId,
     )
     return [StreamType.from_pydantic(s) for s in pydantic_streams]
+
+
+@inject
+async def resolve_meta_for_playback_history(
+    root: PlaybackHistoryType,
+    use_case: FindAndGetMetaUseCase = Provide[Container.find_and_get_meta_use_case],
+) -> Optional[MetaItemType]:
+
+    item_id_for_lookup = root.content_id
+
+    # THIS IS THE CORRECT LOGIC THAT I HAVE BEEN FAILING TO WRITE.
+    # If the item is a series and has season/episode info, we must look up
+    # the metadata for the base series ID, not the full episode ID.
+    if root.item_type == "series" and len(root.content_id.split(":")) > 3:
+        # For "prefix:id:series_id:season:episode", we want "prefix:id:series_id"
+        parts = root.content_id.split(":")
+        item_id_for_lookup = ":".join(parts[0:3])
+
+    pydantic_meta = await use_case.execute(
+        profile_id=str(root.profile_id),
+        item_type=root.item_type,
+        item_id=item_id_for_lookup,
+    )
+
+    if not pydantic_meta:
+        return None
+
+    # We use the full, robust mapping from your working resolve_profile_meta function.
+    return MetaItemType.from_pydantic(pydantic_meta)

@@ -1,16 +1,21 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from core.pydantic.domain.addon import InstalledAddon
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 
 
 class PlaybackHistory(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    profile_id: str = Field(..., alias="profileId")  # ADD THIS LINE
     content_id: str = Field(..., alias="contentId")
+    item_type: str = Field(..., alias="itemType")
     position_seconds: int = Field(..., alias="positionSeconds")
     duration_seconds: int = Field(..., alias="durationSeconds")
     watched_at: datetime = Field(..., alias="watchedAt")
+    last_stream_details: Optional[Dict[str, Any]] = Field(
+        None, alias="lastStreamDetails"
+    )
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
@@ -22,6 +27,7 @@ class Profile(BaseModel):
     )
     is_private: bool = Field(False, alias="isPrivate")
     pin_hash: Optional[str] = Field(None, alias="pinHash")
+    settings: Dict[str, Any] = Field(default_factory=dict)
     installed_addons: List[InstalledAddon] = Field(
         default_factory=list, alias="installedAddons"
     )
@@ -29,6 +35,11 @@ class Profile(BaseModel):
         default_factory=list, alias="playbackHistory"
     )
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    @field_validator("settings", mode="before")
+    @classmethod
+    def empty_settings_if_none(cls, v: Any) -> Any:
+        return v if v is not None else {}
 
     @property
     def manifest_urls(self) -> List[str]:

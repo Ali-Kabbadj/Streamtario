@@ -190,6 +190,7 @@ bool InitMPV(HWND hwnd)
     int64_t wid = (int64_t)hwnd;
     mpv_set_option(g_mpv, "wid", MPV_FORMAT_INT64, &wid);
     mpv_set_option_string(g_mpv, "vo", "gpu-next");
+    mpv_set_option_string(g_mpv, "tls-verify", "no");
 
     std::wstring configDirW = AppConfig::GetConfigDirectory();
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, configDirW.c_str(), -1, NULL, 0, NULL, NULL);
@@ -199,13 +200,7 @@ bool InitMPV(HWND hwnd)
     mpv_set_option_string(g_mpv, "config", "yes");
     mpv_set_option_string(g_mpv, "config-dir", configDirA.c_str());
 
-    std::wstring watchLaterDirW = configDirW + L"\\watch_later";
-    int size_needed_wl = WideCharToMultiByte(CP_UTF8, 0, watchLaterDirW.c_str(), -1, NULL, 0, NULL, NULL);
-    std::string watchLaterDirA(size_needed_wl, 0);
-    WideCharToMultiByte(CP_UTF8, 0, watchLaterDirW.c_str(), -1, &watchLaterDirA[0], size_needed_wl, NULL, NULL);
-
-    mpv_set_option_string(g_mpv, "watch-later-directory", watchLaterDirA.c_str());
-    mpv_set_option_string(g_mpv, "save-position-on-quit", "yes");
+    mpv_set_option_string(g_mpv, "save-position-on-quit", "no");
 
     mpv_set_option_string(g_mpv, "volume", "0");
 

@@ -28,11 +28,13 @@ from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
+from app.use_cases.profile.update_profile_settings import UpdateProfileSettingsUseCase
 from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from app.use_cases.profile.get_manifest_urls_for_profile import (
     GetManifestUrlsForProfileUseCase,
 )
 from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
+from app.use_cases.profile.get_continue_watching import GetContinueWatchingUseCase
 from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from security.jwt_service import IJwtService, JwtService
 
@@ -139,6 +141,15 @@ class Container(containers.DeclarativeContainer):
         )
     )
 
+    update_profile_settings_use_case: providers.Factory[
+        UpdateProfileSettingsUseCase
+    ] = providers.Factory(
+        UpdateProfileSettingsUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
+        event_publisher=event_publisher,
+    )
+
     verify_profile_pin_use_case: providers.Factory[VerifyProfilePinUseCase] = (
         providers.Factory(
             VerifyProfilePinUseCase,
@@ -184,6 +195,14 @@ class Container(containers.DeclarativeContainer):
     get_playback_history_use_case: providers.Factory[GetPlaybackHistoryUseCase] = (
         providers.Factory(
             GetPlaybackHistoryUseCase,
+            uow_factory=uow.provider,
+            authorization_policy=authorization_policy,
+        )
+    )
+
+    get_continue_watching_use_case: providers.Factory[GetContinueWatchingUseCase] = (
+        providers.Factory(
+            GetContinueWatchingUseCase,
             uow_factory=uow.provider,
             authorization_policy=authorization_policy,
         )

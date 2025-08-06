@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from core.pydantic.domain.profile import Profile, PlaybackHistory
 from core.pydantic.domain.addon import InstalledAddon
 
@@ -9,6 +9,12 @@ class IProfileRepository(ABC):
 
     @abstractmethod
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
+        pass
+
+    @abstractmethod
+    async def get_playback_history_for_profile(
+        self, profile_id: str, limit: int
+    ) -> List[PlaybackHistory]:
         pass
 
     @abstractmethod
@@ -47,7 +53,9 @@ class IProfileRepository(ABC):
         self,
         profile_id: str,
         content_id: str,
+        item_type: str,
         position_seconds: int,
         duration_seconds: int,
+        last_stream_details: Optional[Dict[str, Any]],
     ) -> PlaybackHistory:
         pass
