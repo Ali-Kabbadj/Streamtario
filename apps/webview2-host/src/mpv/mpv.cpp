@@ -7,6 +7,44 @@
 #include <string>
 #include <webview_protocol/event_emitter/event_emitter.h>
 
+json MpvNodeToJson(const mpv_node *node)
+{
+    switch (node->format)
+    {
+    case MPV_FORMAT_STRING:
+        return std::string(node->u.string);
+    case MPV_FORMAT_FLAG:
+        return (bool)node->u.flag;
+    case MPV_FORMAT_INT64:
+        return node->u.int64;
+    case MPV_FORMAT_DOUBLE:
+        return node->u.double_;
+    case MPV_FORMAT_NODE_ARRAY:
+    {
+        json j_array = json::array();
+        mpv_node_list *list = node->u.list;
+        for (int i = 0; i < list->num; i++)
+        {
+            j_array.push_back(MpvNodeToJson(&list->values[i]));
+        }
+        return j_array;
+    }
+    case MPV_FORMAT_NODE_MAP:
+    {
+        json j_map = json::object();
+        mpv_node_list *list = node->u.list;
+        for (int i = 0; i < list->num; i++)
+        {
+            j_map[list->keys[i]] = MpvNodeToJson(&list->values[i]);
+        }
+        return j_map;
+    }
+    case MPV_FORMAT_NONE:
+    default:
+        return nullptr;
+    }
+}
+
 static void MpvWakeup(void *ctx)
 {
     PostMessage((HWND)ctx, WM_MPV_WAKEUP, 0, 0);
@@ -38,6 +76,17 @@ void HandleMpvEvents()
             mpv_event_property *prop = (mpv_event_property *)ev->data;
             if (prop->data == NULL)
                 break;
+
+            if (strcmp(prop->name, "track-list") == 0)
+            {
+                if (prop->format == MPV_FORMAT_NODE)
+                {
+                    json trackListJson = MpvNodeToJson((mpv_node *)prop->data);
+                    WebViewProtocol::EventEmitter::emitPropertyChange(prop->name, trackListJson);
+                }
+                break;
+            }
+
             json value;
             if (prop->format == MPV_FORMAT_DOUBLE)
             {
@@ -135,7 +184,12 @@ void HandleMpvCommand(const std::vector<std::string> &args)
         return;
     }
 
-    LOG_INFO("UI_Thread", "Sending command to MPV: " + args[0]);
+    std::string full_command_for_log = "";
+    for (const auto &s : args)
+    {
+        full_command_for_log += s + " ";
+    }
+    LOG_INFO("UI_Thread", "Sending command array to MPV: " + full_command_for_log);
 
     std::vector<const char *> cargs;
     for (const auto &s : args)
@@ -144,7 +198,14 @@ void HandleMpvCommand(const std::vector<std::string> &args)
     }
     cargs.push_back(nullptr);
     mpv_command_async(g_mpv, 0, cargs.data());
-    mpv_wakeup(g_mpv);
+}
+
+void HandleMpvRawCommand(const std::string &command_string)
+{
+    if (!g_mpv)
+        return;
+    LOG_INFO("UI_Thread", "Sending raw command string to MPV: " + command_string);
+    mpv_command_string(g_mpv, command_string.c_str());
 }
 
 void HandleMpvSetProp(const std::vector<std::string> &args)
@@ -225,6 +286,7 @@ bool InitMPV(HWND hwnd)
     mpv_observe_property(g_mpv, 0, "volume", MPV_FORMAT_INT64);
     mpv_observe_property(g_mpv, 0, "mute", MPV_FORMAT_FLAG);
     mpv_observe_property(g_mpv, 0, "paused-for-cache", MPV_FORMAT_FLAG);
+    mpv_observe_property(g_mpv, 0, "track-list", MPV_FORMAT_NODE);
 
     LOG_INFO("MPV_Init", "MPV Initialized Successfully.");
     return true;

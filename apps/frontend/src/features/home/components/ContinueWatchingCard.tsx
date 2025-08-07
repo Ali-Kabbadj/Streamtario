@@ -9,7 +9,9 @@ import { usePlayer } from "@/providers/PlayerProvider";
 import type { GetContinueWatchingQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { Info, Play } from "lucide-react";
 
-type ContinueWatchingItem = GetContinueWatchingQuery["continueWatching"][0];
+type ContinueWatchingItem = NonNullable<
+  GetContinueWatchingQuery["profile"]
+>["continueWatching"][0];
 
 interface ContinueWatchingCardProps {
   item: ContinueWatchingItem;
@@ -35,11 +37,11 @@ export const ContinueWatchingCard = ({ item }: ContinueWatchingCardProps) => {
   };
 
   const handleResumeClick = () => {
-    actions.resumeStream(item.contentId);
+    actions.resumeStream(item);
   };
 
   if (!item.meta) {
-    return null; // Or a fallback UI
+    return null;
   }
 
   return (
@@ -49,7 +51,7 @@ export const ContinueWatchingCard = ({ item }: ContinueWatchingCardProps) => {
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
       layout
     >
-      <AspectRatio ratio={2 / 3} onClick={handleDetailsClick}>
+      <AspectRatio ratio={2 / 3}>
         <ImageWithFallback
           className="h-full w-full object-cover"
           fallbackSrc={"/images/NoImagePortrait.png"}
@@ -66,16 +68,18 @@ export const ContinueWatchingCard = ({ item }: ContinueWatchingCardProps) => {
           />
         </div>
       </AspectRatio>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/70 opacity-0 transition-opacity group-hover:opacity-100">
-        <h3 className="text-center text-lg font-bold text-white">
-          {item.meta.name}
-        </h3>
-        <div className="flex gap-4">
-          <Button variant="secondary" onClick={handleDetailsClick}>
+      <div className="absolute inset-0 flex flex-col items-center justify-between bg-black/70 p-4 text-center opacity-0 transition-opacity group-hover:opacity-100">
+        <h4 className="pt-4 text-lg font-bold text-white">{item.meta.name}</h4>
+        <div className="flex w-full flex-col gap-2">
+          <Button variant="secondary" onClick={handleDetailsClick} size="sm">
             <Info className="mr-2 h-4 w-4" /> Details
           </Button>
-          <Button onClick={handleResumeClick}>
-            <Play className="mr-2 h-4 w-4" /> Resume
+          <Button onClick={handleResumeClick} size="sm">
+            <Play className="mr-2 h-4 w-4" /> Resume{" "}
+            {item.itemType != "movie" &&
+              item.season &&
+              item.episode &&
+              "S" + item.season + " E" + item.episode}
           </Button>
         </div>
       </div>

@@ -27,6 +27,7 @@ from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.get_meta_for_id import GetMetaForIdUseCase
+from app.use_cases.get_subtitles import GetSubtitlesUseCase
 from app.use_cases.search_use_case import SearchUseCase
 from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
 from app.use_cases.get_streams import GetStreamsUseCase
@@ -145,4 +146,10 @@ class Container(containers.DeclarativeContainer):
         addon_provider=addon_provider,
         profile_addon_manifest_provider=profile_addon_manifest_provider,
         find_and_get_meta_use_case=find_and_get_meta_use_case,
+    )
+    get_subtitles_use_case: providers.Factory[GetSubtitlesUseCase] = providers.Factory(
+        GetSubtitlesUseCase,
+        get_manifest_use_case=get_manifest_use_case,
+        addon_provider=addon_provider,
+        profile_addon_manifest_provider=profile_addon_manifest_provider,
     )

@@ -36,6 +36,28 @@ interface ToggleFullscreenCommand {
     command: "toggle-fullscreen";
 }
 
+interface SetPropertyCommand {
+    command: "set-property";
+    payload: {
+        property: "aid" | "sid";
+        value: string;
+    };
+}
+
+interface LoadSubtitleCommand {
+    command: "load-subtitle";
+    payload: {
+        url: string;
+    };
+}
+
+interface RawCommand {
+    command: "raw";
+    payload: {
+        command_string: string;
+    };
+}
+
 export type WebViewCommand =
     | PlayCommand
     | StopCommand
@@ -43,4 +65,7 @@ export type WebViewCommand =
     | SeekCommand
     | SetVolumeCommand
     | ToggleMuteCommand
-    | ToggleFullscreenCommand;
+    | ToggleFullscreenCommand
+    | SetPropertyCommand
+    | LoadSubtitleCommand
+    | RawCommand;

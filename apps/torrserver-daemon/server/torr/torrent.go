@@ -285,10 +285,23 @@ func (t *Torrent) Status() *state.TorrentStatus {
 
 		if t.Torrent.Info() != nil {
 			st.TorrentSize = t.Torrent.Length()
+
+			// START: ADD THIS BLOCK TO POPULATE FILE STATS
+			files := t.Torrent.Files()
+			st.FileStats = make([]*state.TorrentFileStat, len(files))
+			for i, f := range files {
+				st.FileStats[i] = &state.TorrentFileStat{
+					Index:  i,
+					Path:   f.Path(),
+					Length: f.Length(),
+				}
+			}
+			// END: ADD THIS BLOCK
 		}
 	}
 	return st
 }
+
 
 func (t *Torrent) Close() bool {
 	t.muTorrent.Lock()

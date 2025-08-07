@@ -6,6 +6,7 @@ export interface FileStat {
   path: string;
   bytes_read: number;
   bytes_wasted: number;
+  length: number;
 }
 
 export interface TorrentStats {

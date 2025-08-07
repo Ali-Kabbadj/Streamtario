@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react"; // Added useEffect
 import { useProfileContext } from "@/providers/profile-provider";
-import { usePlayer } from "@/providers/PlayerProvider"; // Import usePlayer
+import { usePlayer } from "@/providers/PlayerProvider";
 import { useMetaDetails } from "@/features/meta/hooks/useMetaDetails";
 import { useQuery } from "@tanstack/react-query";
-import { GetPlaybackHistoryDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
+import { GetPlaybackHistoryByImdbIdDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import { graphqlClient } from "@/lib/graphql-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatePresence, motion } from "framer-motion";
 import type {
   VideoType,
   TrailerStreamType,
-  GetPlaybackHistoryQuery,
+  GetPlaybackHistoryByImdbIdQuery,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { StreamPanel } from "@/features/meta/components/StreamPanel";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -36,19 +36,21 @@ interface StreamPanelContent {
   imageUrl?: string | null;
 }
 
-type PlaybackHistoryMap = Map<
-  string,
-  GetPlaybackHistoryQuery["playbackHistory"][0]
->;
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
+type PlaybackHistoryMap = Map<string, PlaybackHistoryItem>;
 
 export function MetaView({ itemType, itemId }: MetaViewProps) {
   const { selectedProfile } = useProfileContext();
-  const { status: playerStatus } = usePlayer(); // Get player status
+  const { status: playerStatus } = usePlayer();
   const [streamPanelContent, setStreamPanelContent] =
     useState<StreamPanelContent | null>(null);
   const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
   const [selectedTrailer, setSelectedTrailer] =
     useState<TrailerStreamType | null>(null);
+  const [initialSeason, setInitialSeason] = useState<string | undefined>(
+    undefined,
+  );
 
   const {
     data: meta,
@@ -61,38 +63,61 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     itemId: itemId,
   });
 
-  const contentIds = useMemo(() => {
-    if (!meta) return [];
-    if (meta.type === "movie") {
-      return [meta.id];
-    }
-    if (!meta.videos) return [];
-    return meta.videos.map(
-      (video) => `${meta.id}:${video?.season}:${video?.episode}`,
-    );
-  }, [meta]);
-
   const { data: playbackHistoryData } = useQuery({
     queryKey: [
       "playbackHistory",
       selectedProfile?.id,
-      contentIds,
+      meta?.imdbId,
       playerStatus,
-    ], // Add playerStatus to queryKey
-    queryFn: async () =>
-      graphqlClient.request(GetPlaybackHistoryDocument, {
-        profileId: selectedProfile?.id ?? "",
-        contentIds,
-      }),
-    enabled: !!selectedProfile?.id && contentIds.length > 0,
+    ],
+    queryFn: async () => {
+      if (!meta?.imdbId || !selectedProfile?.id) return null;
+      return graphqlClient.request(GetPlaybackHistoryByImdbIdDocument, {
+        profileId: selectedProfile.id,
+        imdbId: meta.imdbId,
+      });
+    },
+    enabled: !!selectedProfile?.id && !!meta?.imdbId,
   });
 
   const playbackHistoryMap = useMemo<PlaybackHistoryMap>(() => {
-    if (!playbackHistoryData?.playbackHistory) return new Map();
-    return new Map(
-      playbackHistoryData.playbackHistory.map((item) => [item.contentId, item]),
-    );
+    const historyList = playbackHistoryData?.playbackHistoryByImdbId;
+    if (!historyList) return new Map();
+
+    const historyMap: PlaybackHistoryMap = new Map();
+    for (const item of historyList) {
+      const key =
+        item.itemType === "movie" ? "movie" : `${item.season}:${item.episode}`;
+      if (key) {
+        historyMap.set(key, item);
+      }
+    }
+    return historyMap;
   }, [playbackHistoryData]);
+
+  // EFFECT TO DETERMINE THE INITIAL SEASON TO DISPLAY
+  useEffect(() => {
+    if (
+      meta?.type === "series" &&
+      playbackHistoryData?.playbackHistoryByImdbId
+    ) {
+      const history = playbackHistoryData.playbackHistoryByImdbId;
+      if (history.length > 0) {
+        // Find the item with the highest season number in the history
+        const lastWatchedItem = history.reduce((latest, current) => {
+          if (!current.season) return latest;
+          if (!latest || (latest.season && current.season > latest.season)) {
+            return current;
+          }
+          return latest;
+        }, history[0]);
+
+        if (lastWatchedItem?.season) {
+          setInitialSeason(lastWatchedItem.season.toString());
+        }
+      }
+    }
+  }, [meta, playbackHistoryData]);
 
   const handleEpisodeClick = (episode: VideoType) => {
     if (!meta) return;
@@ -162,7 +187,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
   ].filter((t): t is TrailerStreamType => !!t?.ytId);
 
   const movieHistory =
-    meta.type === "movie" ? playbackHistoryMap.get(meta.id) : undefined;
+    meta.type === "movie" ? playbackHistoryMap.get("movie") : undefined;
 
   return (
     <AnimatePresence>
@@ -216,6 +241,8 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                 onEpisodeClick={handleEpisodeClick}
                 playbackHistoryMap={playbackHistoryMap}
                 metaId={meta.id}
+                metaLogo={meta.logo}
+                initialSeason={initialSeason}
               />
             )}
             <MetaLinks links={meta.links} />

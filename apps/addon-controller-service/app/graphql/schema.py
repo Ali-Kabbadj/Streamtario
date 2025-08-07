@@ -1,5 +1,4 @@
 import strawberry
-from strawberry.fastapi import GraphQLRouter
 from .types import (
     PlaybackHistoryType,
     ProfileExtension,
@@ -9,7 +8,6 @@ from .types import (
 from typing import AsyncGenerator, Optional
 from strawberry.types import Info
 from core.utils.logging import log_info
-from typing import Dict, Any
 
 
 @strawberry.type
@@ -66,12 +64,3 @@ schema = strawberry.federation.Schema(
     enable_federation_2=True,
     types=[ProfileExtension, PlaybackHistoryType],
 )
-
-
-async def get_context() -> Dict[str, Any]:
-    from app.main import app as fastapi_app
-
-    return {"container": fastapi_app.container}
-
-
-graphql_app = GraphQLRouter(schema, context_getter=get_context)

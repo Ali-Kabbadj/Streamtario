@@ -7,6 +7,9 @@ export const GetContinueWatchingDocument = graphql(`
         id
         contentId
         itemType
+        imdbId
+        season
+        episode
         positionSeconds
         durationSeconds
         watchedAt
@@ -17,6 +20,7 @@ export const GetContinueWatchingDocument = graphql(`
           type
           poster
           background
+          logo
         }
       }
     }
@@ -95,23 +99,42 @@ export const GetStreamsDocument = graphql(`
         behaviorHints
         addonName
         announce
+        videoHash
       }
     }
   }
 `);
 
-export const GetPlaybackHistoryDocument = graphql(`
-  query GetPlaybackHistory($profileId: ID!, $contentIds: [String!]!) {
-    playbackHistory(profileId: $profileId, contentIds: $contentIds) {
+export const GetSubtitlesDocument = graphql(`
+  query GetSubtitles($profileId: ID!, $itemType: String!, $contentId: String!, $filename: String!, $videoSize: String!, $videoHash: String!) {
+    profile(id: $profileId) {
+      subtitles(itemType: $itemType, contentId: $contentId, filename: $filename, videoSize: $videoSize, videoHash: $videoHash) {
+        id
+        lang
+        type
+        url
+      }
+    }
+  }
+`);
+
+
+export const GetPlaybackHistoryByImdbIdDocument = graphql(`
+  query GetPlaybackHistoryByImdbId($profileId: ID!, $imdbId: String!) {
+    playbackHistoryByImdbId(profileId: $profileId, imdbId: $imdbId) {
       id
       contentId
       itemType
+      imdbId
+      season
+      episode
       positionSeconds
       durationSeconds
       lastStreamDetails
     }
   }
 `);
+
 
 export const UpdatePlaybackHistoryDocument = graphql(`
   mutation UpdatePlaybackHistory($input: UpdatePlaybackHistoryInput!) {

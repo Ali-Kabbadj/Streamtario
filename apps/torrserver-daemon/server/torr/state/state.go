@@ -65,11 +65,11 @@ type TorrentStatus struct {
 	DurationSeconds     float64     `json:"duration_seconds,omitempty"`
 	BitRate             string      `json:"bit_rate,omitempty"`
 
-	FileStats []*TorrentFileStat `json:"file_stats,omitempty"`
+	FileStats []*TorrentFileStat `json:"file_stats,omitempty"` 
 }
 
 type TorrentFileStat struct {
-	Id     int    `json:"id,omitempty"`
-	Path   string `json:"path,omitempty"`
-	Length int64  `json:"length,omitempty"`
+	Index  int    `json:"index"`
+	Path   string `json:"path"`
+	Length int64  `json:"length"`
 }

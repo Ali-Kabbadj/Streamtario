@@ -44,7 +44,7 @@ from .resolvers import (
     resolve_create_profile,
     resolve_install_addon,
     resolve_install_addon_for_all_profiles,
-    resolve_playback_history,
+    resolve_playback_history_by_imdb_id,
     resolve_profile,
     resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
@@ -113,13 +113,13 @@ class Query:
         return results
 
     @strawberry.field
-    async def playback_history(
+    async def playbackHistoryByImdbId(
         self,
         info: Info,
         profile_id: strawberry.ID,
-        content_ids: List[str],
+        imdb_id: str,
     ) -> List[PlaybackHistoryType]:
-        return await resolve_playback_history(info, profile_id, content_ids)
+        return await resolve_playback_history_by_imdb_id(info, profile_id, imdb_id)
 
 
 @strawberry.type

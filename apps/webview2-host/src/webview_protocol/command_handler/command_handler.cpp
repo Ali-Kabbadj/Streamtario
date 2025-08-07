@@ -7,7 +7,6 @@
 
 namespace WebViewProtocol
 {
-
     CommandHandler::CommandHandler()
     {
         m_commands["play"] = [](const json &payload)
@@ -19,10 +18,7 @@ namespace WebViewProtocol
                 return;
             }
             g_isMpvPlaying = true;
-
-            // Always set the start time to ensure no stale state from previous playback
             HandleMpvCommand({"set", "start", std::to_string(p.startTime)});
-
             HandleMpvCommand({"loadfile", p.url, "replace"});
         };
 
@@ -55,6 +51,22 @@ namespace WebViewProtocol
 
         m_commands["toggle-fullscreen"] = [](const json &)
         { ToggleFullscreen(g_hWnd); };
+
+        m_commands["set-property"] = [](const json &payload)
+        {
+            auto p = payload.get<SetPropertyPayload>();
+            // This now correctly handles both "aid" and "sid"
+            HandleMpvCommand({"set", p.property, p.value});
+        };
+
+        // FINAL ADDITION: Handle loading external subtitles
+        m_commands["load-subtitle"] = [](const json &payload)
+        {
+            auto p = payload.get<LoadSubtitlePayload>();
+            // "sub-add" is the MPV command to load an external subtitle file.
+            // "select" makes it the active subtitle track immediately.
+            HandleMpvCommand({"sub-add", p.url, "select"});
+        };
     }
 
     void CommandHandler::handleCommand(const std::wstring &message_w)

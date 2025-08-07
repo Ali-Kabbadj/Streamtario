@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import type {
   MetaItemType,
   TrailerStreamType,
-  GetPlaybackHistoryQuery,
+  GetPlaybackHistoryByImdbIdQuery, // CORRECTED IMPORT
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { usePlayer } from "@/providers/PlayerProvider";
 import {
@@ -18,13 +18,17 @@ import {
   Play,
 } from "lucide-react";
 
+// CORRECTED TYPE ALIAS
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
+
 interface MetaHeaderProps {
   meta: MetaItemType;
   allTrailers: TrailerStreamType[];
   isMovieReleased: boolean;
   onViewSources: () => void;
   onWatchTrailer: (trailer: TrailerStreamType) => void;
-  playbackHistory?: GetPlaybackHistoryQuery["playbackHistory"][0];
+  playbackHistory?: PlaybackHistoryItem; // CORRECTED PROP TYPE
 }
 
 export function MetaHeader({
@@ -46,8 +50,8 @@ export function MetaHeader({
   const canResume = !!playbackHistory?.lastStreamDetails;
 
   const handleResumeClick = () => {
-    if (meta.id) {
-      actions.resumeStream(meta.id);
+    if (meta.id && playbackHistory) {
+      actions.resumeStream(playbackHistory);
     }
   };
 

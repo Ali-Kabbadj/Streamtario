@@ -81,10 +81,10 @@ async def resolve_continue_watching(
 
 
 @inject
-async def resolve_playback_history(
+async def resolve_playback_history_by_imdb_id(
     info: Info,
     profile_id: strawberry.ID,
-    content_ids: List[str],
+    imdb_id: str,
     use_case: GetPlaybackHistoryUseCase = Provide[
         Container.get_playback_history_use_case
     ],
@@ -93,7 +93,7 @@ async def resolve_playback_history(
     history_items = await use_case.execute(
         requesting_account_id=current_user.sub,
         profile_id=str(profile_id),
-        content_ids=content_ids,
+        imdb_id=imdb_id,
     )
     return [PlaybackHistoryType.from_pydantic(item) for item in history_items]
 

@@ -8,7 +8,10 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type {
+  GetContinueWatchingQuery,
+  GetPlaybackHistoryByImdbIdQuery,
+} from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
 import {
   useMpvPlayer,
@@ -16,17 +19,18 @@ import {
 } from "@/features/player/hooks/useMpvPlayer";
 import { useProfileContext } from "./profile-provider";
 import { graphqlClient } from "@/lib/graphql-client";
-import {
-  GetPlaybackHistoryDocument,
-  UpdatePlaybackHistoryDocument,
-} from "@/orchestrators/graphql-query-orchestrator/queries";
+import { UpdatePlaybackHistoryDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import { APP_CONFIG } from "@/config/env";
 import { print } from "graphql";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Stream } from "@/features/meta/types";
+import { useStreamingServerStats } from "@/features/player/hooks/useStreamingServerStats";
 
-type Stream = NonNullable<
-  NonNullable<GetStreamsQuery["profile"]>["streams"]
->[0];
+type PlaybackHistoryItem =
+  | NonNullable<
+      NonNullable<GetContinueWatchingQuery["profile"]>["continueWatching"]
+    >[0]
+  | NonNullable<GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"]>[0];
 
 interface PlayerActions {
   playStream: (
@@ -36,13 +40,16 @@ interface PlayerActions {
     contentId: string,
     itemType: string,
   ) => void;
-  resumeStream: (contentId: string) => void;
+  resumeStream: (historyItem: PlaybackHistoryItem) => void;
   stop: () => void;
   togglePause: () => void;
   toggleFullscreen: () => void;
   seek: (time: number) => void;
   setVolume: (volume: number) => void;
   toggleMute: () => void;
+  setAudioId: (id: number) => void;
+  setSubtitleId: (id: number) => void;
+  loadSubtitle: (url: string) => void;
 }
 
 interface PlayerContextType {
@@ -67,8 +74,8 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const player = useMpvPlayer();
   const { selectedProfile } = useProfileContext();
+  const { stats: torrentStats } = useStreamingServerStats(); // Get real-time stats
   const isSavingRef = useRef(false);
-  const queryClient = useQueryClient();
 
   const saveProgress = useCallback(async () => {
     if (isSavingRef.current) return;
@@ -86,6 +93,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     const isFinished = progress >= 0.95;
 
+    // THIS IS THE KEY CHANGE: Enrich the stream details with real-time stats
+    const activeTorrentStat = torrentStats.find(
+      (t) => t.hash === activeStream.infoHash,
+    );
+    const activeFileStat = activeTorrentStat?.file_stats.find(
+      (f) => f.index === activeStream.fileIndex,
+    );
+
+    const finalStreamDetails = {
+      ...activeStream.stream,
+      behaviorHints: {
+        ...activeStream.stream.behaviorHints,
+        filename: activeFileStat?.path,
+        videoSize: activeFileStat?.length,
+      },
+    };
+
     isSavingRef.current = true;
     try {
       await graphqlClient.request(UpdatePlaybackHistoryDocument, {
@@ -95,20 +119,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           itemType: activeStream.itemType,
           positionSeconds: isFinished ? 0 : Math.round(playerState.time),
           durationSeconds: Math.round(playerState.duration),
-          lastStreamDetails: isFinished ? null : activeStream.stream,
+          // Send the fully enriched object
+          lastStreamDetails: isFinished ? null : finalStreamDetails,
         },
-      });
-      const queryKey = ["playbackHistory", profileId, [activeStream.contentId]];
-      void queryClient.invalidateQueries({ queryKey });
-      void queryClient.invalidateQueries({
-        queryKey: ["continueWatching", profileId],
       });
     } catch (error) {
       console.error("[PlayerProvider] Failed to save progress:", error);
     } finally {
       isSavingRef.current = false;
     }
-  }, [player, selectedProfile, queryClient]);
+  }, [player, selectedProfile, torrentStats]);
 
   const playStream = async (
     stream: Stream,
@@ -128,35 +148,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const resumeStream = async (contentId: string) => {
-    if (!selectedProfile?.id) return;
-    try {
-      const historyData = await graphqlClient.request(
-        GetPlaybackHistoryDocument,
-        {
-          profileId: selectedProfile.id,
-          contentIds: [contentId],
-        },
-      );
-      const historyItem = historyData.playbackHistory?.[0];
-      const streamToPlay = historyItem?.lastStreamDetails as Stream | undefined;
-      const itemType = historyItem?.itemType;
-      const startTime = historyItem?.positionSeconds ?? 0;
+  const resumeStream = (historyItem: PlaybackHistoryItem) => {
+    const streamToPlay = historyItem?.lastStreamDetails as Stream | undefined;
+    const itemType = historyItem?.itemType;
+    const startTime = historyItem?.positionSeconds ?? 0;
+    const contentId = historyItem?.contentId;
 
-      if (streamToPlay && itemType) {
-        await playStream(
-          streamToPlay,
-          streamToPlay.title ?? "Untitled",
-          null,
-          contentId,
-          itemType,
-          startTime,
-        );
-      } else {
-        console.warn("Resume failed: No last stream details found.");
-      }
-    } catch (error) {
-      console.error("Failed to fetch history for resume:", error);
+    let title = "Untitled";
+    let logo: string | null | undefined = null;
+    if ("meta" in historyItem && historyItem.meta) {
+      title = historyItem.meta.name;
+      logo = historyItem.meta.logo;
+    }
+
+    if (streamToPlay && itemType && contentId) {
+      void playStream(
+        streamToPlay,
+        title,
+        logo ?? "",
+        contentId,
+        itemType,
+        startTime,
+      );
+    } else {
+      console.warn(
+        "Resume failed: No last stream details found in the provided history item.",
+      );
     }
   };
 
@@ -166,7 +183,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [saveProgress, player.actions]);
 
   useEffect(() => {
-    // This effect now correctly handles saving progress on window close
     const handleBeforeUnload = () => {
       const { activeStream, playerState } = player;
       const profileId = selectedProfile?.id;
@@ -187,16 +203,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           input: {
             profileId,
             contentId: activeStream.contentId,
-            itemType: activeStream.itemType, // Use the correct itemType
+            itemType: activeStream.itemType,
             positionSeconds: isFinished ? 0 : Math.round(playerState.time),
             durationSeconds: Math.round(playerState.duration),
             lastStreamDetails: isFinished ? null : activeStream.stream,
           },
         },
-      };
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       };
       navigator.sendBeacon(
         APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL,
@@ -223,7 +235,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const value = {
     ...player,
     actions: {
-      ...player.actions,
       playStream: (
         stream: Stream,
         title: string,
@@ -233,6 +244,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       ) => playStream(stream, title, logo, contentId, itemType, 0),
       resumeStream,
       stop,
+      togglePause: player.actions.togglePause,
+      toggleFullscreen: player.actions.toggleFullscreen,
+      seek: player.actions.seek,
+      setVolume: player.actions.setVolume,
+      toggleMute: player.actions.toggleMute,
+      setAudioId: player.actions.setAudioId,
+      setSubtitleId: player.actions.setSubtitleId,
+      loadSubtitle: player.actions.loadSubtitle,
     },
   };
 
