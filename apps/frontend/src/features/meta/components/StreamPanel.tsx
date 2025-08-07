@@ -42,6 +42,7 @@ interface StreamPanelProps {
   onClose: () => void;
   logoUrl?: string | null;
   itemType: string;
+  imdbId: string;
 }
 
 interface Filters {
@@ -122,6 +123,7 @@ export function StreamPanel({
   onClose,
   logoUrl,
   itemType,
+  imdbId,
 }: StreamPanelProps) {
   const { selectedProfile } = useProfileContext();
   const [sortKey, setSortKey] = useState<SortKey>("best");
@@ -352,6 +354,7 @@ export function StreamPanel({
                 logoUrl={logoUrl}
                 contentId={contentId}
                 itemType={itemType}
+                imdbId={imdbId}
               />
             </div>
           </ScrollArea>

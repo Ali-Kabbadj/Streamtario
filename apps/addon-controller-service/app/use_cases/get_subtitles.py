@@ -21,15 +21,6 @@ class GetSubtitlesUseCase:
         self.addon_provider = addon_provider
         self.profile_addon_manifest_provider = profile_addon_manifest_provider
 
-    def _get_id_for_path(self, item_type: str, content_id: str) -> str:
-        media_id = content_id.split(":", 1)[-1]
-        if item_type != "series":
-            return media_id
-        parts = media_id.split(":")
-        if len(parts) > 2 and parts[-1].isdigit() and parts[-2].isdigit():
-            return ":".join(parts[:-1])
-        return media_id
-
     async def execute(
         self,
         profile_id: str,
@@ -51,9 +42,9 @@ class GetSubtitlesUseCase:
         )
 
         tasks_with_context = []
-        id_for_path = self._get_id_for_path(item_type, content_id)
-        encoded_id_for_path = quote(id_for_path)
-        media_id_prefix = content_id.split(":")[1] if ":" in content_id else None
+        video_id = content_id.split(":", 1)[-1]
+        encoded_video_id = quote(video_id)
+        media_id_prefix = video_id.split(":")[0] if ":" in video_id else video_id
 
         for manifest in all_manifests:
             if not manifest or not manifest.manifest_url:
@@ -63,20 +54,25 @@ class GetSubtitlesUseCase:
                 any(r.name == "subtitles" for r in manifest.resources)
                 and item_type in manifest.types
             ):
-                supported_prefixes = manifest.id_prefixes or []
-                if not any(
+                id_prefixes = next(
+                    (
+                        r.id_prefixes
+                        for r in manifest.resources
+                        if r.name == "subtitles"
+                    ),
+                    manifest.id_prefixes,
+                )
+                if id_prefixes and not any(
                     media_id_prefix and media_id_prefix.startswith(p)
-                    for p in supported_prefixes
+                    for p in id_prefixes
                 ):
                     continue
 
                 base_url = manifest.manifest_url.rsplit("/", 1)[0]
 
-                # THE FINAL FIX: Include videoHash in the URL
-                sub_url = (
-                    f"{base_url}/subtitles/{item_type}/{encoded_id_for_path}"
-                    f"/filename={quote(filename)}&videoSize={video_size}&videoHash={video_hash}.json"
-                )
+                extra_args_str = f"videoHash={video_hash}&videoSize={video_size}&filename={quote(filename, safe='')}"
+
+                sub_url = f"{base_url}/subtitles/{item_type}/{encoded_video_id}/{extra_args_str}.json"
 
                 log_info(
                     f"Queueing subtitle fetch from: {sub_url}",

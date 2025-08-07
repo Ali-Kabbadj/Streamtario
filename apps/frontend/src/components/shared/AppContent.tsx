@@ -27,7 +27,11 @@ const RenderActiveView = () => {
       return <SearchView query={currentView.query} />;
     case "meta":
       return (
-        <MetaView itemId={currentView.itemId} itemType={currentView.itemType} />
+        <MetaView
+          itemId={currentView.itemId}
+          itemType={currentView.itemType}
+          imdbId={currentView.itemId}
+        />
       );
     default:
       return <HomeView />;

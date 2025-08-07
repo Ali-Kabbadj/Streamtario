@@ -48,7 +48,7 @@ class CatalogItemType:
         return cls(
             id=strawberry.ID(model.id),
             type=model.type,
-            name=model.name,
+            name=model.name or f"Untitled {model.type}",
             poster=model.poster,
         )
 
@@ -103,7 +103,8 @@ class AppExtrasType:
 
 @strawberry.type
 class MetaItemType:
-    imdb_id: Optional[str] = None
+    # imdb_id: Optional[str] = None
+    imdb_id: str
     country: Optional[str]
     description: Optional[str] = None
     director: Optional[List[str]] = None

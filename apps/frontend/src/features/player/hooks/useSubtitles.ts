@@ -15,10 +15,11 @@ export const useSubtitles = ({ contentId, itemType, filename, videoSize, videoHa
     const { selectedProfile } = useProfileContext();
     const profileId = selectedProfile?.id ?? "";
 
+    const isEnabled = !!(profileId && contentId && itemType && filename && videoHash && videoSize !== undefined);
+
     return useQuery({
         queryKey: ['subtitles', profileId, contentId, filename, videoHash],
         queryFn: async () => {
-            // This function will only be executed when refetch is called with all variables present.
             const data = await graphqlClient.request(GetSubtitlesDocument, {
                 profileId,
                 itemType: itemType!,
@@ -29,7 +30,6 @@ export const useSubtitles = ({ contentId, itemType, filename, videoSize, videoHa
             });
             return data.profile?.subtitles ?? [];
         },
-        // The query is disabled by default and will ONLY run when we manually call refetch.
-        enabled: false,
+        enabled: isEnabled,
     });
 };

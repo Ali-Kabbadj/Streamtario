@@ -22,7 +22,6 @@ import { graphqlClient } from "@/lib/graphql-client";
 import { UpdatePlaybackHistoryDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import { APP_CONFIG } from "@/config/env";
 import { print } from "graphql";
-import { useQueryClient } from "@tanstack/react-query";
 import type { Stream } from "@/features/meta/types";
 import { useStreamingServerStats } from "@/features/player/hooks/useStreamingServerStats";
 
@@ -39,6 +38,7 @@ interface PlayerActions {
     logo: string | null,
     contentId: string,
     itemType: string,
+    imdbId: string,
   ) => void;
   resumeStream: (historyItem: PlaybackHistoryItem) => void;
   stop: () => void;
@@ -63,6 +63,7 @@ interface PlayerContextType {
     logo?: string | null;
     contentId: string;
     itemType: string;
+    imdbId: string | null | undefined;
   } | null;
   playerState: PlayerState;
   actions: PlayerActions;
@@ -74,7 +75,7 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const player = useMpvPlayer();
   const { selectedProfile } = useProfileContext();
-  const { stats: torrentStats } = useStreamingServerStats(); // Get real-time stats
+  const { stats: torrentStats } = useStreamingServerStats();
   const isSavingRef = useRef(false);
 
   const saveProgress = useCallback(async () => {
@@ -93,7 +94,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     const isFinished = progress >= 0.95;
 
-    // THIS IS THE KEY CHANGE: Enrich the stream details with real-time stats
     const activeTorrentStat = torrentStats.find(
       (t) => t.hash === activeStream.infoHash,
     );
@@ -121,6 +121,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           durationSeconds: Math.round(playerState.duration),
           // Send the fully enriched object
           lastStreamDetails: isFinished ? null : finalStreamDetails,
+          imdbId: activeStream.imdbId,
         },
       });
     } catch (error) {
@@ -136,6 +137,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     logo: string | null,
     contentId: string,
     itemType: string,
+    imdbId: string,
     startTime = 0,
   ) => {
     void player.actions.playStream(
@@ -145,6 +147,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       startTime,
       contentId,
       itemType,
+      imdbId,
     );
   };
 
@@ -168,6 +171,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         logo ?? "",
         contentId,
         itemType,
+        historyItem.imdbId,
         startTime,
       );
     } else {
@@ -241,7 +245,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         logo: string | null,
         contentId: string,
         itemType: string,
-      ) => playStream(stream, title, logo, contentId, itemType, 0),
+        imdbId: string,
+      ) => playStream(stream, title, logo, contentId, itemType, imdbId),
       resumeStream,
       stop,
       togglePause: player.actions.togglePause,

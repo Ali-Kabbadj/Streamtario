@@ -58,8 +58,14 @@ class FindAndGetMetaUseCase:
 
         routing_prefix, addon_specific_id = item_id.split(":", 1)
 
+        id_for_meta_lookup = addon_specific_id
+        if item_type == "series":
+            parts = addon_specific_id.split(":")
+            if len(parts) >= 3 and all(p.isdigit() for p in parts[-2:]):
+                id_for_meta_lookup = ":".join(parts[:-2])
+
         log_info(
-            f"Primary attempt: Fetching meta for '{item_id}' using provider '{routing_prefix}'"
+            f"Primary attempt: Fetching meta for '{item_id}' (using lookup ID '{id_for_meta_lookup}') via provider '{routing_prefix}'"
         )
 
         manifest_urls = await self.profile_addon_manifest_provider.get_manifest_urls(
@@ -79,7 +85,7 @@ class FindAndGetMetaUseCase:
         if primary_manifest and primary_manifest.manifest_url:
             meta_response = await self.get_meta_use_case.execute(
                 manifest_url=primary_manifest.manifest_url,
-                item_id=addon_specific_id,
+                item_id=id_for_meta_lookup,
                 item_type=item_type,
             )
             if meta_response and meta_response.meta:
@@ -90,13 +96,12 @@ class FindAndGetMetaUseCase:
                 f"Primary attempt FAILED for '{routing_prefix}'. Initiating fallback search."
             )
 
-        base_id = addon_specific_id
-        base_id_prefix = self._get_id_prefix(base_id)
+        base_id_prefix = self._get_id_prefix(id_for_meta_lookup)
         if not base_id_prefix:
             raise ApiException(
                 ApiErrorCode.ADDON_NOT_FOUND,
                 details={
-                    "reason": f"Could not determine standard prefix for ID '{base_id}'"
+                    "reason": f"Could not determine standard prefix for ID '{id_for_meta_lookup}'"
                 },
             )
 
@@ -124,7 +129,7 @@ class FindAndGetMetaUseCase:
         fallback_tasks = [
             self.get_meta_use_case.execute(
                 manifest_url=m.manifest_url,
-                item_id=base_id,
+                item_id=id_for_meta_lookup,
                 item_type=item_type,
             )
             for m in fallback_manifests

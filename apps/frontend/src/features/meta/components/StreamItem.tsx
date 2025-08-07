@@ -24,6 +24,7 @@ interface StreamItemProps {
   mediaTitle: string;
   logoUrl?: string | null;
   contentId: string;
+  imdbId: string;
   itemType: string;
 }
 
@@ -72,6 +73,7 @@ export function StreamItem({
   mediaTitle,
   logoUrl = null,
   contentId,
+  imdbId,
   itemType,
 }: StreamItemProps) {
   const { actions } = usePlayer();
@@ -87,7 +89,14 @@ export function StreamItem({
   ].filter(Boolean) as string[];
 
   const handlePlayClick = () => {
-    actions.playStream(stream, mediaTitle, logoUrl, contentId, itemType);
+    actions.playStream(
+      stream,
+      mediaTitle,
+      logoUrl,
+      contentId,
+      imdbId,
+      itemType,
+    );
   };
 
   return (
