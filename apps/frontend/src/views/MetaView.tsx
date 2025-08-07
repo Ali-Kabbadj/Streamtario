@@ -27,6 +27,7 @@ import { MetaLinks } from "@/features/meta/layout/MetaLinks";
 interface MetaViewProps {
   itemType: string;
   itemId: string;
+  imdbId: string;
 }
 
 interface StreamPanelContent {
@@ -40,7 +41,7 @@ type PlaybackHistoryItem =
   GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 type PlaybackHistoryMap = Map<string, PlaybackHistoryItem>;
 
-export function MetaView({ itemType, itemId }: MetaViewProps) {
+export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
   const { selectedProfile } = useProfileContext();
   const { status: playerStatus } = usePlayer();
   const [streamPanelContent, setStreamPanelContent] =
@@ -95,7 +96,6 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     return historyMap;
   }, [playbackHistoryData]);
 
-  // EFFECT TO DETERMINE THE INITIAL SEASON TO DISPLAY
   useEffect(() => {
     if (
       meta?.type === "series" &&
@@ -254,6 +254,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
           onClose={() => setStreamPanelContent(null)}
           logoUrl={meta.logo}
           itemType={itemType}
+          imdbId={imdbId}
         />
 
         <Dialog open={isTrailerModalOpen} onOpenChange={setTrailerModalOpen}>

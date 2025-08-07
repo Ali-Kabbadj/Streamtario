@@ -5,13 +5,12 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
 import type {
   VideoType,
-  GetPlaybackHistoryByImdbIdQuery, // CORRECTED IMPORT
+  GetPlaybackHistoryByImdbIdQuery,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 import { CheckCircle2, Clapperboard, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// CORRECTED TYPE ALIAS
 type PlaybackHistoryItem =
   GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 
@@ -20,7 +19,7 @@ interface EpisodeCardProps {
   onShowSources: () => void;
   onResume: () => void;
   isReleased: boolean;
-  playbackHistory?: PlaybackHistoryItem; // CORRECTED PROP TYPE
+  playbackHistory?: PlaybackHistoryItem;
 }
 
 export function EpisodeCard({

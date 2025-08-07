@@ -19,7 +19,8 @@ class GetPlaybackHistoryUseCase:
         self,
         requesting_account_id: str,
         profile_id: str,
-        imdb_id: Optional[str] = None,
+        # imdb_id: Optional[str] = None,
+        imdb_id: str,
         content_ids: Optional[List[str]] = None,
     ) -> List[PlaybackHistory]:
         await self.authorization_policy.check_profile_ownership(

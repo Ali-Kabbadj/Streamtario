@@ -118,7 +118,6 @@ async def resolve_profile_meta(
     if not pydantic_meta:
         return None
 
-    # Fully map the pydantic model to the Strawberry type
     return MetaItemType(
         id=strawberry.ID(pydantic_meta.id),
         type=pydantic_meta.type,
@@ -223,14 +222,10 @@ async def resolve_meta_for_playback_history(
 ) -> Optional[MetaItemType]:
 
     item_id_for_lookup = root.content_id
-
-    # THIS IS THE CORRECT LOGIC THAT I HAVE BEEN FAILING TO WRITE.
-    # If the item is a series and has season/episode info, we must look up
-    # the metadata for the base series ID, not the full episode ID.
-    if root.item_type == "series" and len(root.content_id.split(":")) > 3:
-        # For "prefix:id:series_id:season:episode", we want "prefix:id:series_id"
+    if root.item_type == "series":
         parts = root.content_id.split(":")
-        item_id_for_lookup = ":".join(parts[0:3])
+        if len(parts) > 2 and parts[-1].isdigit() and parts[-2].isdigit():
+            item_id_for_lookup = ":".join(parts[:-2])
 
     pydantic_meta = await use_case.execute(
         profile_id=str(root.profile_id),
@@ -241,7 +236,6 @@ async def resolve_meta_for_playback_history(
     if not pydantic_meta:
         return None
 
-    # We use the full, robust mapping from your working resolve_profile_meta function.
     return MetaItemType.from_pydantic(pydantic_meta)
 
 

@@ -286,7 +286,6 @@ func (t *Torrent) Status() *state.TorrentStatus {
 		if t.Torrent.Info() != nil {
 			st.TorrentSize = t.Torrent.Length()
 
-			// START: ADD THIS BLOCK TO POPULATE FILE STATS
 			files := t.Torrent.Files()
 			st.FileStats = make([]*state.TorrentFileStat, len(files))
 			for i, f := range files {
@@ -296,12 +295,16 @@ func (t *Torrent) Status() *state.TorrentStatus {
 					Length: f.Length(),
 				}
 			}
-			// END: ADD THIS BLOCK
+
+			if t.FileIdx >= 0 && t.FileIdx < len(files) {
+				targetFile := files[t.FileIdx]
+				st.PreloadSize = targetFile.Length() * int64(settings.Get().PreloadCache) / 100
+				st.PreloadedBytes = targetFile.BytesCompleted()
+			}
 		}
 	}
 	return st
 }
-
 
 func (t *Torrent) Close() bool {
 	t.muTorrent.Lock()

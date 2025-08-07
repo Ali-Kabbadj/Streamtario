@@ -45,6 +45,7 @@ class UpdatePlaybackHistoryUseCase:
         profile_id: str,
         content_id: str,
         item_type: str,
+        imdb_id: str,
         position_seconds: int,
         duration_seconds: int,
         last_stream_details: Optional[Dict[str, Any]] = None,
@@ -60,29 +61,6 @@ class UpdatePlaybackHistoryUseCase:
 
         id_for_meta_lookup, season, episode = self._extract_ids(content_id)
 
-        imdb_id: Optional[str] = None
-        if "tt" in id_for_meta_lookup:
-            imdb_id = next(
-                (
-                    part
-                    for part in id_for_meta_lookup.split(":")
-                    if part.startswith("tt")
-                ),
-                None,
-            )
-
-        if not imdb_id:
-            meta = await self.get_meta_for_id_use_case.execute(
-                profile_id, id_for_meta_lookup, item_type
-            )
-            if meta and meta.imdb_id:
-                imdb_id = meta.imdb_id
-            else:
-                log_warn(
-                    "Could not resolve imdb_id for content_id",
-                    data={"content_id": content_id},
-                )
-
         async with self.uow_factory() as uow:
             history_item = await uow.profiles.upsert_playback_history(
                 profile_id=profile_id,
@@ -95,7 +73,6 @@ class UpdatePlaybackHistoryUseCase:
                 duration_seconds=duration_seconds,
                 last_stream_details=last_stream_details,
             )
-            # history_item.watched_at = datetime.now()
             await uow.commit()
 
         return history_item

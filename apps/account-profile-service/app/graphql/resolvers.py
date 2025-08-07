@@ -146,6 +146,7 @@ async def resolve_update_playback_history(
         requesting_account_id=current_user.sub,
         profile_id=str(input.profile_id),
         content_id=input.content_id,
+        imdb_id=input.imdb_id,
         item_type=input.item_type,
         position_seconds=input.position_seconds,
         duration_seconds=input.duration_seconds,
@@ -154,8 +155,6 @@ async def resolve_update_playback_history(
     return PlaybackHistoryType.from_pydantic(history_item)
 
 
-# ... (All other mutation resolvers: create_profile, update_profile, etc. should be here)
-# For brevity, I am omitting them, but they must be present in your file.
 @inject
 async def resolve_create_profile(
     info: Info,

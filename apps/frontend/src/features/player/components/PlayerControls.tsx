@@ -12,12 +12,10 @@ import {
 } from "lucide-react";
 import type { MpvTrack, PlayerState } from "../hooks/useMpvPlayer";
 import { StreamingStatusIndicator } from "./StreamingStatusIndicator";
-import { useMemo, useState, useEffect, useRef } from "react"; // Added useEffect and useRef
-import { useSubtitles } from "../hooks/useSubtitles";
+import { useMemo, useState } from "react";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { SettingsSheet, type TrackItem } from "./SettingsSheet";
 import type { SubtitleType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-import { useStreamingServerStats } from "../hooks/useStreamingServerStats";
 
 interface PlayerControlsProps {
   playerState: PlayerState;
@@ -45,63 +43,9 @@ function formatTime(seconds: number): string {
 
 export function PlayerControls({ playerState, actions }: PlayerControlsProps) {
   const { isPaused, time, duration, volume, isMuted, trackList } = playerState;
-  const { activeStream } = usePlayer();
+  const { externalSubtitles } = usePlayer();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { stats: torrentStats } = useStreamingServerStats();
-  const subtitleQueryAttempted = useRef(false);
 
-  // 1. Prepare the variables from all sources. They will be undefined until ready.
-  const subtitleQueryVars = useMemo(() => {
-    const contentId = activeStream?.contentId;
-    const itemType = activeStream?.itemType;
-    const videoHash = activeStream?.stream.behaviorHints?.videoHash as
-      | string
-      | undefined;
-    const currentTorrent = torrentStats.find(
-      (t) => t.hash === activeStream?.infoHash,
-    );
-    const currentFile = currentTorrent?.file_stats?.find(
-      (f) => f.index === activeStream?.fileIndex,
-    );
-    const filename = currentFile?.path;
-    const videoSize = currentFile?.length;
-
-    return { contentId, itemType, videoHash, filename, videoSize };
-  }, [activeStream, torrentStats]);
-
-  // 2. Setup the disabled query and get the refetch function.
-  const {
-    data: externalSubtitles,
-    isLoading: isLoadingSubtitles,
-    refetch: fetchSubtitles,
-  } = useSubtitles(subtitleQueryVars);
-
-  // 3. This effect is the TRIGGER.
-  useEffect(() => {
-    // When a new stream starts playing, reset our attempt flag.
-    if (activeStream) {
-      subtitleQueryAttempted.current = false;
-    }
-  }, [activeStream?.contentId]); // Dependency on contentId ensures it resets for new episodes.
-
-  useEffect(() => {
-    // Check if ALL variables are now defined.
-    const allVarsReady = Object.values(subtitleQueryVars).every(Boolean);
-
-    // If all variables are ready AND we have not yet attempted to fetch...
-    if (allVarsReady && !subtitleQueryAttempted.current) {
-      // ...then we fire the query manually.
-      console.log(
-        "All subtitle variables are ready. Fetching subtitles.",
-        subtitleQueryVars,
-      );
-      void fetchSubtitles();
-      // And we set the flag to prevent this from firing on every single stat update.
-      subtitleQueryAttempted.current = true;
-    }
-  }, [subtitleQueryVars, fetchSubtitles]); // This effect runs whenever the variables change.
-
-  // The rest of the component's logic is now correct because it waits for the data.
   const { audioTracks, selectedAudioTrackId } = useMemo(() => {
     const tracks: MpvTrack[] = trackList.filter(
       (track) => track.type === "audio",

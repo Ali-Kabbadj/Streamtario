@@ -78,6 +78,7 @@ class VerifyProfilePinInput:
 class UpdatePlaybackHistoryInput:
     profile_id: strawberry.ID
     content_id: str
+    imdb_id: str
     item_type: str
     position_seconds: int
     duration_seconds: int
@@ -108,7 +109,8 @@ class PlaybackHistoryType:
     profile_id: strawberry.ID = strawberry.field(name="profileId")
     content_id: str
     item_type: str
-    imdb_id: Optional[str] = None
+    # imdb_id: Optional[str] = None
+    imdb_id: str
     season: Optional[int] = None
     episode: Optional[int] = None
     position_seconds: int

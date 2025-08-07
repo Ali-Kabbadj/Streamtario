@@ -41,6 +41,7 @@ interface State {
         title: string;
         logo?: string | null;
         contentId: string;
+        imdbId: string;
         itemType: string;
     } | null;
     playerState: PlayerState;
@@ -59,7 +60,7 @@ const initialState: State = {
 
 // --- ACTIONS ---
 type Action =
-    | { type: 'PLAY_STREAM_START'; payload: { stream: Stream; title: string; logo?: string | null; contentId: string; itemType: string; } }
+    | { type: 'PLAY_STREAM_START'; payload: { stream: Stream; title: string; logo?: string | null; contentId: string; imdbId: string; itemType: string; } }
     | { type: 'PLAY_STREAM_FAILED'; payload: { message: string } }
     | { type: 'PROPERTY_CHANGE'; payload: { property: string; value: unknown } }
     | { type: 'STOP_PLAYBACK' };
@@ -78,6 +79,7 @@ function playerReducer(state: State, action: Action): State {
                     title: action.payload.title,
                     logo: action.payload.logo,
                     contentId: action.payload.contentId,
+                    imdbId: action.payload.imdbId,
                     itemType: action.payload.itemType,
                 },
             };
@@ -192,7 +194,7 @@ export function useMpvPlayer() {
     }, [sendCommand, streamingApiUrl, state.activeStream]);
 
     const actions = {
-        playStream: useCallback(async (stream: Stream, title: string, logo: string | null | undefined, startTime: number, contentId: string, itemType: string) => {
+        playStream: useCallback(async (stream: Stream, title: string, logo: string | null | undefined, startTime: number, contentId: string, imdbId: string, itemType: string) => {
             if (!stream.infoHash || stream.fileIdx === null || typeof stream.fileIdx === 'undefined') {
                 dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'This stream is not a valid torrent.' } });
                 return;
@@ -203,10 +205,11 @@ export function useMpvPlayer() {
             const { infoHash, fileIdx } = stream;
             const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
 
-            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo, contentId, itemType } });
+            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo, contentId, imdbId, itemType } });
+
             sendCommand({ command: "play", payload: { url: streamUrl, startTime } });
 
-        }, [sendCommand, streamingApiUrl, setupStream]),
+        }, [setupStream, streamingApiUrl, sendCommand]),
 
         stop: stopAction,
         togglePause: useCallback(() => sendCommand({ command: "toggle-pause" }), [sendCommand]),
