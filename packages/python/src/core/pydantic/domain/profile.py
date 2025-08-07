@@ -7,9 +7,12 @@ from datetime import datetime
 
 class PlaybackHistory(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    profile_id: str = Field(..., alias="profileId")  # ADD THIS LINE
+    profile_id: str = Field(..., alias="profileId")
     content_id: str = Field(..., alias="contentId")
     item_type: str = Field(..., alias="itemType")
+    imdb_id: Optional[str] = Field(None, alias="imdbId")
+    season: Optional[int] = Field(None)
+    episode: Optional[int] = Field(None)
     position_seconds: int = Field(..., alias="positionSeconds")
     duration_seconds: int = Field(..., alias="durationSeconds")
     watched_at: datetime = Field(..., alias="watchedAt")

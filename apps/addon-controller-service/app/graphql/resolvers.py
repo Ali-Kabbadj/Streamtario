@@ -8,12 +8,14 @@ from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
 from app.use_cases.get_meta import GetMetaUseCase
 from app.use_cases.get_streams import GetStreamsUseCase
 from app.use_cases.get_manifest import GetManifestUseCase
+from app.use_cases.get_subtitles import GetSubtitlesUseCase
 from .types import (
     CatalogResult,
     PlaybackHistoryType,
     ProfileExtension,
     CatalogItemType,
     MetaItemType,
+    SubtitleType,
     VideoType,
     DiscoveredCatalogType,
     DiscoveredCatalogExtraProp,
@@ -27,6 +29,7 @@ from .types import (
     BehaviorHintType,
     CastType,
     AppExtrasType,
+    SubtitleType,
 )
 import strawberry
 from core.utils.logging import log_info, log_error
@@ -124,6 +127,7 @@ async def resolve_profile_meta(
         imdb_id=pydantic_meta.imdb_id,
         imdbRating=pydantic_meta.imdbRating,
         genres=pydantic_meta.genres,
+        released=pydantic_meta.released,
         country=pydantic_meta.country,
         director=pydantic_meta.director,
         writer=pydantic_meta.writer,
@@ -239,3 +243,27 @@ async def resolve_meta_for_playback_history(
 
     # We use the full, robust mapping from your working resolve_profile_meta function.
     return MetaItemType.from_pydantic(pydantic_meta)
+
+
+@inject
+async def resolve_subtitles(
+    profile: ProfileExtension,
+    itemType: str,
+    contentId: str,
+    filename: str,
+    videoSize: str,
+    videoHash: str,
+    use_case: GetSubtitlesUseCase = Provide[Container.get_subtitles_use_case],
+) -> List[SubtitleType]:
+    pydantic_subs = await use_case.execute(
+        profile_id=str(profile.id),
+        item_type=itemType,
+        content_id=contentId,
+        filename=filename,
+        video_size=videoSize,
+        video_hash=videoHash,
+    )
+    return [
+        SubtitleType(id=s.id, lang=s.lang, type=s.type, url=s.url)
+        for s in pydantic_subs
+    ]

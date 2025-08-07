@@ -37,6 +37,7 @@ from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
 from app.use_cases.profile.get_continue_watching import GetContinueWatchingUseCase
 from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from security.jwt_service import IJwtService, JwtService
+from app.use_cases.profile.get_meta_for_id import GetMetaForIdUseCase
 
 
 class Container(containers.DeclarativeContainer):
@@ -208,10 +209,19 @@ class Container(containers.DeclarativeContainer):
         )
     )
 
+    get_meta_for_id_use_case: providers.Factory[GetMetaForIdUseCase] = (
+        providers.Factory(
+            GetMetaForIdUseCase,
+            api_client=api_client,
+            addon_controller_url=settings.provided.ADDON_CONTROLLER_URL,
+        )
+    )
+
     update_playback_history_use_case: providers.Factory[
         UpdatePlaybackHistoryUseCase
     ] = providers.Factory(
         UpdatePlaybackHistoryUseCase,
         uow_factory=uow.provider,
         authorization_policy=authorization_policy,
+        get_meta_for_id_use_case=get_meta_for_id_use_case,
     )

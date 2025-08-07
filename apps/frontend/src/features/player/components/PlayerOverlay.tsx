@@ -96,7 +96,7 @@ export function PlayerOverlay() {
     const handleActivity = () => {
       setIsControlsVisible(true);
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
-      if (hasPlaybackStarted) {
+      if (hasPlaybackStarted && !playerState.isPaused) {
         activityTimeoutRef.current = setTimeout(
           () => setIsControlsVisible(false),
           3000,
@@ -116,7 +116,8 @@ export function PlayerOverlay() {
     if (status === "playing") {
       window.addEventListener("mousemove", handleActivity);
       window.addEventListener("click", handleActivity);
-      const onMouseLeave = () => setIsControlsVisible(false);
+      const onMouseLeave = () =>
+        !playerState.isPaused && setIsControlsVisible(false);
       document.documentElement.addEventListener("mouseleave", onMouseLeave);
       handleActivity();
 

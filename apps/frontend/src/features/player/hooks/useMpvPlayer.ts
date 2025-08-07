@@ -9,6 +9,17 @@ type Stream = NonNullable<GetStreamsQuery["profile"]>["streams"][number];
 const isWebView = () => typeof window !== "undefined" && !!window.chrome?.webview;
 
 // --- STATE ---
+export interface MpvTrack {
+    id: number;
+    'ff-index': number;
+    type: 'audio' | 'sub' | 'video';
+    lang?: string;
+    title?: string;
+    selected?: boolean;
+    codec?: string;
+    'audio-channels'?: number;
+}
+
 export interface PlayerState {
     isPaused: boolean;
     time: number;
@@ -16,6 +27,7 @@ export interface PlayerState {
     volume: number;
     isMuted: boolean;
     isBuffering: boolean;
+    trackList: MpvTrack[];
 }
 
 interface State {
@@ -41,6 +53,7 @@ const initialState: State = {
     activeStream: null,
     playerState: {
         isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false, isBuffering: false,
+        trackList: [], // NEW: Initialize as empty array
     },
 };
 
@@ -76,6 +89,11 @@ function playerReducer(state: State, action: Action): State {
             };
         case 'PROPERTY_CHANGE': {
             const { property, value } = action.payload;
+
+            // NEW: Handle the incoming track-list
+            if (property === 'track-list' && Array.isArray(value)) {
+                return { ...state, playerState: { ...state.playerState, trackList: value as MpvTrack[] } };
+            }
 
             if (property === 'time-pos' && typeof value === 'number' && value > 0 && !state.hasPlaybackStarted) {
                 return { ...state, hasPlaybackStarted: true, playerState: { ...state.playerState, time: value } };
@@ -174,7 +192,7 @@ export function useMpvPlayer() {
     }, [sendCommand, streamingApiUrl, state.activeStream]);
 
     const actions = {
-        playStream: useCallback(async (stream: Stream, title: string, logo: string | null, startTime: number, contentId: string, itemType: string) => { // ADD itemType
+        playStream: useCallback(async (stream: Stream, title: string, logo: string | null | undefined, startTime: number, contentId: string, itemType: string) => {
             if (!stream.infoHash || stream.fileIdx === null || typeof stream.fileIdx === 'undefined') {
                 dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'This stream is not a valid torrent.' } });
                 return;
@@ -185,17 +203,10 @@ export function useMpvPlayer() {
             const { infoHash, fileIdx } = stream;
             const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
 
-            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo, contentId, itemType } }); // ADD itemType
+            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo, contentId, itemType } });
             sendCommand({ command: "play", payload: { url: streamUrl, startTime } });
 
         }, [sendCommand, streamingApiUrl, setupStream]),
-
-        stopAction: useCallback(() => {
-
-            sendCommand({ command: "stop" });
-            dispatch({ type: 'STOP_PLAYBACK' });
-        }, [sendCommand]),
-
 
         stop: stopAction,
         togglePause: useCallback(() => sendCommand({ command: "toggle-pause" }), [sendCommand]),
@@ -214,6 +225,20 @@ export function useMpvPlayer() {
             }
             sendCommand({ command: "toggle-mute" });
         }, [sendCommand, state.playerState.isMuted, state.playerState.volume]),
+
+        setAudioId: useCallback((id: number) => {
+            sendCommand({ command: "set-property", payload: { property: "aid", value: String(id) } });
+        }, [sendCommand]),
+
+        setSubtitleId: useCallback((id: number) => {
+            const value = id === -1 ? "no" : String(id);
+            sendCommand({ command: "set-property", payload: { property: "sid", value: value } });
+        }, [sendCommand]),
+
+        loadSubtitle: useCallback((url: string) => {
+            sendCommand({ command: "load-subtitle", payload: { url } });
+        }, [sendCommand]),
+
     };
 
     return {

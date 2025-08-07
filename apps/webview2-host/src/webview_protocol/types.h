@@ -30,15 +30,34 @@ namespace WebViewProtocol
         int volume;
     };
 
+    struct SetPropertyPayload
+    {
+        std::string property;
+        std::string value;
+    };
+
     struct SetWebViewVisibilityPayload
     {
         bool visible;
     };
 
+    struct LoadSubtitlePayload
+    {
+        std::string url;
+    };
+
+    struct RawCommandPayload
+    {
+        std::string command_string;
+    };
+
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlayPayload, url, startTime)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SeekPayload, time)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetVolumePayload, volume)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetPropertyPayload, property, value)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetWebViewVisibilityPayload, visible)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LoadSubtitlePayload, url)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RawCommandPayload, command_string)
 
     //================================================================
     // OUTGOING EVENTS (From C++ -> Frontend)
@@ -50,15 +69,13 @@ namespace WebViewProtocol
         json value;
     };
 
-    // NEW: This defines the payload for our error event
     struct PlaybackErrorEventPayload
     {
         std::string message;
     };
 
-    // This macro serializes our C++ structs into JSON.
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PropertyChangeEventPayload, property, value)
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlaybackErrorEventPayload, message) // Add the macro for the new type
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlaybackErrorEventPayload, message)
 
 } // namespace WebViewProtocol
 

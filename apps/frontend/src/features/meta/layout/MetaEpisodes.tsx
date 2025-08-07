@@ -4,17 +4,18 @@ import { useState, useEffect, useRef, useMemo, type RefObject } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   VideoType,
-  GetPlaybackHistoryQuery,
+  GetPlaybackHistoryByImdbIdQuery,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { EpisodeCard } from "../components/EpisodeCard";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
+import { usePlayer } from "@/providers/PlayerProvider";
 
 type Video = VideoType;
 type GroupedVideos = Record<string, Video[]>;
 type PlaybackHistoryMap = Map<
   string,
-  GetPlaybackHistoryQuery["playbackHistory"][0]
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0]
 >;
 
 interface MetaEpisodesProps {
@@ -22,6 +23,8 @@ interface MetaEpisodesProps {
   onEpisodeClick: (episode: Video) => void;
   playbackHistoryMap: PlaybackHistoryMap;
   metaId: string;
+  metaLogo?: string | null;
+  initialSeason?: string; // NEW PROP
 }
 
 export function MetaEpisodes({
@@ -29,9 +32,14 @@ export function MetaEpisodes({
   onEpisodeClick,
   playbackHistoryMap,
   metaId,
+  metaLogo,
+  initialSeason, // NEW PROP
 }: MetaEpisodesProps) {
-  const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
+  const [selectedSeason, setSelectedSeason] = useState<string | undefined>(
+    initialSeason,
+  );
   const tabsListRef = useRef<HTMLDivElement | null>(null);
+  const { actions: playerActions } = usePlayer();
 
   const seasons = useMemo(() => {
     if (!videos) return {};
@@ -57,10 +65,13 @@ export function MetaEpisodes({
   }, [seasons]);
 
   useEffect(() => {
-    if (seasonKeys.length > 0 && !selectedSeason) {
+    // Set initial season from props, or default to the first available season
+    if (initialSeason && seasonKeys.includes(initialSeason)) {
+      setSelectedSeason(initialSeason);
+    } else if (seasonKeys.length > 0 && !selectedSeason) {
       setSelectedSeason(seasonKeys[0]);
     }
-  }, [seasonKeys, selectedSeason]);
+  }, [seasonKeys, selectedSeason, initialSeason]);
 
   const scrollHorizontally = (
     ref: RefObject<HTMLDivElement | null>,
@@ -70,6 +81,18 @@ export function MetaEpisodes({
       const scrollAmount = direction === "left" ? -400 : 400;
       ref.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
+  };
+
+  const handleResumeEpisode = (
+    historyItem: GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0],
+  ) => {
+    const itemWithMeta = {
+      ...historyItem,
+      meta: {
+        logo: metaLogo,
+      },
+    };
+    playerActions.resumeStream(itemWithMeta);
   };
 
   if (!videos || videos.length === 0 || seasonKeys.length === 0) {
@@ -123,15 +146,17 @@ export function MetaEpisodes({
               {seasons[selectedSeason]?.map((episode) => {
                 const isReleased =
                   new Date(episode.released ?? 0) <= new Date();
-                const contentId = `${metaId}:${episode.season}:${episode.episode}`;
-                const history = playbackHistoryMap.get(contentId);
+
+                const historyKey = `${episode.season}:${episode.episode}`;
+                const history = playbackHistoryMap.get(historyKey);
 
                 return (
                   <EpisodeCard
                     key={episode.id}
                     episode={episode}
                     isReleased={isReleased}
-                    onClick={() => onEpisodeClick(episode)}
+                    onShowSources={() => onEpisodeClick(episode)}
+                    onResume={() => history && handleResumeEpisode(history)}
                     playbackHistory={history}
                   />
                 );

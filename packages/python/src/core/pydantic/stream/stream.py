@@ -19,6 +19,7 @@ class Stream(BaseModel):
     behavior_hints: Optional[Dict[str, Any]] = Field(None, alias="behaviorHints")
     addon_name: Optional[str] = Field(None, alias="addonName")
     sources: Optional[List[str]] = None
+    video_hash: Optional[str] = Field(None, alias="videoHash")
 
     @property
     def announce(self) -> List[str]:

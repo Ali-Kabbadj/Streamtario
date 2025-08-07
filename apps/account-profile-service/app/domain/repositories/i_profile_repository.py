@@ -17,6 +17,19 @@ class IProfileRepository(ABC):
     ) -> List[PlaybackHistory]:
         pass
 
+    # CORRECTED: This method is necessary for the GraphQL query
+    @abstractmethod
+    async def get_playback_history_by_imdb_id(
+        self, profile_id: str, imdb_id: str
+    ) -> List[PlaybackHistory]:
+        pass
+
+    @abstractmethod
+    async def get_playback_history_by_content_ids(
+        self, profile_id: str, content_ids: List[str]
+    ) -> List[PlaybackHistory]:
+        pass
+
     @abstractmethod
     async def create(
         self,
@@ -54,6 +67,9 @@ class IProfileRepository(ABC):
         profile_id: str,
         content_id: str,
         item_type: str,
+        imdb_id: Optional[str],
+        season: Optional[int],
+        episode: Optional[int],
         position_seconds: int,
         duration_seconds: int,
         last_stream_details: Optional[Dict[str, Any]],

@@ -10,6 +10,14 @@ from strawberry.federation.schema_directives import Requires
 
 
 @strawberry.type
+class SubtitleType:
+    id: str
+    type: Optional[str]
+    lang: str
+    url: str
+
+
+@strawberry.type
 class DiscoveredCatalogExtraProp:
     name: str
     is_required: bool
@@ -220,7 +228,6 @@ class AddonManifestType:
         )
 
 
-# ... (The rest of the types file remains the same)
 @strawberry.type
 class CatalogResult:
     items: List[CatalogItemType]
@@ -229,7 +236,7 @@ class CatalogResult:
 @strawberry.type
 class AddonSearchResultType:
     addon_name: str
-    results_by_type: JSON
+    results_by_type: JSON  # type: ignore
     error: Optional[str] = None
 
 
@@ -260,13 +267,22 @@ class StreamType:
     yt_id: Optional[str] = None
     info_hash: Optional[str] = None
     file_idx: Optional[int] = None
-    behavior_hints: Optional[JSON] = None
+    behavior_hints: Optional[JSON] = None  # type: ignore
     addon_name: Optional[str] = None
     announce: Optional[List[str]] = None
+    video_hash: Optional[str] = None
     files: Optional[List["StreamFileType"]] = None
 
     @classmethod
     def from_pydantic(cls, model: Stream) -> "StreamType":
+        video_hash = model.video_hash
+        if (
+            not video_hash
+            and model.behavior_hints
+            and "videoHash" in model.behavior_hints
+        ):
+            video_hash = model.behavior_hints["videoHash"]
+
         return cls(
             name=model.name,
             title=model.title,
@@ -277,6 +293,7 @@ class StreamType:
             behavior_hints=model.behavior_hints,
             addon_name=model.addon_name,
             announce=model.announce,
+            video_hash=video_hash,
         )
 
 
@@ -296,7 +313,7 @@ class ProfileExtension:
         itemType: str,
         catalogId: Optional[str] = None,
         manifestId: Optional[str] = None,
-        extraProps: Optional[JSON] = None,
+        extraProps: Optional[JSON] = None,  # type: ignore
         filterByType: Optional[str] = None,
     ) -> "CatalogResult":
         from .resolvers import resolve_profile_catalog
@@ -322,3 +339,18 @@ class ProfileExtension:
         from .resolvers import resolve_streams
 
         return await resolve_streams(self, itemType, itemId)
+
+    @strawberry.field
+    async def subtitles(
+        self,
+        itemType: str,
+        contentId: str,
+        filename: str,
+        videoSize: str,
+        videoHash: str,
+    ) -> List["SubtitleType"]:
+        from .resolvers import resolve_subtitles
+
+        return await resolve_subtitles(
+            self, itemType, contentId, filename, videoSize, videoHash
+        )

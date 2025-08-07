@@ -1,5 +1,6 @@
+from typing import List
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Query
 from api_contract.responses import ApiResponse
 from app.containers import Container
 from core.pydantic.domain.account import Account
@@ -10,6 +11,11 @@ from app.use_cases.account.login import LoginUseCase
 from app.use_cases.profile.get_manifest_urls_for_profile import (
     GetManifestUrlsForProfileUseCase,
 )
+from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
+from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
+from security.schemas import TokenPayload
+from app.security.dependencies import get_current_user_payload
+from core.pydantic.api.internals import ManifestUrlsResponse, PlaybackHistoryResponse
 
 router = APIRouter(tags=["Internal"])
 
@@ -54,3 +60,26 @@ async def get_manifest_urls(
     urls = await use_case.execute(profile_id)
     response_data = ManifestUrlsResponse(manifest_urls=urls)
     return ApiResponse[ManifestUrlsResponse](ok=True, data=response_data, error=None)
+
+
+@router.get(
+    "/profiles/{profile_id}/playback-history",
+    response_model=ApiResponse[PlaybackHistoryResponse],
+)
+@inject
+async def get_playback_history(
+    profile_id: str,
+    content_ids: List[str] = Query(...),
+    use_case: GetPlaybackHistoryUseCase = Depends(
+        Provide[Container.get_playback_history_use_case]
+    ),
+    token_payload: TokenPayload = Depends(get_current_user_payload),
+):
+    history = await use_case.execute(
+        requesting_account_id=token_payload.sub,
+        profile_id=profile_id,
+        content_ids=content_ids,
+    )
+    # Wrap the list in the new response model
+    response_data = PlaybackHistoryResponse(items=history)
+    return ApiResponse[PlaybackHistoryResponse](ok=True, data=response_data, error=None)

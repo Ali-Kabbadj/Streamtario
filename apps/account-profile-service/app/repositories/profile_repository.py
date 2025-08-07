@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete, desc
+from sqlalchemy import delete, desc, func, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 from core.database.models.auth.account import ProfileOrm
@@ -41,7 +41,6 @@ class ProfileRepository(IProfileRepository):
         is_private: bool,
         pin_hash: Optional[str],
     ) -> Profile:
-        """Creates a new profile for an account."""
         new_profile_orm = ProfileOrm(
             account_id=account_id,
             name=name,
@@ -52,52 +51,29 @@ class ProfileRepository(IProfileRepository):
         self.session.add(new_profile_orm)
         await self.session.flush()
 
-        return Profile(
-            id=new_profile_orm.id,
-            name=new_profile_orm.name,
-            avatar=new_profile_orm.avatar,
-            isPrivate=new_profile_orm.is_private,
-            pinHash=new_profile_orm.pin_hash,
-            installedAddons=[],
-        )
+        return Profile.model_validate(new_profile_orm)
 
     async def update(self, profile: Profile) -> Profile:
-        """
-        Updates a profile and returns the full, eagerly-loaded domain model.
-        """
         profile_orm = await self.session.get(ProfileOrm, profile.id)
         if not profile_orm:
             raise ApiException(
                 ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile.id}
             )
 
-        profile_orm.name = profile.name or "Default"
-        profile_orm.avatar = (
-            profile.avatar
-            or "https://i.pinimg.com/736x/5b/50/e7/5b50e75d07c726d36f397f6359098f58.jpg"
+        update_data = profile.model_dump(
+            exclude={"id", "installed_addons", "playback_history"}, by_alias=False
         )
-        profile_orm.is_private = profile.is_private
-        profile_orm.pin_hash = profile.pin_hash or ""
-        profile_orm.settings = profile.settings
+        for key, value in update_data.items():
+            setattr(profile_orm, key, value)
 
         await self.session.flush()
-        self.session.expire(profile_orm)
-
-        stmt = (
-            select(ProfileOrm)
-            .where(ProfileOrm.id == profile.id)
-            .options(
-                selectinload(ProfileOrm.installed_addons),
-                selectinload(ProfileOrm.playback_history),
-            )
+        await self.session.refresh(
+            profile_orm, attribute_names=["installed_addons", "playback_history"]
         )
-        result = await self.session.execute(stmt)
-        updated_orm = result.scalars().one()
 
-        return Profile.model_validate(updated_orm)
+        return Profile.model_validate(profile_orm)
 
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
-        """Fetches a single profile by its ID, eagerly loading its addons and history."""
         stmt = (
             select(ProfileOrm)
             .where(ProfileOrm.id == profile_id)
@@ -113,7 +89,6 @@ class ProfileRepository(IProfileRepository):
     async def add_addon(
         self, profile_id: str, manifest_url: str, manifest_id: str
     ) -> InstalledAddon:
-        """Adds a new InstalledAddonOrm to the session."""
         new_addon_orm = InstalledAddonOrm(
             profile_id=profile_id,
             manifest_url=manifest_url,
@@ -124,7 +99,6 @@ class ProfileRepository(IProfileRepository):
         return InstalledAddon.model_validate(new_addon_orm)
 
     async def remove_addon(self, profile_id: str, manifest_id: str) -> bool:
-        """Deletes an addon by its manifest_id from a specific profile."""
         stmt = (
             delete(InstalledAddonOrm)
             .where(InstalledAddonOrm.profile_id == profile_id)
@@ -134,7 +108,6 @@ class ProfileRepository(IProfileRepository):
         return result.rowcount > 0
 
     async def remove_addons_by_account(self, account_id: str, manifest_id: str) -> int:
-        """Deletes all installations of an addon from all profiles on an account."""
         profile_ids_stmt = select(ProfileOrm.id).where(
             ProfileOrm.account_id == account_id
         )
@@ -150,33 +123,98 @@ class ProfileRepository(IProfileRepository):
         self,
         profile_id: str,
         content_id: str,
-        item_type: str,  # ADD THIS ARGUMENT
+        item_type: str,
+        imdb_id: Optional[str],
+        season: Optional[int],
+        episode: Optional[int],
         position_seconds: int,
         duration_seconds: int,
         last_stream_details: Optional[Dict[str, Any]],
     ) -> PlaybackHistory:
+
+        # 1. Find existing record by canonical ID (IMDB + S/E) if available
+        existing_orm = None
+        if imdb_id and item_type == "series":
+            stmt = select(PlaybackHistoryOrm).where(
+                PlaybackHistoryOrm.profile_id == profile_id,
+                PlaybackHistoryOrm.imdb_id == imdb_id,
+                PlaybackHistoryOrm.season == season,
+                PlaybackHistoryOrm.episode == episode,
+            )
+            result = await self.session.execute(stmt)
+            existing_orm = result.scalars().first()
+        elif imdb_id and item_type == "movie":
+            stmt = select(PlaybackHistoryOrm).where(
+                PlaybackHistoryOrm.profile_id == profile_id,
+                PlaybackHistoryOrm.imdb_id == imdb_id,
+            )
+            result = await self.session.execute(stmt)
+            existing_orm = result.scalars().first()
+
+        # 2. If not found by canonical ID, try the specific content_id
+        if not existing_orm:
+            stmt = select(PlaybackHistoryOrm).where(
+                PlaybackHistoryOrm.profile_id == profile_id,
+                PlaybackHistoryOrm.content_id == content_id,
+            )
+            result = await self.session.execute(stmt)
+            existing_orm = result.scalars().first()
+
+        values_to_update = {
+            "content_id": content_id,
+            "item_type": item_type,
+            "imdb_id": imdb_id,
+            "season": season,
+            "episode": episode,
+            "position_seconds": position_seconds,
+            "duration_seconds": duration_seconds,
+            "last_stream_details": last_stream_details,
+            "watched_at": func.now(),
+        }
+
+        if existing_orm:
+            update_stmt = (
+                update(PlaybackHistoryOrm)
+                .where(PlaybackHistoryOrm.id == existing_orm.id)
+                .values(**values_to_update)
+                .returning(PlaybackHistoryOrm)
+            )
+            result = await self.session.execute(update_stmt)
+            updated_orm = result.scalars().one()
+        else:
+            # Insert a new record
+            insert_stmt = (
+                insert(PlaybackHistoryOrm)
+                .values(profile_id=profile_id, **values_to_update)
+                .returning(PlaybackHistoryOrm)
+            )
+            result = await self.session.execute(insert_stmt)
+            updated_orm = result.scalars().one()
+
+        await self.session.flush()
+        return PlaybackHistory.model_validate(updated_orm)
+
+    async def get_playback_history_by_imdb_id(
+        self, profile_id: str, imdb_id: str
+    ) -> List[PlaybackHistory]:
         stmt = (
-            insert(PlaybackHistoryOrm)
-            .values(
-                profile_id=profile_id,
-                content_id=content_id,
-                item_type=item_type,  # ADD THIS LINE
-                position_seconds=position_seconds,
-                duration_seconds=duration_seconds,
-                last_stream_details=last_stream_details,
-            )
-            .on_conflict_do_update(
-                index_elements=["profile_id", "content_id"],
-                set_={
-                    "item_type": item_type,  # ADD THIS LINE
-                    "position_seconds": position_seconds,
-                    "duration_seconds": duration_seconds,
-                    "last_stream_details": last_stream_details,
-                },
-            )
-            .returning(PlaybackHistoryOrm)
+            select(PlaybackHistoryOrm)
+            .where(PlaybackHistoryOrm.profile_id == profile_id)
+            .where(PlaybackHistoryOrm.imdb_id == imdb_id)
+            .order_by(desc(PlaybackHistoryOrm.watched_at))
         )
         result = await self.session.execute(stmt)
-        await self.session.flush()
-        updated_orm = result.scalars().one()
-        return PlaybackHistory.model_validate(updated_orm)
+        history_orms = result.scalars().all()
+        return [PlaybackHistory.model_validate(h) for h in history_orms]
+
+    async def get_playback_history_by_content_ids(
+        self, profile_id: str, content_ids: List[str]
+    ) -> List[PlaybackHistory]:
+        stmt = (
+            select(PlaybackHistoryOrm)
+            .where(PlaybackHistoryOrm.profile_id == profile_id)
+            .where(PlaybackHistoryOrm.content_id.in_(content_ids))
+        )
+        result = await self.session.execute(stmt)
+        history_orms = result.scalars().all()
+        return [PlaybackHistory.model_validate(h) for h in history_orms]

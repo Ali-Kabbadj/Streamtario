@@ -5,21 +5,28 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
 import type {
   VideoType,
-  GetPlaybackHistoryQuery,
+  GetPlaybackHistoryByImdbIdQuery, // CORRECTED IMPORT
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Clapperboard, Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+// CORRECTED TYPE ALIAS
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 
 interface EpisodeCardProps {
   episode: VideoType;
-  onClick: () => void;
+  onShowSources: () => void;
+  onResume: () => void;
   isReleased: boolean;
-  playbackHistory?: GetPlaybackHistoryQuery["playbackHistory"][0];
+  playbackHistory?: PlaybackHistoryItem; // CORRECTED PROP TYPE
 }
 
 export function EpisodeCard({
   episode,
-  onClick,
+  onShowSources,
+  onResume,
   isReleased,
   playbackHistory,
 }: EpisodeCardProps) {
@@ -30,15 +37,14 @@ export function EpisodeCard({
       : 0;
 
   const isWatched = progressPercent >= 95;
+  const canResume = !!playbackHistory?.lastStreamDetails;
 
   return (
     <motion.div
-      onClick={isReleased ? onClick : undefined}
       className={cn(
-        "group flex flex-col gap-2 overflow-hidden rounded-lg p-2 transition-colors",
+        "group relative flex flex-col gap-2 overflow-hidden rounded-lg p-2",
         isReleased ? "cursor-pointer" : "cursor-not-allowed opacity-50",
       )}
-      whileHover={isReleased ? { backgroundColor: "var(--accent)" } : {}}
     >
       <AspectRatio
         ratio={16 / 9}
@@ -65,6 +71,21 @@ export function EpisodeCard({
             />
           </div>
         )}
+
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 p-2 text-center opacity-0 transition-opacity group-hover:opacity-100">
+          {canResume ? (
+            <Button onClick={onResume} className="w-full">
+              <Play className="mr-2 h-4 w-4" /> Resume
+            </Button>
+          ) : null}
+          <Button
+            onClick={onShowSources}
+            variant={canResume ? "secondary" : "default"}
+            className="w-full"
+          >
+            <Clapperboard className="mr-2 h-4 w-4" /> View Sources
+          </Button>
+        </div>
       </AspectRatio>
       <div className="flex-grow">
         <h4 className="truncate font-semibold">

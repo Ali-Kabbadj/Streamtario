@@ -12,29 +12,31 @@ import { PlayerProvider } from "@/providers/PlayerProvider";
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <GoogleOAuthProvider clientId={APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <GraphqlProvider>
-          <AuthProvider>
-            <ProfileProvider>
-              <ViewProvider>
-                <DiscoverProvider>
-                  <PlayerProvider>
-                    <div id="app-root">
-                      <Component {...pageProps} />
-                    </div>
-                  </PlayerProvider>
-                </DiscoverProvider>
-              </ViewProvider>
-            </ProfileProvider>
-          </AuthProvider>
-        </GraphqlProvider>
-      </ThemeProvider>
-    </GoogleOAuthProvider>
+    <>
+      <GoogleOAuthProvider clientId={APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <GraphqlProvider>
+            <AuthProvider>
+              <ProfileProvider>
+                <ViewProvider>
+                  <DiscoverProvider>
+                    <PlayerProvider>
+                      <div id="app-root">
+                        <Component {...pageProps} />
+                      </div>
+                    </PlayerProvider>
+                  </DiscoverProvider>
+                </ViewProvider>
+              </ProfileProvider>
+            </AuthProvider>
+          </GraphqlProvider>
+        </ThemeProvider>
+      </GoogleOAuthProvider>
+    </>
   );
 }

@@ -335,8 +335,9 @@
           "➕ Streaming Service",
           "➕ torrserver-daemon",
           "🚀 API Gateway",
-          "WebView2"
-          // "DEBUG_FRONTEND"
+          "WebView2",
+          "DEBUG_FRONTEND",
+          "REACT_DEVTOOLS"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
         "stopAll": true,

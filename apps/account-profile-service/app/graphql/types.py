@@ -55,7 +55,7 @@ class UpdateProfileInput:
 @strawberry.input
 class UpdateProfileSettingsInput:
     profile_id: strawberry.ID
-    settings: JSON
+    settings: JSON  # type: ignore
 
 
 @strawberry.input
@@ -81,7 +81,7 @@ class UpdatePlaybackHistoryInput:
     item_type: str
     position_seconds: int
     duration_seconds: int
-    last_stream_details: Optional[JSON] = None
+    last_stream_details: Optional[JSON] = None  # type: ignore
 
 
 # ========= OBJECT TYPES =========
@@ -105,21 +105,27 @@ class InstalledAddonType:
 @strawberry.federation.type(keys=["id"])
 class PlaybackHistoryType:
     id: strawberry.ID
-    profile_id: strawberry.ID = strawberry.field(name="profileId")  # ADD THIS LINE
+    profile_id: strawberry.ID = strawberry.field(name="profileId")
     content_id: str
     item_type: str
+    imdb_id: Optional[str] = None
+    season: Optional[int] = None
+    episode: Optional[int] = None
     position_seconds: int
     duration_seconds: int
     watched_at: str
-    last_stream_details: Optional[JSON] = None
+    last_stream_details: Optional[JSON] = None  # type: ignore
 
     @classmethod
     def from_pydantic(cls, model: PydanticPlaybackHistory) -> "PlaybackHistoryType":
         return cls(
             id=strawberry.ID(model.id),
-            profile_id=strawberry.ID(model.profile_id),  # ADD THIS LINE
+            profile_id=strawberry.ID(model.profile_id),
             content_id=model.content_id,
             item_type=model.item_type,
+            imdb_id=model.imdb_id,
+            season=model.season,
+            episode=model.episode,
             position_seconds=model.position_seconds,
             duration_seconds=model.duration_seconds,
             watched_at=model.watched_at.isoformat(),
@@ -133,7 +139,7 @@ class ProfileType:
     name: str
     avatar: Optional[str]
     is_private: bool
-    settings: JSON
+    settings: JSON  # type: ignore
     installed_addons: List[InstalledAddonType]
     manifest_urls: List[str]
 
@@ -262,19 +268,19 @@ class LoginError:
 
 @strawberry.type
 class InstallAddonForAllProfilesSuccess:
-    summary: JSON
+    summary: JSON  # type: ignore
 
 
 @strawberry.type
 class InstallAddonForAllProfilesError:
     code: str
     message: str
-    error: Optional[JSON]
+    error: Optional[JSON]  # type: ignore
 
 
 @strawberry.type
 class UninstallAddonFromAllProfilesSuccess:
-    summary: JSON
+    summary: JSON  # type: ignore
 
 
 @strawberry.type

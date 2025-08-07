@@ -72,7 +72,10 @@ class PlaybackHistoryOrm(Base):
     )
     profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.id"), nullable=False)
     content_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    item_type: Mapped[str] = mapped_column(String, nullable=False)  # ADD THIS LINE
+    item_type: Mapped[str] = mapped_column(String, nullable=False)
+    imdb_id: Mapped[str] = mapped_column(String, nullable=True, index=True)
+    season: Mapped[int] = mapped_column(Integer, nullable=True)
+    episode: Mapped[int] = mapped_column(Integer, nullable=True)
     position_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     last_stream_details: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=True)
