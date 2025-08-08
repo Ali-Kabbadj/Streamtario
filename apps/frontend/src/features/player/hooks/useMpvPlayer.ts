@@ -1,14 +1,10 @@
 import { useEffect, useCallback, useReducer } from "react";
 import { type WebViewCommand } from "@/types/webview/commands";
 import { type MpvEvent } from "@/types/webview/events";
-import { APP_CONFIG } from "@/config/env";
-import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-
-type Stream = NonNullable<GetStreamsQuery["profile"]>["streams"][number];
+import type { Stream } from "@/features/meta/types";
 
 const isWebView = () => typeof window !== "undefined" && !!window.chrome?.webview;
 
-// --- STATE ---
 export interface MpvTrack {
     id: number;
     'ff-index': number;
@@ -34,15 +30,9 @@ interface State {
     status: "idle" | "playing" | "error";
     hasPlaybackStarted: boolean;
     errorMessage: string | null;
-    activeStream: {
-        stream: Stream;
+    activeStreamInfo: {
         infoHash: string | null | undefined;
         fileIndex: number | null | undefined;
-        title: string;
-        logo?: string | null;
-        contentId: string;
-        imdbId: string;
-        itemType: string;
     } | null;
     playerState: PlayerState;
 }
@@ -51,39 +41,31 @@ const initialState: State = {
     status: "idle",
     hasPlaybackStarted: false,
     errorMessage: null,
-    activeStream: null,
+    activeStreamInfo: null,
     playerState: {
         isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false, isBuffering: false,
-        trackList: [], // NEW: Initialize as empty array
+        trackList: [],
     },
 };
 
-// --- ACTIONS ---
 type Action =
-    | { type: 'PLAY_STREAM_START'; payload: { stream: Stream; title: string; logo?: string | null; contentId: string; imdbId: string; itemType: string; } }
-    | { type: 'PLAY_STREAM_FAILED'; payload: { message: string } }
+    | { type: 'PLAY_COMMAND_ISSUED'; payload: { url: string; startTime: number; infoHash?: string | null; fileIndex?: number | null; } }
+    | { type: 'PLAYBACK_FAILED'; payload: { message: string } }
     | { type: 'PROPERTY_CHANGE'; payload: { property: string; value: unknown } }
     | { type: 'STOP_PLAYBACK' };
 
-// --- REDUCER ---
 function playerReducer(state: State, action: Action): State {
     switch (action.type) {
-        case 'PLAY_STREAM_START':
+        case 'PLAY_COMMAND_ISSUED':
             return {
                 ...initialState,
                 status: 'playing',
-                activeStream: {
-                    stream: action.payload.stream,
-                    infoHash: action.payload.stream.infoHash,
-                    fileIndex: action.payload.stream.fileIdx,
-                    title: action.payload.title,
-                    logo: action.payload.logo,
-                    contentId: action.payload.contentId,
-                    imdbId: action.payload.imdbId,
-                    itemType: action.payload.itemType,
+                activeStreamInfo: {
+                    infoHash: action.payload.infoHash,
+                    fileIndex: action.payload.fileIndex,
                 },
             };
-        case 'PLAY_STREAM_FAILED':
+        case 'PLAYBACK_FAILED':
             return {
                 ...state,
                 status: 'error',
@@ -92,7 +74,6 @@ function playerReducer(state: State, action: Action): State {
         case 'PROPERTY_CHANGE': {
             const { property, value } = action.payload;
 
-            // NEW: Handle the incoming track-list
             if (property === 'track-list' && Array.isArray(value)) {
                 return { ...state, playerState: { ...state.playerState, trackList: value as MpvTrack[] } };
             }
@@ -101,7 +82,7 @@ function playerReducer(state: State, action: Action): State {
                 return { ...state, hasPlaybackStarted: true, playerState: { ...state.playerState, time: value } };
             }
 
-            const keyMap: Record<string, keyof PlayerState> = { "time-pos": "time", "pause": "isPaused", "mute": "isMuted", "volume": "volume", "duration": "duration", "paused-for-cache": "isBuffering" };
+            const keyMap: Record<string, keyof PlayerState> = { "time-pos": "time", "pause": "isPaused", "mute": "isMuted", "volume": "volume", "duration": "duration", "paused-for-cache": "isBuffering", "buffering": "isBuffering" }; // Add "buffering"
             const stateKey = keyMap[property];
 
             if (stateKey) {
@@ -123,30 +104,12 @@ function playerReducer(state: State, action: Action): State {
 
 export function useMpvPlayer() {
     const [state, dispatch] = useReducer(playerReducer, initialState);
-    const streamingApiUrl = `${APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('/graphql', '')}/api/v1/stream`;
 
     const sendCommand = useCallback((command: WebViewCommand) => {
         const message = JSON.stringify(command);
         if (isWebView() && window.chrome?.webview) window.chrome.webview.postMessage(message);
         else console.log("WebView Outgoing:", message);
     }, []);
-
-    const setupStream = useCallback(async (infoHash: string, announce: readonly string[] | null | undefined) => {
-        const setupUrl = `${streamingApiUrl}/setup-stream`;
-        try {
-            const response = await fetch(setupUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ infoHash, announce }),
-            });
-            if (!response.ok) {
-                throw new Error(`Stream setup failed with status: ${response.status}`);
-            }
-        } catch (error) {
-            console.error("[Player] Error setting up stream:", error);
-            dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'Could not prepare the stream on the server.' } });
-        }
-    }, [streamingApiUrl]);
 
     useEffect(() => {
         if (!isWebView()) return;
@@ -158,7 +121,7 @@ export function useMpvPlayer() {
                 } else if (data.event === "playback-ended") {
                     dispatch({ type: 'STOP_PLAYBACK' });
                 } else if (data.event === "playback-error") {
-                    dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: data.payload.message } });
+                    dispatch({ type: 'PLAYBACK_FAILED', payload: { message: data.payload.message } });
                 }
             } catch (error) {
                 console.error("Failed to parse WebView message:", error);
@@ -170,47 +133,23 @@ export function useMpvPlayer() {
     }, []);
 
     const stopAction = useCallback(() => {
-        if (state.activeStream?.infoHash) {
-            const cleanupUrl = `${streamingApiUrl}/cleanup/${state.activeStream.infoHash}`;
-
-            fetch(cleanupUrl, {
-                method: 'POST',
-                keepalive: true,
-            })
-                .then(response => {
-                    if (response.ok) {
-                        console.log(`[Player] Successfully sent cleanup command for ${state.activeStream?.infoHash}`);
-                    } else {
-                        console.error(`[Player] Cleanup command failed with status: ${response.status}`);
-                    }
-                })
-                .catch(err => {
-                    console.error("[Player] Error sending cleanup command:", err);
-                });
-        }
-
         sendCommand({ command: "stop" });
         dispatch({ type: 'STOP_PLAYBACK' });
-    }, [sendCommand, streamingApiUrl, state.activeStream]);
+    }, [sendCommand]);
 
     const actions = {
-        playStream: useCallback(async (stream: Stream, title: string, logo: string | null | undefined, startTime: number, contentId: string, imdbId: string, itemType: string) => {
-            if (!stream.infoHash || stream.fileIdx === null || typeof stream.fileIdx === 'undefined') {
-                dispatch({ type: 'PLAY_STREAM_FAILED', payload: { message: 'This stream is not a valid torrent.' } });
-                return;
-            }
-
-            await setupStream(stream.infoHash, stream.announce);
-
-            const { infoHash, fileIdx } = stream;
-            const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
-
-            dispatch({ type: 'PLAY_STREAM_START', payload: { stream, title, logo, contentId, imdbId, itemType } });
-
-            sendCommand({ command: "play", payload: { url: streamUrl, startTime } });
-
-        }, [setupStream, streamingApiUrl, sendCommand]),
-
+        play: useCallback((url: string, startTime: number, stream?: Stream) => {
+            dispatch({
+                type: 'PLAY_COMMAND_ISSUED',
+                payload: {
+                    url,
+                    startTime,
+                    infoHash: stream?.infoHash,
+                    fileIndex: stream?.fileIdx,
+                }
+            });
+            sendCommand({ command: "play", payload: { url, startTime } });
+        }, [sendCommand]),
         stop: stopAction,
         togglePause: useCallback(() => sendCommand({ command: "toggle-pause" }), [sendCommand]),
         toggleFullscreen: useCallback(() => sendCommand({ command: "toggle-fullscreen" }), [sendCommand]),
@@ -228,26 +167,22 @@ export function useMpvPlayer() {
             }
             sendCommand({ command: "toggle-mute" });
         }, [sendCommand, state.playerState.isMuted, state.playerState.volume]),
-
         setAudioId: useCallback((id: number) => {
             sendCommand({ command: "set-property", payload: { property: "aid", value: String(id) } });
         }, [sendCommand]),
-
         setSubtitleId: useCallback((id: number) => {
             const value = id === -1 ? "no" : String(id);
             sendCommand({ command: "set-property", payload: { property: "sid", value: value } });
         }, [sendCommand]),
-
         loadSubtitle: useCallback((url: string) => {
             sendCommand({ command: "load-subtitle", payload: { url } });
         }, [sendCommand]),
-
     };
 
     return {
         status: state.status,
         errorMessage: state.errorMessage,
-        activeStream: state.activeStream,
+        activeStreamInfo: state.activeStreamInfo,
         playerState: state.playerState,
         actions,
         hasPlaybackStarted: state.hasPlaybackStarted,

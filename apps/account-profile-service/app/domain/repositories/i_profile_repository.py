@@ -17,7 +17,16 @@ class IProfileRepository(ABC):
     ) -> List[PlaybackHistory]:
         pass
 
-    # CORRECTED: This method is necessary for the GraphQL query
+    @abstractmethod
+    async def get_continue_watching_for_profile(
+        self, profile_id: str, limit: int
+    ) -> List[PlaybackHistory]:
+        """
+        Fetches the most recent, unique playback history item for each show (by imdb_id),
+        ordered by the most recently watched overall.
+        """
+        pass
+
     @abstractmethod
     async def get_playback_history_by_imdb_id(
         self, profile_id: str, imdb_id: str
@@ -67,7 +76,6 @@ class IProfileRepository(ABC):
         profile_id: str,
         content_id: str,
         item_type: str,
-        # imdb_id: Optional[str],
         imdb_id: str,
         season: Optional[int],
         episode: Optional[int],

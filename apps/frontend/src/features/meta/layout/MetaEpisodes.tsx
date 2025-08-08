@@ -22,22 +22,18 @@ interface MetaEpisodesProps {
   videos: (Video | null)[] | null | undefined;
   onEpisodeClick: (episode: Video) => void;
   playbackHistoryMap: PlaybackHistoryMap;
-  metaId: string;
   metaLogo?: string | null;
-  initialSeason?: string; // NEW PROP
+  initialSeason?: string;
 }
 
 export function MetaEpisodes({
   videos,
   onEpisodeClick,
   playbackHistoryMap,
-  metaId,
   metaLogo,
-  initialSeason, // NEW PROP
+  initialSeason,
 }: MetaEpisodesProps) {
-  const [selectedSeason, setSelectedSeason] = useState<string | undefined>(
-    initialSeason,
-  );
+  const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
   const tabsListRef = useRef<HTMLDivElement | null>(null);
   const { actions: playerActions } = usePlayer();
 
@@ -65,13 +61,12 @@ export function MetaEpisodes({
   }, [seasons]);
 
   useEffect(() => {
-    // Set initial season from props, or default to the first available season
     if (initialSeason && seasonKeys.includes(initialSeason)) {
       setSelectedSeason(initialSeason);
     } else if (seasonKeys.length > 0 && !selectedSeason) {
       setSelectedSeason(seasonKeys[0]);
     }
-  }, [seasonKeys, selectedSeason, initialSeason]);
+  }, [seasonKeys, initialSeason, selectedSeason]);
 
   const scrollHorizontally = (
     ref: RefObject<HTMLDivElement | null>,

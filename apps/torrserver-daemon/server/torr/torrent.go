@@ -48,20 +48,19 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 		return nil, errors.New("BT client not connected")
 	}
 
-	if len(spec.Trackers) == 0 {
-		switch settings.Get().RetrackersMode {
-		case 1:
-			spec.Trackers = append(spec.Trackers, [][]string{utils.GetDefTrackers()}...)
-		case 2:
-			spec.Trackers = nil
-		case 3:
-			spec.Trackers = [][]string{utils.GetDefTrackers()}
-		}
-		trackers := utils.GetTrackerFromFile()
-		if len(trackers) > 0 {
-			spec.Trackers = append(spec.Trackers, [][]string{trackers}...)
-		}
+	mergedTrackers := spec.Trackers
+	switch settings.Get().RetrackersMode {
+	case 1:
+		mergedTrackers = append(mergedTrackers, [][]string{utils.GetDefTrackers()}...)
+	case 2:
+	case 3:
+		mergedTrackers = [][]string{utils.GetDefTrackers()}
 	}
+	fileTrackers := utils.GetTrackerFromFile()
+	if len(fileTrackers) > 0 {
+		mergedTrackers = append(mergedTrackers, [][]string{fileTrackers}...)
+	}
+	spec.Trackers = mergedTrackers
 
 	var goTorrent *torrent.Torrent
 	var err error
@@ -88,8 +87,11 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 	defer bt.mu.Unlock()
 	if torr, ok := bt.torrents[spec.InfoHash]; ok {
 		log.Println("Re-using existing torrent instance for:", spec.InfoHash.HexString())
+		if torr.FileIdx != fileIdx && fileIdx != -1 {
+			torr.FileIdx = fileIdx
+			torr.saveMetadataAndSetFilePriorities()
+		}
 		torr.FileName = filename
-		torr.FileIdx = fileIdx
 		torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
 		return torr, nil
 	}
@@ -126,7 +128,7 @@ func (t *Torrent) WaitInfo() bool {
 		return true
 	}
 
-	infoTimeout := time.Minute + time.Second*time.Duration(settings.Get().TorrentDisconnectTimeout)
+	infoTimeout := time.Second * 30
 	timer := time.NewTimer(infoTimeout)
 	defer timer.Stop()
 
@@ -140,6 +142,7 @@ func (t *Torrent) WaitInfo() bool {
 		return false
 	case <-timer.C:
 		log.Println("Timeout waiting for torrent info:", t.Hash().HexString())
+		t.Close()
 		return false
 	}
 }
@@ -184,15 +187,37 @@ func (t *Torrent) saveMetadataAndSetFilePriorities() {
 		}
 	}
 
-	files := t.Torrent.Files()
-	if t.FileIdx < 0 || t.FileIdx >= len(files) {
+	// This is the crucial change. Only set priorities if we have a valid file index.
+	if t.FileIdx < 0 {
+		log.Printf("File index is %d, skipping priority setting for now.", t.FileIdx)
 		return
 	}
 
+	files := t.Torrent.Files()
+	if t.FileIdx >= len(files) {
+		log.Printf("Invalid file index %d for torrent %s. Cannot set priorities.", t.FileIdx, t.Hash().HexString())
+		return
+	}
+
+	log.Printf("Setting stream priorities for torrent %s, file index %d", t.Hash().HexString(), t.FileIdx)
+	
+	targetFile := files[t.FileIdx]
+	targetFile.SetPriority(torrent.PiecePriorityNormal)
+	
+	startPiece := int(targetFile.Offset() / t.Info().PieceLength)
+	endPiece := int((targetFile.Offset() + targetFile.Length() - 1) / t.Info().PieceLength)
+
+	numPiecesToPrioritize := int((25 * 1024 * 1024) / t.Info().PieceLength)
+	if numPiecesToPrioritize == 0 {
+		numPiecesToPrioritize = 1
+	}
+
+	for i := startPiece; i < startPiece+numPiecesToPrioritize && i <= endPiece; i++ {
+		t.Piece(i).SetPriority(torrent.PiecePriorityHigh)
+	}
+
 	for i, f := range files {
-		if i == t.FileIdx {
-			f.SetPriority(torrent.PiecePriorityNormal)
-		} else {
+		if i != t.FileIdx {
 			f.SetPriority(torrent.PiecePriorityNone)
 		}
 	}
@@ -298,7 +323,7 @@ func (t *Torrent) Status() *state.TorrentStatus {
 
 			if t.FileIdx >= 0 && t.FileIdx < len(files) {
 				targetFile := files[t.FileIdx]
-				st.PreloadSize = targetFile.Length() * int64(settings.Get().PreloadCache) / 100
+				st.PreloadSize = 25 * 1024 * 1024 
 				st.PreloadedBytes = targetFile.BytesCompleted()
 			}
 		}

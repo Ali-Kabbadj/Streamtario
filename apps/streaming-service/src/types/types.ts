@@ -18,3 +18,8 @@ export interface TorrServerTorrent {
     loaded_size: number;
     stat_string: string;
 }
+
+export interface FileStats {
+    hash: string;
+    size: number;
+}

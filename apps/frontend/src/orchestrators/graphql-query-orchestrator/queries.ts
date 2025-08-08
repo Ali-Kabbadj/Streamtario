@@ -99,7 +99,6 @@ export const GetStreamsDocument = graphql(`
         behaviorHints
         addonName
         announce
-        videoHash
       }
     }
   }

@@ -6,19 +6,21 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/anacrolix/torrent/metainfo"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"server/log"
 	"server/settings"
+	"server/storage"
 	"server/torr"
 	"server/torr/state"
+	"server/torr/utils"
 )
 
 var (
@@ -104,6 +106,57 @@ func handleWebSocket(c *gin.Context) {
 	}
 }
 
+func handleFileStats(c *gin.Context) {
+	infoHashHex := c.Param("hash")
+	idStr := c.Param("id")
+	fileIdx, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file index"})
+		return
+	}
+
+	infoHash := metainfo.NewHashFromHex(infoHashHex)
+	t := torr.GetTorrent(infoHash)
+
+	if t == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Torrent not in client"})
+		return
+	}
+
+	if !t.GotInfo() {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Torrent info not ready"})
+		return
+	}
+
+	storageClient, ok := torr.GetStorage().(*storage.FilePieceStorageClient)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server is not using file-based storage"})
+		return
+	}
+
+	filePath := storageClient.FilePath(infoHashHex, fileIdx)
+	file, err := os.Open(filePath)
+	if err != nil {
+		files := t.Files()
+		if fileIdx >= 0 && fileIdx < len(files) {
+			targetFile := files[fileIdx]
+			c.JSON(http.StatusOK, gin.H{"hash": nil, "size": targetFile.Length()})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found and metadata unavailable"})
+		return
+	}
+	defer file.Close()
+
+	hash, size, err := utils.OpenSubtitlesHash(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate hash"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"hash": hash, "size": size})
+}
+
 func Run() {
 	StartStatsPusher()
 
@@ -126,7 +179,7 @@ func Run() {
 	router.GET("/stream/:hash/:id", torr.Stream)
 	router.HEAD("/stream/:hash/:id", torr.Stream)
 	router.GET("/ws", handleWebSocket)
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router.GET("/file-stats/:hash/:id", handleFileStats)
 	router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "TorrServer Daemon: Core API is running")
 	})

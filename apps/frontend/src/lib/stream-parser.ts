@@ -6,6 +6,7 @@ interface BehaviorHints {
   filename?: string;
   bingeGroup?: string;
   videoSize?: number;
+  videoHash?: string;
 }
 
 export interface ParsedStreamDetails {
@@ -107,7 +108,7 @@ const VIDEO_EXTENSIONS = /\.(mkv|mp4|avi|mov|flv|wmv)$/i;
 function extractFilename(title: string): string {
   const lines = title.split("\n");
   const fileLine = lines.find((line) => VIDEO_EXTENSIONS.test(line));
-  return fileLine ? fileLine.trim() : lines[0].trim();
+  return fileLine ? fileLine.trim() : lines?.[0] ? lines[0].trim() : "Unknown File Name";
 }
 
 export function parseStream(

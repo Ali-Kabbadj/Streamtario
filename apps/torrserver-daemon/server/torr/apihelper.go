@@ -9,6 +9,7 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
+	"github.com/anacrolix/torrent/storage"
 
 	"server/log"
 	"server/settings"
@@ -25,6 +26,13 @@ func Init() {
 		log.TLogln("Failed to initialize torrent server:", err)
 		os.Exit(1)
 	}
+}
+
+func GetStorage() storage.ClientImpl {
+	if bts != nil {
+		return bts.Storage
+	}
+	return nil
 }
 
 func Close() {

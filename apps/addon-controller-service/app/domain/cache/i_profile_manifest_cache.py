@@ -18,6 +18,11 @@ class IProfileManifestCache(ABC):
         pass
 
     @abstractmethod
+    async def add_manifests(self, profile_id: str, manifest_urls: List[str]) -> None:
+        """Adds multiple manifest URLs to a profile's cache in a single operation."""
+        pass
+
+    @abstractmethod
     async def remove_manifest(
         self, profile_id: str, manifest_id: str, manifest_url: str
     ) -> None:

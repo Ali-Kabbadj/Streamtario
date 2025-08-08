@@ -31,12 +31,12 @@ class CachingExternalAddonProvider(IExternalAddonProvider):
         try:
             cached_data = await self.redis_client.get(key)
             if cached_data:
-                log_cache(f"Query cache HIT for URL: {url}")
+                # log_cache(f"Query cache HIT for URL: {url}")
                 return response_model.model_validate_json(cached_data)
         except Exception as e:
             log_cache(f"Cache GET failed for URL: {url}, Error: {e}")
 
-        log_cache(f"Query cache MISS for URL: {url}")
+        # log_cache(f"Query cache MISS for URL: {url}")
 
         fresh_data = await self.decorated_provider.get(url, response_model)
 
@@ -46,7 +46,7 @@ class CachingExternalAddonProvider(IExternalAddonProvider):
                 await self.redis_client.set(
                     key, data_to_cache, ex=QUERY_CACHE_TTL_SECONDS
                 )
-                log_cache(f"Successfully cached query response for: {url}")
+                # log_cache(f"Successfully cached query response for: {url}")
             except Exception as e:
                 log_cache(f"Cache SET failed for URL: {url}, Error: {e}")
 

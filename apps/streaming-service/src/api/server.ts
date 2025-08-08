@@ -6,6 +6,7 @@ import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { torrServerClient } from '../core/TorrServerClient.js';
 import { fileURLToPath } from 'url';
+import { sendSuccess, sendError } from './ApiResponse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,20 +70,41 @@ export function startServer(port: number) {
     });
 
     app.post('/setup-stream', async (req, res) => {
-        const { infoHash, announce } = req.body;
-        if (!infoHash) {
-            return res.status(400).send('infoHash is required');
+        const { infoHash, announce, fileIndex } = req.body;
+        if (!infoHash || typeof fileIndex !== 'number') {
+            return sendError(res, 400, {
+                type: 'BAD_REQUEST',
+                dev_message: 'infoHash and fileIndex are required body parameters.',
+                ui_message: 'Required stream information is missing.',
+            });
         }
         try {
-            await torrServerClient.addTorrent(infoHash, announce);
-            res.status(200).send({ message: 'Stream setup initiated' });
+            await torrServerClient.addTorrent(infoHash, announce, fileIndex);
+            sendSuccess(res, { message: 'Stream setup initiated' });
         } catch (error) {
             console.error('[Controller] Error setting up stream:', error);
-            res.status(500).send('Failed to set up stream');
+            sendError(res, 500, {
+                type: 'DAEMON_ERROR',
+                dev_message: 'Failed to add torrent to daemon.',
+                ui_message: 'Failed to set up stream.',
+            });
         }
     });
 
-
+    app.get('/file-stats/:infoHash/:fileIndex', async (req, res) => {
+        const { infoHash, fileIndex } = req.params;
+        try {
+            const stats = await torrServerClient.getFileStats(infoHash, fileIndex);
+            sendSuccess(res, stats);
+        } catch (error) {
+            console.error(`[Controller] Error getting file stats for ${infoHash}/${fileIndex}:`, error);
+            sendError(res, 500, {
+                type: 'DAEMON_ERROR',
+                dev_message: 'Failed to get file stats from daemon.',
+                ui_message: 'Failed to get file stats.',
+            });
+        }
+    });
 
     app.use('/direct/:infoHash/:fileIndex', (req, res) => {
         const { infoHash, fileIndex } = req.params;
@@ -111,15 +133,23 @@ export function startServer(port: number) {
     app.post('/cleanup/:infoHash', async (req, res) => {
         const { infoHash } = req.params;
         if (!infoHash) {
-            return res.status(400).send('Infohash is required.');
+            return sendError(res, 400, {
+                type: 'BAD_REQUEST',
+                dev_message: 'infoHash is a required URL parameter.',
+                ui_message: 'Info hash is required.',
+            });
         }
 
         console.log(`[Controller] Received cleanup request for ${infoHash}`);
         try {
             await torrServerClient.cleanupTorrent(infoHash);
-            res.status(200).send('Cleanup successful.');
+            sendSuccess(res, { message: 'Cleanup successful.' });
         } catch (error) {
-            res.status(500).send('Failed to cleanup torrent on daemon.');
+            sendError(res, 500, {
+                type: 'DAEMON_ERROR',
+                dev_message: 'Failed to cleanup torrent on daemon.',
+                ui_message: 'Failed to cleanup torrent.',
+            });
         }
     });
 

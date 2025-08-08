@@ -1,6 +1,6 @@
 import asyncio
 from typing import List, Tuple
-from core.pydantic.addons.manifest import AddonManifest
+from core.pydantic.addons.manifest import AddonManifest, Resource
 from core.pydantic.meta.meta import MetaItem
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
@@ -31,7 +31,7 @@ class FindAndGetMetaUseCase:
         self.profile_addon_manifest_provider = profile_addon_manifest_provider
 
     def _get_id_prefix(self, item_id: str) -> str | None:
-        if not item_id or ":" not in item_id:
+        if ":" not in item_id:
             if item_id.startswith("tt"):
                 return "tt"
             return None
@@ -61,7 +61,7 @@ class FindAndGetMetaUseCase:
         id_for_meta_lookup = addon_specific_id
         if item_type == "series":
             parts = addon_specific_id.split(":")
-            if len(parts) >= 3 and all(p.isdigit() for p in parts[-2:]):
+            if len(parts) >= 2 and all(p.isdigit() for p in parts[-2:]):
                 id_for_meta_lookup = ":".join(parts[:-2])
 
         log_info(
@@ -74,9 +74,8 @@ class FindAndGetMetaUseCase:
         if not manifest_urls:
             return None
 
-        all_manifests = await asyncio.gather(
-            *[self._fetch_manifest(url) for url in manifest_urls]
-        )
+        all_manifests_futures = [self._fetch_manifest(url) for url in manifest_urls]
+        all_manifests = await asyncio.gather(*all_manifests_futures)
 
         primary_manifest = next(
             (m for m in all_manifests if m and m.id == routing_prefix), None
@@ -98,33 +97,44 @@ class FindAndGetMetaUseCase:
 
         base_id_prefix = self._get_id_prefix(id_for_meta_lookup)
         if not base_id_prefix:
-            raise ApiException(
-                ApiErrorCode.ADDON_NOT_FOUND,
-                details={
-                    "reason": f"Could not determine standard prefix for ID '{id_for_meta_lookup}'"
-                },
+            log_warn(
+                f"Could not determine standard prefix for ID '{id_for_meta_lookup}'. No fallbacks possible."
             )
+            return None
 
-        fallback_manifests = [
-            m
-            for m in all_manifests
-            if m
-            and m.id != routing_prefix
-            and any(
-                r.name == "meta"
-                and item_type in (r.types or m.types)
-                and (not r.id_prefixes or base_id_prefix in r.id_prefixes)
-                for r in m.resources
-            )
-        ]
+        fallback_manifests: List[AddonManifest] = []
+        for m in all_manifests:
+            if not m or m.id == routing_prefix:
+                continue
+
+            for r in m.resources:
+                if r.name != "meta":
+                    continue
+
+                supported_types = []
+                if isinstance(r, Resource) and r.types:
+                    supported_types = r.types
+                elif m.types:
+                    supported_types = m.types
+
+                if item_type not in supported_types:
+                    continue
+
+                supported_prefixes = []
+                if isinstance(r, Resource) and r.id_prefixes:
+                    supported_prefixes = r.id_prefixes
+                elif m.id_prefixes:
+                    supported_prefixes = m.id_prefixes
+
+                if not supported_prefixes or base_id_prefix in supported_prefixes:
+                    fallback_manifests.append(m)
+                    break
 
         if not fallback_manifests:
-            raise ApiException(
-                ApiErrorCode.ADDON_NOT_FOUND,
-                details={
-                    "reason": f"Primary provider for {routing_prefix} failed and no fallback addons were found."
-                },
+            log_warn(
+                f"Primary provider for {routing_prefix} failed and no suitable fallback addons were found."
             )
+            return None
 
         fallback_tasks = [
             self.get_meta_use_case.execute(
@@ -143,9 +153,7 @@ class FindAndGetMetaUseCase:
                 meta_response.meta.id = item_id
                 return meta_response.meta
 
-        raise ApiException(
-            ApiErrorCode.ADDON_NOT_FOUND,
-            details={
-                "reason": "Primary provider and all fallbacks failed to return metadata."
-            },
+        log_error(
+            f"Primary provider and all fallbacks failed to return metadata for '{item_id}'."
         )
+        return None

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react"; // Added useEffect
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { useMetaDetails } from "@/features/meta/hooks/useMetaDetails";
@@ -27,12 +27,12 @@ import { MetaLinks } from "@/features/meta/layout/MetaLinks";
 interface MetaViewProps {
   itemType: string;
   itemId: string;
-  imdbId: string;
 }
 
 interface StreamPanelContent {
   itemType: string;
-  itemId: string;
+  itemId: string; // The specific video ID
+  metaId: string; // The parent meta ID
   title: string;
   imageUrl?: string | null;
 }
@@ -41,7 +41,7 @@ type PlaybackHistoryItem =
   GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 type PlaybackHistoryMap = Map<string, PlaybackHistoryItem>;
 
-export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
+export function MetaView({ itemType, itemId }: MetaViewProps) {
   const { selectedProfile } = useProfileContext();
   const { status: playerStatus } = usePlayer();
   const [streamPanelContent, setStreamPanelContent] =
@@ -52,6 +52,7 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
   const [initialSeason, setInitialSeason] = useState<string | undefined>(
     undefined,
   );
+  const initialSeasonSet = useRef(false);
 
   const {
     data: meta,
@@ -98,12 +99,12 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
 
   useEffect(() => {
     if (
+      !initialSeasonSet.current &&
       meta?.type === "series" &&
       playbackHistoryData?.playbackHistoryByImdbId
     ) {
       const history = playbackHistoryData.playbackHistoryByImdbId;
       if (history.length > 0) {
-        // Find the item with the highest season number in the history
         const lastWatchedItem = history.reduce((latest, current) => {
           if (!current.season) return latest;
           if (!latest || (latest.season && current.season > latest.season)) {
@@ -114,6 +115,7 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
 
         if (lastWatchedItem?.season) {
           setInitialSeason(lastWatchedItem.season.toString());
+          initialSeasonSet.current = true;
         }
       }
     }
@@ -125,6 +127,7 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
     setStreamPanelContent({
       itemType: "series",
       itemId: episodeStreamId,
+      metaId: meta.id,
       title: `S${episode.season} E${episode.episode}: ${episode.title}`,
       imageUrl: episode.thumbnail,
     });
@@ -135,6 +138,7 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
     setStreamPanelContent({
       itemType: "movie",
       itemId: meta.id,
+      metaId: meta.id,
       title: `${meta.name} | Sources`,
       imageUrl: meta.poster,
     });
@@ -240,7 +244,6 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
                 videos={meta.videos}
                 onEpisodeClick={handleEpisodeClick}
                 playbackHistoryMap={playbackHistoryMap}
-                metaId={meta.id}
                 metaLogo={meta.logo}
                 initialSeason={initialSeason}
               />
@@ -254,7 +257,7 @@ export function MetaView({ itemType, itemId, imdbId }: MetaViewProps) {
           onClose={() => setStreamPanelContent(null)}
           logoUrl={meta.logo}
           itemType={itemType}
-          imdbId={imdbId}
+          imdbId={meta.imdbId}
         />
 
         <Dialog open={isTrailerModalOpen} onOpenChange={setTrailerModalOpen}>

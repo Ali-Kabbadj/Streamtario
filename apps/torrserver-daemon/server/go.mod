@@ -10,8 +10,6 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/swaggo/files v1.0.1
-	github.com/swaggo/gin-swagger v1.6.0
-	github.com/swaggo/swag v1.16.6
 	github.com/wlynxg/anet v0.0.5
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476

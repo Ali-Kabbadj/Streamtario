@@ -23,7 +23,8 @@ interface StreamItemProps {
   parsed: ParsedStreamDetails;
   mediaTitle: string;
   logoUrl?: string | null;
-  contentId: string;
+  contentId: string; // This is the specific video ID (e.g., with S/E)
+  metaId: string; // This is the parent meta ID (for subtitles)
   imdbId: string;
   itemType: string;
 }
@@ -73,6 +74,7 @@ export function StreamItem({
   mediaTitle,
   logoUrl = null,
   contentId,
+  metaId,
   imdbId,
   itemType,
 }: StreamItemProps) {
@@ -94,8 +96,9 @@ export function StreamItem({
       mediaTitle,
       logoUrl,
       contentId,
-      imdbId,
       itemType,
+      imdbId,
+      metaId,
     );
   };
 
