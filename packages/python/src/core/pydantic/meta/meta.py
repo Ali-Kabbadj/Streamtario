@@ -9,7 +9,7 @@ class Video(BaseModel):
     thumbnail: Optional[str] = None
     season: Optional[int] = None
     episode: Optional[int] = None
-    logo: Optional[str] = None  # Added missing logo field
+    logo: Optional[str] = None
 
     class Config:
         populate_by_name = True
@@ -66,7 +66,6 @@ class AppExtras(BaseModel):
 
 
 class MetaItem(BaseModel):
-    # Existing fields
     id: str
     type: str
     name: str
@@ -76,10 +75,9 @@ class MetaItem(BaseModel):
     logo: Optional[str] = None
     description: Optional[str] = None
     release_info: Optional[str] = Field(None, alias="releaseInfo")
-    imdb_id: Optional[str] = Field(None, alias="imdb_id")
+    # imdb_id: Optional[str] = Field(None, alias="imdb_id")
+    imdb_id: str = Field(alias="imdb_id")
     videos: Optional[List[Video]] = None
-
-    # Added fields
     country: Optional[str] = None
     director: Optional[List[str]] = None
     imdbRating: Optional[str] = None

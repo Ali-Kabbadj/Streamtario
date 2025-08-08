@@ -33,6 +33,7 @@ type SortKey = "best" | "seeders" | "size";
 interface StreamPanelContent {
   itemType: string;
   itemId: string;
+  metaId: string;
   title: string;
   imageUrl?: string | null;
 }
@@ -41,6 +42,8 @@ interface StreamPanelProps {
   content: StreamPanelContent | null;
   onClose: () => void;
   logoUrl?: string | null;
+  itemType: string;
+  imdbId: string;
 }
 
 interface Filters {
@@ -116,7 +119,13 @@ const FilterSection = ({
   );
 };
 
-export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
+export function StreamPanel({
+  content,
+  onClose,
+  logoUrl,
+  itemType,
+  imdbId,
+}: StreamPanelProps) {
   const { selectedProfile } = useProfileContext();
   const [sortKey, setSortKey] = useState<SortKey>("best");
   const [filters, setFilters] = useState<Filters>({
@@ -223,6 +232,9 @@ export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
   const activeFilterCount = (
     Object.values(filters) as Array<Set<string>>
   ).reduce((acc: number, current: Set<string>) => acc + current.size, 0);
+
+  const contentId = content?.itemId ?? "";
+  const metaId = content?.metaId ?? "";
 
   return (
     <AnimatePresence>
@@ -342,6 +354,10 @@ export function StreamPanel({ content, onClose, logoUrl }: StreamPanelProps) {
                 clearFilters={clearFilters}
                 mediaTitle={content.title}
                 logoUrl={logoUrl}
+                contentId={contentId}
+                metaId={metaId}
+                itemType={itemType}
+                imdbId={imdbId}
               />
             </div>
           </ScrollArea>

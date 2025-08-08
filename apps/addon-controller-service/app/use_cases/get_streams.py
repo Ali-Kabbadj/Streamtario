@@ -81,44 +81,38 @@ class GetStreamsUseCase:
         )
 
         stream_search_id = item_id
-        cinemeta_manifest = next(
-            (m for m in all_manifests if m and "cinemeta" in m.id), None
-        )
-
-        item_id_parts = item_id.split(":")
 
         id_for_meta_lookup = item_id
-        if item_type == "series" and len(item_id_parts) >= 3:
-            id_for_meta_lookup = ":".join(item_id_parts[:-2])
+        if item_type == "series":
+            parts = item_id.split(":")
+            if len(parts) > 2 and all(p.isdigit() for p in parts[-2:]):
+                id_for_meta_lookup = ":".join(parts[:-2])
 
-        if cinemeta_manifest and cinemeta_manifest.manifest_url:
+        log_info(
+            "Attempting to translate ID via official metadata.",
+            data={"id_for_meta_lookup": id_for_meta_lookup},
+        )
+
+        meta_response = await self.find_and_get_meta_use_case.execute(
+            profile_id, item_type, id_for_meta_lookup
+        )
+
+        if meta_response and meta_response.imdb_id:
+            imdb_id = meta_response.imdb_id
             log_info(
-                "Found Cinemeta. Attempting to translate ID via official metadata.",
-                data={"id_for_meta_lookup": id_for_meta_lookup},
+                f"Successfully translated ID '{id_for_meta_lookup}' to IMDb ID '{imdb_id}'"
             )
-
-            meta_response = await self.find_and_get_meta_use_case.execute(
-                profile_id, item_type, id_for_meta_lookup
-            )
-            if meta_response and meta_response.imdb_id:
-                imdb_id = meta_response.imdb_id
-                log_info(
-                    f"Successfully translated ID '{id_for_meta_lookup}' to IMDb ID '{imdb_id}'"
-                )
-                if item_type == "series" and len(item_id_parts) >= 3:
-                    stream_search_id = (
-                        f"{imdb_id}:{item_id_parts[-2]}:{item_id_parts[-1]}"
-                    )
+            if item_type == "series":
+                parts = item_id.split(":")
+                if len(parts) > 2 and all(p.isdigit() for p in parts[-2:]):
+                    stream_search_id = f"{imdb_id}:{parts[-2]}:{parts[-1]}"
                 else:
                     stream_search_id = imdb_id
             else:
-                log_warn(
-                    "Cinemeta lookup failed to return an IMDb ID. Using original ID.",
-                    data={"item_id": item_id},
-                )
+                stream_search_id = imdb_id
         else:
             log_warn(
-                "Cinemeta addon not found. Stream results may be limited.",
+                "Metadata lookup failed to return an IMDb ID. Using original ID.",
                 data={"item_id": item_id},
             )
 

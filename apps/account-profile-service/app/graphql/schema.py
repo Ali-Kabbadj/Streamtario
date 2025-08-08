@@ -26,12 +26,20 @@ from .types import (
     UninstallAddonError,
     UninstallAddonInput,
     UninstallAddonSuccess,
+    UpdateAdvancedSettingsError,
+    UpdateAdvancedSettingsInput,
+    UpdateAdvancedSettingsSuccess,
     UpdateProfileError,
     UpdateProfileInput,
     UpdateProfileSuccess,
+    UpdateProfileSettingsInput,
+    UpdateProfileSettingsSuccess,
+    UpdateProfileSettingsError,
     VerifyProfilePinError,
     VerifyProfilePinInput,
     VerifyProfilePinSuccess,
+    PlaybackHistoryType,
+    UpdatePlaybackHistoryInput,
 )
 from .resolvers import (
     resolve_account,
@@ -39,12 +47,15 @@ from .resolvers import (
     resolve_create_profile,
     resolve_install_addon,
     resolve_install_addon_for_all_profiles,
+    resolve_playback_history_by_imdb_id,
     resolve_profile,
     resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
+    resolve_update_advanced_settings,
     resolve_update_profile,
-    # --- IMPORT THE NEW RESOLVER ---
+    resolve_update_profile_settings,
     resolve_verify_profile_pin,
+    resolve_update_playback_history,
 )
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
@@ -105,9 +116,25 @@ class Query:
                 results.append(profile)
         return results
 
+    @strawberry.field
+    async def playbackHistoryByImdbId(
+        self,
+        info: Info,
+        profile_id: strawberry.ID,
+        imdb_id: str,
+    ) -> List[PlaybackHistoryType]:
+        return await resolve_playback_history_by_imdb_id(info, profile_id, imdb_id)
+
 
 @strawberry.type
 class Mutation:
+
+    @strawberry.mutation
+    async def update_playback_history(
+        self, info: Info, input: UpdatePlaybackHistoryInput
+    ) -> PlaybackHistoryType:
+        return await resolve_update_playback_history(info, input)
+
     @strawberry.mutation
     async def create_account(
         self, input: CreateAccountInput
@@ -125,6 +152,12 @@ class Mutation:
         self, info: Info, input: UpdateProfileInput
     ) -> UpdateProfileSuccess | UpdateProfileError:
         return await resolve_update_profile(info, input)
+
+    @strawberry.mutation
+    async def update_profile_settings(
+        self, info: Info, input: UpdateProfileSettingsInput
+    ) -> UpdateProfileSettingsSuccess | UpdateProfileSettingsError:
+        return await resolve_update_profile_settings(info, input)
 
     @strawberry.mutation
     async def verify_profile_pin(
@@ -156,6 +189,12 @@ class Mutation:
     ) -> UninstallAddonFromAllProfilesSuccess | UninstallAddonFromAllProfilesError:
         return await resolve_uninstall_addon_from_all_profiles(info, input)
 
+    @strawberry.mutation
+    async def update_advanced_settings(
+        self, info: Info, input: UpdateAdvancedSettingsInput
+    ) -> UpdateAdvancedSettingsSuccess | UpdateAdvancedSettingsError:
+        return await resolve_update_advanced_settings(info, input)
+
 
 schema = strawberry.federation.Schema(
     query=Query,
@@ -172,12 +211,16 @@ schema = strawberry.federation.Schema(
         CreateProfileError,
         UpdateProfileSuccess,
         UpdateProfileError,
+        UpdateProfileSettingsSuccess,
+        UpdateProfileSettingsError,
         InstallAddonForAllProfilesSuccess,
         InstallAddonForAllProfilesError,
         UninstallAddonFromAllProfilesSuccess,
         UninstallAddonFromAllProfilesError,
         VerifyProfilePinSuccess,
         VerifyProfilePinError,
+        UpdateAdvancedSettingsSuccess,
+        UpdateAdvancedSettingsError,
     ],
 )
 

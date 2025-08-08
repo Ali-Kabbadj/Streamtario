@@ -5,6 +5,8 @@ import os
 import json
 from datetime import datetime
 
+from pydantic import BaseModel
+
 
 class CustomJsonFormatter(logging.Formatter):
     def __init__(self, app_name: str, *args, **kwargs):
@@ -43,8 +45,20 @@ class CustomJsonFormatter(logging.Formatter):
         }
         if data := getattr(record, "data", None):
             try:
-                json.dumps(data)
-                log_obj["data"] = data
+                # THIS IS THE FIX: Check if the object is a Pydantic model
+                if isinstance(data, BaseModel):
+                    log_obj["data"] = data.model_dump(mode="json")
+                elif isinstance(data, dict):
+                    # Handle dicts that might contain Pydantic models
+                    log_obj["data"] = {
+                        k: (
+                            v.model_dump(mode="json") if isinstance(v, BaseModel) else v
+                        )
+                        for k, v in data.items()
+                    }
+                else:
+                    json.dumps(data)  # Just to test serializability
+                    log_obj["data"] = data
             except TypeError:
                 log_obj["data"] = f"Unserializable data: {str(data)}"
         return json.dumps(log_obj)

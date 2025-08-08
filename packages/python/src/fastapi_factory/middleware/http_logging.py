@@ -25,7 +25,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
                     data={
                         "method": request.method,
                         "path": request.url.path,
-                        "client": request.client.host,
+                        "client": request.client.host,  # type: ignore
                         "status_code": response.status_code,
                         "processing_time_ms": round(process_time, 2),
                     },
@@ -40,7 +40,7 @@ class HttpLoggingMiddleware(BaseHTTPMiddleware):
                     data={
                         "method": request.method,
                         "path": request.url.path,
-                        "client": request.client.host,
+                        "client": request.client.host,  # type: ignore
                         "processing_time_ms": round(process_time, 2),
                         "error": str(e),
                         "traceback": traceback.format_exc(),

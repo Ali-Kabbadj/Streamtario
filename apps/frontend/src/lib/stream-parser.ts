@@ -6,6 +6,7 @@ interface BehaviorHints {
   filename?: string;
   bingeGroup?: string;
   videoSize?: number;
+  videoHash?: string;
 }
 
 export interface ParsedStreamDetails {
@@ -28,7 +29,7 @@ export interface ParsedStreamDetails {
   originalIndex: number;
 }
 
-const TAG_LIBRARY = {
+export const TAG_LIBRARY = {
   quality: {
     "4K": [/\b(2160p|4k|uhd)\b/i],
     "2K": [/\b(1440p|2k)\b/i],
@@ -102,37 +103,27 @@ function formatBytes(bytes: number, decimals = 2): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+const VIDEO_EXTENSIONS = /\.(mkv|mp4|avi|mov|flv|wmv)$/i;
+
+function extractFilename(title: string): string {
+  const lines = title.split("\n");
+  const fileLine = lines.find((line) => VIDEO_EXTENSIONS.test(line));
+  return fileLine ? fileLine.trim() : lines?.[0] ? lines[0].trim() : "Unknown File Name";
+}
+
 export function parseStream(
   stream: Stream,
   originalIndex: number,
 ): ParsedStreamDetails {
   const behavior = (stream.behaviorHints ?? {}) as BehaviorHints;
-  const name = stream.name ?? "";
   const title = stream.title ?? "";
-  const filename =
-    behavior.filename ??
-    title.split("\n")[0] ??
-    name.split("\n")[0] ??
-    "Untitled";
-
-  let searchableString = [name, title, filename, behavior.bingeGroup ?? ""]
-    .join(" ")
-    .toLowerCase();
-
-  const releaseGroupMatch = /-(\w+)$/i.exec(filename);
-  const releaseGroup = releaseGroupMatch?.[1]?.toUpperCase() ?? null;
-  if (releaseGroup) {
-    searchableString = searchableString.replace(
-      new RegExp(releaseGroup, "i"),
-      "",
-    );
-  }
+  const filename = behavior.filename ?? extractFilename(title);
 
   const result: ParsedStreamDetails = {
     filename,
     cleanedTitle: filename,
     addonName: stream.addonName ?? "Unknown Addon",
-    releaseGroup,
+    releaseGroup: null,
     seeders: null,
     sizeInBytes: behavior.videoSize ?? null,
     formattedSize: null,
@@ -165,33 +156,46 @@ export function parseStream(
     result.sourceProvider = providerMatch[1];
   }
 
+  const releaseGroupMatch = /-(\w+)$/i.exec(
+    filename.replace(VIDEO_EXTENSIONS, ""),
+  );
+  if (releaseGroupMatch?.[1]) {
+    result.releaseGroup = releaseGroupMatch[1].toUpperCase();
+  }
+
+  const searchableString = [filename, behavior.bingeGroup ?? ""].join(" ");
+
   for (const [category, tags] of Object.entries(TAG_LIBRARY)) {
     for (const [canonicalTag, patterns] of Object.entries(tags)) {
       for (const pattern of patterns) {
         if (pattern.test(searchableString)) {
-          if (category === "quality") result.tags.quality = canonicalTag;
-          else if (category === "source") result.tags.source = canonicalTag;
-          else
-            result.tags[
+          if (category === "quality" && !result.tags.quality) {
+            result.tags.quality = canonicalTag;
+          } else if (category === "source" && !result.tags.source) {
+            result.tags.source = canonicalTag;
+          } else if (
+            ["video", "audio", "languages", "other"].includes(category)
+          ) {
+            (
+              result.tags[
               category as "video" | "audio" | "languages" | "other"
-            ].push(canonicalTag);
-
-          searchableString = searchableString.replace(pattern, "");
-          break;
+              ]
+            ).push(canonicalTag);
+          }
         }
       }
     }
   }
 
-  result.cleanedTitle = filename
-    .replace(/\.[^/.]+$/, "")
+  const cleaned = filename
+    .replace(VIDEO_EXTENSIONS, "")
     .replace(/[-._]/g, " ")
-    .replace(
-      /\b(2160p|1080p|720p|480p|uhd|4k|sd|bluray|web-?dl|webrip|remux|hdr|dv|atmos|dts|ac3|eac3|h264|h265|hevc|avc|x264|x265|dual|multi|dubbed|ita|eng|\[.*?\])\b/gi,
-      "",
-    )
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\([^)]+\)/g, "")
     .replace(/\s+/g, " ")
     .trim();
+
+  result.cleanedTitle = cleaned;
 
   for (const key of ["video", "audio", "languages", "other"]) {
     result.tags[key as "video"] = unique(result.tags[key as "video"]);

@@ -11,7 +11,7 @@ class CatalogItem(BaseModel):
 
     id: str
     type: str
-    name: str
+    name: Optional[str] = None
     poster: Optional[str] = None
 
     class Config:

@@ -254,10 +254,10 @@
         "runtimeExecutable": "npx",
         "runtimeArgs": ["react-devtools", "--port", "8097"],
         "cwd": "${workspaceFolder:frontend}",
-        "console": "integratedTerminal",
-        "presentation": {
-          "hidden": true
-        }
+        "console": "integratedTerminal"
+        // "presentation": {
+        //   "hidden": true
+        // }
       },
       {
         "name": "DEBUG_FRONTEND",
@@ -335,8 +335,9 @@
           "➕ Streaming Service",
           "➕ torrserver-daemon",
           "🚀 API Gateway",
-          "WebView2"
-          // "DEBUG_FRONTEND"
+          "WebView2",
+          "DEBUG_FRONTEND"
+          // "REACT_DEVTOOLS"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
         "stopAll": true,
@@ -516,7 +517,6 @@
       "xtr1common": "cpp",
       "xtree": "cpp",
       "xutility": "cpp"
-    },
-    "gitlens.currentLine.format": "\"gitlens.currentLine.format\": \"${author}, ${agoOrDate}, ${message|50?}\""
+    }
   }
 }

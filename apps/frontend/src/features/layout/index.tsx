@@ -12,14 +12,16 @@ interface MainAppLayoutProps {
 export function MainAppLayout({ children }: MainAppLayoutProps) {
   const { currentView } = useView();
 
-  const showSideBar = currentView.name === "meta";
+  const showSideBar = currentView.name !== "meta";
   return (
-    <div className="bg-muted/40 min-h-screen w-full">
+    <div className="bg-muted/40 flex h-screen w-full flex-col">
       <Header />
-      {!showSideBar && <Sidebar />}
-      <main>
-        <div className="p-4 sm:px-6 md:gap-8">{children}</div>
-      </main>
+      <div className="flex flex-1 overflow-hidden">
+        {showSideBar && <Sidebar />}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="p-4 sm:px-6 md:p-8">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

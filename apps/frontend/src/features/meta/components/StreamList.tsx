@@ -13,6 +13,10 @@ interface StreamListProps {
   clearFilters: () => void;
   mediaTitle: string;
   logoUrl?: string | null;
+  contentId: string;
+  metaId: string;
+  itemType: string;
+  imdbId: string;
 }
 
 export function StreamList({
@@ -22,6 +26,10 @@ export function StreamList({
   clearFilters,
   mediaTitle,
   logoUrl,
+  contentId,
+  metaId,
+  itemType,
+  imdbId,
 }: StreamListProps) {
   if (isLoading) {
     return (
@@ -58,6 +66,10 @@ export function StreamList({
             parsed={parsed}
             mediaTitle={mediaTitle}
             logoUrl={logoUrl}
+            contentId={contentId}
+            metaId={metaId}
+            itemType={itemType}
+            imdbId={imdbId}
           />
         );
       })}

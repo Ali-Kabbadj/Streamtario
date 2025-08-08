@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Optional
-from core.pydantic.domain.profile import Profile
+from typing import Optional, Dict, Any, List
+from core.pydantic.domain.profile import Profile, PlaybackHistory
 from core.pydantic.domain.addon import InstalledAddon
 
 
@@ -9,6 +9,34 @@ class IProfileRepository(ABC):
 
     @abstractmethod
     async def get_by_id(self, profile_id: str) -> Optional[Profile]:
+        pass
+
+    @abstractmethod
+    async def get_playback_history_for_profile(
+        self, profile_id: str, limit: int
+    ) -> List[PlaybackHistory]:
+        pass
+
+    @abstractmethod
+    async def get_continue_watching_for_profile(
+        self, profile_id: str, limit: int
+    ) -> List[PlaybackHistory]:
+        """
+        Fetches the most recent, unique playback history item for each show (by imdb_id),
+        ordered by the most recently watched overall.
+        """
+        pass
+
+    @abstractmethod
+    async def get_playback_history_by_imdb_id(
+        self, profile_id: str, imdb_id: str
+    ) -> List[PlaybackHistory]:
+        pass
+
+    @abstractmethod
+    async def get_playback_history_by_content_ids(
+        self, profile_id: str, content_ids: List[str]
+    ) -> List[PlaybackHistory]:
         pass
 
     @abstractmethod
@@ -40,4 +68,19 @@ class IProfileRepository(ABC):
 
     @abstractmethod
     async def remove_addons_by_account(self, account_id: str, manifest_id: str) -> int:
+        pass
+
+    @abstractmethod
+    async def upsert_playback_history(
+        self,
+        profile_id: str,
+        content_id: str,
+        item_type: str,
+        imdb_id: str,
+        season: Optional[int],
+        episode: Optional[int],
+        position_seconds: int,
+        duration_seconds: int,
+        last_stream_details: Optional[Dict[str, Any]],
+    ) -> PlaybackHistory:
         pass

@@ -1,7 +1,7 @@
 "use client";
 
 import { useView } from "@/providers/view-provider";
-import { Home, Puzzle, Compass } from "lucide-react";
+import { Home, Puzzle, Compass, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -14,6 +14,7 @@ const navLinks = [
   { viewName: "home", label: "Home", icon: Home },
   { viewName: "discover", label: "Discover", icon: Compass },
   { viewName: "addons", label: "Add-ons", icon: Puzzle },
+  { viewName: "settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function Sidebar() {
@@ -21,9 +22,8 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="bg-background-primary fixed top-4 left-0 z-10 flex h-[calc(100vh-4rem)] w-20 flex-col">
+      <aside className="bg-background/50 z-10 flex w-20 flex-col border-r border-slate-700">
         <nav className="flex flex-col items-center gap-4 px-2 py-4">
-          <div className="h-10 w-10" />
           {navLinks.map(({ viewName, label, icon: Icon }) => {
             const isActive = currentView.name === viewName;
             return (

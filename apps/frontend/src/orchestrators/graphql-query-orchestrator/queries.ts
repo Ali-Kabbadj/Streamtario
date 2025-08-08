@@ -1,5 +1,115 @@
 import { graphql } from './gen/gql';
 
+export const UpdateAdvancedSettingsDocument = graphql(`
+  mutation UpdateAdvancedSettings($profileId: ID!, $settings: JSON!) {
+    updateAdvancedSettings(input: { profileId: $profileId, settings: $settings }) {
+      __typename
+      ... on UpdateAdvancedSettingsSuccess {
+        profile {
+          id
+          advancedSettings
+        }
+      }
+      ... on UpdateAdvancedSettingsError {
+        code
+        message
+      }
+    }
+  }
+`);
+
+export const UpdateProfileSettingsDocument = graphql(`
+  mutation UpdateProfileSettings($profileId: ID!, $settings: ProfileSettingsInput!) {
+    updateProfileSettings(input: { profileId: $profileId, settings: $settings }) {
+      __typename
+      ... on UpdateProfileSettingsSuccess {
+        profile {
+          id
+          settings {
+            cacheSizeGb
+            preferredAudioLanguage
+            preferredSubtitleLanguage
+            streamWithoutCache
+            audio {
+              preferredChannelLayout
+            }
+            mpv {
+              customCommands {
+                name
+                command
+              }
+            }
+          }
+        }
+      }
+      ... on UpdateProfileSettingsError {
+        code
+        message
+      }
+    }
+  }
+`);
+
+export const GetFullProfileDocument = graphql(`
+  query GetFullProfile($profileId: ID!) {
+    profile(id: $profileId) {
+      id
+      name
+      avatar
+      isPrivate
+      installedAddons {
+        id
+        manifestId
+        manifestUrl
+      }
+      settings {
+        cacheSizeGb
+        preferredAudioLanguage
+        preferredSubtitleLanguage
+        streamWithoutCache
+        audio {
+          preferredChannelLayout
+        }
+        mpv {
+          customCommands {
+            name
+            command
+          }
+        }
+      }
+      advancedSettings
+    }
+  }
+`);
+
+// ... keep all other queries the same as before
+export const GetContinueWatchingDocument = graphql(`
+  query GetContinueWatching($profileId: ID!) {
+    profile(id: $profileId) {
+      continueWatching {
+        id
+        contentId
+        itemType
+        imdbId
+        season
+        episode
+        positionSeconds
+        durationSeconds
+        watchedAt
+        lastStreamDetails
+        meta {
+          id
+          name
+          type
+          poster
+          background
+          logo
+        }
+      }
+    }
+  }
+`);
+
 export const GetMetaDetailsDocument = graphql(`
   query GetMetaDetails($profileId: ID!, $itemType: String!, $itemId: String!) {
     profile(id: $profileId) {
@@ -71,10 +181,52 @@ export const GetStreamsDocument = graphql(`
         fileIdx
         behaviorHints
         addonName
+        announce
       }
     }
   }
 `);
+
+export const GetSubtitlesDocument = graphql(`
+  query GetSubtitles($profileId: ID!, $itemType: String!, $contentId: String!, $filename: String!, $videoSize: String!, $videoHash: String!) {
+    profile(id: $profileId) {
+      subtitles(itemType: $itemType, contentId: $contentId, filename: $filename, videoSize: $videoSize, videoHash: $videoHash) {
+        id
+        lang
+        type
+        url
+      }
+    }
+  }
+`);
+
+
+export const GetPlaybackHistoryByImdbIdDocument = graphql(`
+  query GetPlaybackHistoryByImdbId($profileId: ID!, $imdbId: String!) {
+    playbackHistoryByImdbId(profileId: $profileId, imdbId: $imdbId) {
+      id
+      contentId
+      itemType
+      imdbId
+      season
+      episode
+      positionSeconds
+      durationSeconds
+      lastStreamDetails
+    }
+  }
+`);
+
+
+export const UpdatePlaybackHistoryDocument = graphql(`
+  mutation UpdatePlaybackHistory($input: UpdatePlaybackHistoryInput!) {
+    updatePlaybackHistory(input: $input) {
+      id
+    }
+  }
+`);
+
+
 
 export const ManifestByUrlDocument = graphql(`
   query ManifestByUrl($url: String!) {
@@ -85,22 +237,6 @@ export const ManifestByUrlDocument = graphql(`
       version
       logo
       types
-    }
-  }
-`);
-
-export const GetFullProfileDocument = graphql(`
-  query GetFullProfile($profileId: ID!) {
-    profile(id: $profileId) {
-      id
-      name
-      avatar
-      isPrivate
-      installedAddons {
-        id
-        manifestId
-        manifestUrl
-      }
     }
   }
 `);

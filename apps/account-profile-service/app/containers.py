@@ -27,12 +27,18 @@ from app.use_cases.profile.install_addon_for_all_profiles import (
 from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
+from app.use_cases.profile.update_advanced_settings import UpdateAdvancedSettingsUseCase
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
+from app.use_cases.profile.update_profile_settings import UpdateProfileSettingsUseCase
 from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from app.use_cases.profile.get_manifest_urls_for_profile import (
     GetManifestUrlsForProfileUseCase,
 )
+from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
+from app.use_cases.profile.get_continue_watching import GetContinueWatchingUseCase
+from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from security.jwt_service import IJwtService, JwtService
+from app.use_cases.profile.get_meta_for_id import GetMetaForIdUseCase
 
 
 class Container(containers.DeclarativeContainer):
@@ -137,6 +143,15 @@ class Container(containers.DeclarativeContainer):
         )
     )
 
+    update_profile_settings_use_case: providers.Factory[
+        UpdateProfileSettingsUseCase
+    ] = providers.Factory(
+        UpdateProfileSettingsUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
+        event_publisher=event_publisher,
+    )
+
     verify_profile_pin_use_case: providers.Factory[VerifyProfilePinUseCase] = (
         providers.Factory(
             VerifyProfilePinUseCase,
@@ -177,4 +192,46 @@ class Container(containers.DeclarativeContainer):
         UninstallAddonFromAllProfilesUseCase,
         uow_factory=uow.provider,
         uninstall_addon_use_case=uninstall_addon_use_case,
+    )
+
+    get_playback_history_use_case: providers.Factory[GetPlaybackHistoryUseCase] = (
+        providers.Factory(
+            GetPlaybackHistoryUseCase,
+            uow_factory=uow.provider,
+            authorization_policy=authorization_policy,
+        )
+    )
+
+    get_continue_watching_use_case: providers.Factory[GetContinueWatchingUseCase] = (
+        providers.Factory(
+            GetContinueWatchingUseCase,
+            uow_factory=uow.provider,
+            authorization_policy=authorization_policy,
+        )
+    )
+
+    get_meta_for_id_use_case: providers.Factory[GetMetaForIdUseCase] = (
+        providers.Factory(
+            GetMetaForIdUseCase,
+            api_client=api_client,
+            addon_controller_url=settings.provided.ADDON_CONTROLLER_URL,
+        )
+    )
+
+    update_playback_history_use_case: providers.Factory[
+        UpdatePlaybackHistoryUseCase
+    ] = providers.Factory(
+        UpdatePlaybackHistoryUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
+        get_meta_for_id_use_case=get_meta_for_id_use_case,
+    )
+
+    update_advanced_settings_use_case: providers.Factory[
+        UpdateAdvancedSettingsUseCase
+    ] = providers.Factory(
+        UpdateAdvancedSettingsUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
+        event_publisher=event_publisher,
     )

@@ -7,24 +7,26 @@ import (
 	"maps"
 	"net"
 	"sync"
+	"time"
+
+	"server/settings"
+	custom_storage "server/storage"
+	"server/torr/utils"
+	"server/version"
 
 	"github.com/anacrolix/publicip"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
-	"github.com/wlynxg/anet"
-
-	"server/settings"
-	"server/torr/storage/torrstor"
-	"server/torr/utils"
-	"server/version"
+	torrent_storage "github.com/anacrolix/torrent/storage"
 )
 
 type BTServer struct {
-	config   *torrent.ClientConfig
-	client   *torrent.Client
-	storage  *torrstor.Storage
-	torrents map[metainfo.Hash]*Torrent
-	mu       sync.Mutex
+	config      *torrent.ClientConfig
+	client      *torrent.Client
+	Storage     torrent_storage.ClientImpl
+	torrents    map[metainfo.Hash]*Torrent
+	mu          sync.Mutex
+	stopJanitor chan struct{} // Channel to stop the janitor goroutine
 }
 
 var privateIPBlocks []*net.IPNet
@@ -45,6 +47,7 @@ func init() {
 func NewBTS() *BTServer {
 	bts := new(BTServer)
 	bts.torrents = make(map[metainfo.Hash]*Torrent)
+	bts.stopJanitor = make(chan struct{})
 	return bts
 }
 
@@ -54,14 +57,20 @@ func (bt *BTServer) Connect() error {
 	var err error
 	bt.configure(context.TODO())
 	bt.client, err = torrent.NewClient(bt.config)
+	if err != nil {
+		return err
+	}
 	bt.torrents = make(map[metainfo.Hash]*Torrent)
-	// THE CALL TO InitApiHelper IS NOW GONE
-	return err
+	// Start the torrent cleanup janitor
+	go bt.runTorrentJanitor()
+	return nil
 }
 
 func (bt *BTServer) Disconnect() {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
+	// Stop the janitor
+	close(bt.stopJanitor)
 	if bt.client != nil {
 		bt.client.Close()
 		bt.client = nil
@@ -69,12 +78,44 @@ func (bt *BTServer) Disconnect() {
 	}
 }
 
+// runTorrentJanitor periodically checks for and removes expired torrents.
+func (bt *BTServer) runTorrentJanitor() {
+	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			bt.mu.Lock()
+			for hash, torr := range bt.torrents {
+				if torr.expired() {
+					log.Println("Janitor: torrent expired, cleaning up:", hash.HexString())
+					torr.Close() // Ensure it's fully closed
+					delete(bt.torrents, hash)
+				}
+			}
+			bt.mu.Unlock()
+		case <-bt.stopJanitor:
+			log.Println("Stopping torrent janitor.")
+			return
+		}
+	}
+}
+
 func (bt *BTServer) configure(ctx context.Context) {
+	s := settings.Get()
 	blocklist, _ := utils.ReadBlockedIP()
+
 	bt.config = torrent.NewDefaultClientConfig()
 
-	bt.storage = torrstor.NewStorage(settings.Get().CacheSize)
-	bt.config.DefaultStorage = bt.storage
+	if s.UseDisk && s.TorrentsSavePath != "" {
+		log.Println("Using custom file piece storage at:", s.TorrentsSavePath)
+		bt.Storage = custom_storage.NewFilePieceStorage(s.TorrentsSavePath)
+		bt.config.DefaultStorage = bt.Storage
+	} else {
+		log.Println("Using ephemeral in-memory cache.")
+		bt.config.DefaultStorage = nil
+	}
 
 	userAgent := "qBittorrent/4.3.9"
 	peerID := "-qB4390-"
@@ -84,7 +125,6 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config.ExtendedHandshakeClientVersion = userAgent
 	bt.config.Bep20 = peerID
 
-	s := settings.Get()
 	bt.config.Debug = s.EnableDebug
 	bt.config.DisableIPv6 = !s.EnableIPv6
 	bt.config.DisableTCP = s.DisableTCP
@@ -96,7 +136,6 @@ func (bt *BTServer) configure(ctx context.Context) {
 	bt.config.IPBlocklist = blocklist
 	bt.config.EstablishedConnsPerTorrent = s.ConnectionsLimit
 	bt.config.TotalHalfOpenConns = 500
-	bt.config.EncryptionPolicy = torrent.EncryptionPolicy{ForceEncryption: s.ForceEncrypt}
 
 	if s.DownloadRateLimit > 0 {
 		bt.config.DownloadRateLimiter = utils.Limit(s.DownloadRateLimit * 1024)
@@ -155,56 +194,4 @@ func isPrivateIP(ip net.IP) bool {
 		}
 	}
 	return false
-}
-
-func getPublicIp4() net.IP {
-	ifaces, err := anet.Interfaces()
-	if err != nil {
-		log.Println("Error get public IPv4")
-		return nil
-	}
-	for _, i := range ifaces {
-		addrs, _ := anet.InterfaceAddrsByInterface(&i)
-		if i.Flags&net.FlagUp == net.FlagUp {
-			for _, addr := range addrs {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
-				if !isPrivateIP(ip) && ip.To4() != nil {
-					return ip
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func getPublicIp6() net.IP {
-	ifaces, err := anet.Interfaces()
-	if err != nil {
-		log.Println("Error get public IPv6")
-		return nil
-	}
-	for _, i := range ifaces {
-		addrs, _ := anet.InterfaceAddrsByInterface(&i)
-		if i.Flags&net.FlagUp == net.FlagUp {
-			for _, addr := range addrs {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
-				if !isPrivateIP(ip) && ip.To16() != nil && ip.To4() == nil {
-					return ip
-				}
-			}
-		}
-	}
-	return nil
 }

@@ -112,9 +112,11 @@ async function startGateway() {
         }
       }, gqlWsServer);
 
-      const streamProxy = createProxyMiddleware({
-        target: serviceMap.stream.url, ws: true, secure: false, changeOrigin: true,
-        pathRewrite: { '^/api/v1/stream': '' },
+      const streamWsProxy = createProxyMiddleware({
+        target: serviceMap.stream.url,
+        ws: true,
+        secure: false,
+        changeOrigin: true,
       });
 
       httpServer.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
@@ -123,8 +125,8 @@ async function startGateway() {
           gqlWsServer.handleUpgrade(req, socket as Socket, head, (ws) => {
             gqlWsServer.emit('connection', ws, req);
           });
-        } else if (pathname.startsWith('/api/v1/stream')) {
-          streamProxy.upgrade(req, socket as Socket, head);
+        } else if (pathname === '/api/v1/stream') {
+          streamWsProxy.upgrade(req, socket as Socket, head);
         } else {
           socket.destroy();
         }
@@ -144,10 +146,11 @@ async function startGateway() {
   });
 
   await server.start();
-  const authProxy = createProxyMiddleware({ target: serviceMap.auth.url, secure: false, changeOrigin: true });
+
+  const authProxy = createProxyMiddleware({ target: serviceMap.auth.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/auth': '' } });
   app.use('/api/v1/auth', authProxy);
 
-  const streamHttpProxy = createProxyMiddleware({ target: serviceMap.stream.url, secure: false, changeOrigin: true });
+  const streamHttpProxy = createProxyMiddleware({ target: serviceMap.stream.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/stream': '' } });
   app.use('/api/v1/stream', streamHttpProxy);
 
   app.use('/graphql', express.json({ limit: '10mb' }), expressMiddleware(server, {
@@ -157,8 +160,6 @@ async function startGateway() {
   const PORT = 4000;
   httpServer.listen({ port: PORT }, () => {
     const protocol = httpServer instanceof https.Server ? 'https' : 'http';
-    const wsProtocol = httpServer instanceof https.Server ? 'wss' : 'ws';
-    console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
     console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
   });
 }

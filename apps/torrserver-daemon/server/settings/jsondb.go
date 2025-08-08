@@ -35,7 +35,6 @@ func NewJsonDB() TorrServerDB {
 }
 
 func (v *JsonDB) CloseDB() {
-	// Not necessary
 }
 
 func (v *JsonDB) Set(xPath, name string, value []byte) {
@@ -67,7 +66,6 @@ func (v *JsonDB) Get(xPath, name string) []byte {
 					return byteData
 				}
 			} else {
-				// We assume this is not 'error' but 'no entry' which is normal
 				return nil
 			}
 		}

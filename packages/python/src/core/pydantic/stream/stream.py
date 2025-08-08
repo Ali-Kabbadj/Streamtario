@@ -1,5 +1,11 @@
-from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+
+
+class StreamFile(BaseModel):
+    name: str
+    path: str
+    length: int
 
 
 class Stream(BaseModel):
@@ -10,12 +16,13 @@ class Stream(BaseModel):
     info_hash: Optional[str] = Field(None, alias="infoHash")
     file_idx: Optional[int] = Field(None, alias="fileIdx")
     behavior_hints: Optional[Dict[str, Any]] = Field(None, alias="behaviorHints")
-    addon_name: Optional[str] = Field(None, alias="addonName")
+    addon_name: Optional[str] = None
+    announce: Optional[List[str]] = None
+    files: Optional[List[StreamFile]] = None
 
     class Config:
         populate_by_name = True
-        extra = "ignore"
 
 
 class StreamResponse(BaseModel):
-    streams: List[Stream] = []
+    streams: List[Stream]

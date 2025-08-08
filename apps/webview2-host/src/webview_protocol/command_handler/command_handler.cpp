@@ -7,19 +7,19 @@
 
 namespace WebViewProtocol
 {
-
     CommandHandler::CommandHandler()
     {
         m_commands["play"] = [](const json &payload)
         {
-            std::string url = payload.at("url").get<std::string>();
-            if (url.empty())
+            auto p = payload.get<PlayPayload>();
+            if (p.url.empty())
             {
                 LOG_ERROR("CommandHandler", "Play command received with empty URL.");
                 return;
             }
             g_isMpvPlaying = true;
-            HandleMpvCommand({"loadfile", url});
+            HandleMpvCommand({"set", "start", std::to_string(p.startTime)});
+            HandleMpvCommand({"loadfile", p.url, "replace"});
         };
 
         m_commands["stop"] = [](const json &)
@@ -27,7 +27,6 @@ namespace WebViewProtocol
             if (g_isMpvPlaying)
             {
                 g_isMpvPlaying = false;
-                HandleMpvCommand({"write-watch-later-config"});
                 HandleMpvCommand({"stop"});
             }
         };
@@ -52,6 +51,18 @@ namespace WebViewProtocol
 
         m_commands["toggle-fullscreen"] = [](const json &)
         { ToggleFullscreen(g_hWnd); };
+
+        m_commands["set-property"] = [](const json &payload)
+        {
+            auto p = payload.get<SetPropertyPayload>();
+            HandleMpvCommand({"set", p.property, p.value});
+        };
+
+        m_commands["load-subtitle"] = [](const json &payload)
+        {
+            auto p = payload.get<LoadSubtitlePayload>();
+            HandleMpvCommand({"sub-add", p.url, "select", p.url});
+        };
     }
 
     void CommandHandler::handleCommand(const std::wstring &message_w)
@@ -82,4 +93,4 @@ namespace WebViewProtocol
             LOG_ERROR("CommandHandler", "JSON Key Error: " + std::string(e.what()));
         }
     }
-} // namespace WebViewProtocol
+}

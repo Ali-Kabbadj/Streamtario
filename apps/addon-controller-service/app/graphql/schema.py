@@ -1,10 +1,13 @@
 import strawberry
-from strawberry.fastapi import GraphQLRouter
-from .types import ProfileExtension, AddonSearchResultType, AddonManifestType
+from .types import (
+    PlaybackHistoryType,
+    ProfileExtension,
+    AddonSearchResultType,
+    AddonManifestType,
+)
 from typing import AsyncGenerator, Optional
 from strawberry.types import Info
 from core.utils.logging import log_info
-from typing import Dict, Any
 
 
 @strawberry.type
@@ -36,10 +39,6 @@ class Subscription:
         )
 
         async for result in use_case.execute(profile_id=profileId, search_query=query):
-            log_info(
-                f"Received result from use case: {result.model_dump_json()}",
-                context="graphql",
-            )
             if result.error:
                 yield AddonSearchResultType(
                     addon_name=result.addon_name,
@@ -63,14 +62,5 @@ schema = strawberry.federation.Schema(
     query=Query,
     subscription=Subscription,
     enable_federation_2=True,
-    types=[ProfileExtension],
+    types=[ProfileExtension, PlaybackHistoryType],
 )
-
-
-async def get_context() -> Dict[str, Any]:
-    from app.main import app as fastapi_app
-
-    return {"container": fastapi_app.container}
-
-
-graphql_app = GraphQLRouter(schema, context_getter=get_context)

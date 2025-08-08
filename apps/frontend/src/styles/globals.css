@@ -187,3 +187,7 @@ body.player-active {
 body.player-active #app-root {
   display: none;
 }
+
+* {
+  user-select: none;
+}

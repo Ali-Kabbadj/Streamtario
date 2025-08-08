@@ -23,6 +23,10 @@ interface StreamItemProps {
   parsed: ParsedStreamDetails;
   mediaTitle: string;
   logoUrl?: string | null;
+  contentId: string; // This is the specific video ID (e.g., with S/E)
+  metaId: string; // This is the parent meta ID (for subtitles)
+  imdbId: string;
+  itemType: string;
 }
 
 const tagIcons: Record<string, JSX.Element> = {
@@ -69,6 +73,10 @@ export function StreamItem({
   parsed,
   mediaTitle,
   logoUrl = null,
+  contentId,
+  metaId,
+  imdbId,
+  itemType,
 }: StreamItemProps) {
   const { actions } = usePlayer();
   const { tags } = parsed;
@@ -83,7 +91,15 @@ export function StreamItem({
   ].filter(Boolean) as string[];
 
   const handlePlayClick = () => {
-    actions.playStream(stream, mediaTitle, logoUrl);
+    actions.playStream(
+      stream,
+      mediaTitle,
+      logoUrl,
+      contentId,
+      itemType,
+      imdbId,
+      metaId,
+    );
   };
 
   return (

@@ -3,18 +3,21 @@ package torr
 import (
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
+	"github.com/anacrolix/torrent/storage"
 
 	"server/log"
+	"server/settings"
 	sets "server/settings"
 )
 
 var bts *BTServer
+var torrentMu sync.Mutex
 
 func Init() {
 	bts = NewBTS()
@@ -23,7 +26,13 @@ func Init() {
 		log.TLogln("Failed to initialize torrent server:", err)
 		os.Exit(1)
 	}
+}
 
+func GetStorage() storage.ClientImpl {
+	if bts != nil {
+		return bts.Storage
+	}
+	return nil
 }
 
 func Close() {
@@ -32,184 +41,56 @@ func Close() {
 	}
 }
 
-func LoadTorrent(tor *Torrent) *Torrent {
-	if tor.TorrentSpec == nil {
-		return nil
-	}
-	tr, err := NewTorrent(tor.TorrentSpec, bts)
-	if err != nil {
-		return nil
-	}
-	if !tr.WaitInfo() {
-		return nil
-	}
-	tr.Title = tor.Title
-	tr.Poster = tor.Poster
-	tr.Data = tor.Data
-	return tr
-}
+func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int) (*Torrent, error) {
+	spec.DisableInitialPieceCheck = true
 
-func AddTorrent(spec *torrent.TorrentSpec, title, poster string, data string, category string) (*Torrent, error) {
-	torr, err := NewTorrent(spec, bts)
+	bts.mu.Lock()
+	existingTorrent, ok := bts.torrents[spec.InfoHash]
+	bts.mu.Unlock()
+
+	if ok && existingTorrent != nil {
+		log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
+		existingTorrent.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+		return existingTorrent, nil
+	}
+
+	torr, err := NewTorrent(spec, bts, filename, fileIdx)
 	if err != nil {
-		log.TLogln("error add torrent:", err)
+		log.TLogln("error creating new torrent:", err)
 		return nil, err
-	}
-
-	torDB := GetTorrentDB(spec.InfoHash)
-
-	if torr.Title == "" {
-		torr.Title = title
-		if title == "" && torDB != nil {
-			torr.Title = torDB.Title
-		}
-		if torr.Title == "" && torr.Torrent != nil && torr.Torrent.Info() != nil {
-			torr.Title = torr.Info().Name
-		}
-	}
-
-	if torr.Category == "" {
-		torr.Category = category
-		if torr.Category == "" && torDB != nil {
-			torr.Category = torDB.Category
-		}
-	}
-
-	if torr.Poster == "" {
-		torr.Poster = poster
-		if torr.Poster == "" && torDB != nil {
-			torr.Poster = torDB.Poster
-		}
-	}
-
-	if torr.Data == "" {
-		torr.Data = data
-		if torr.Data == "" && torDB != nil {
-			torr.Data = torDB.Data
-		}
 	}
 
 	return torr, nil
 }
 
-func SaveTorrentToDB(torr *Torrent) {
-	go func() {
-		log.TLogln("Save to DB requested for:", torr.Hash().HexString())
-		if !torr.WaitInfo() {
-			log.TLogln("Failed to get info for:", torr.Hash().HexString(), "skipping save.")
-			return
-		}
-		log.TLogln("Got info for:", torr.Hash().HexString(), "now saving.")
-		AddTorrentDB(torr)
-	}()
-}
-
-func GetTorrent(hashHex string) *Torrent {
-	hash := metainfo.NewHashFromHex(hashHex)
-	timeout := time.Second * time.Duration(sets.BTsets.TorrentDisconnectTimeout)
-	if timeout > time.Minute {
-		timeout = time.Minute
-	}
-	tor := bts.GetTorrent(hash)
-	if tor != nil {
-		tor.AddExpiredTime(timeout)
-		return tor
-	}
-
-	tr := GetTorrentDB(hash)
-	if tr != nil {
-		tor = tr
-		go func() {
-			log.TLogln("New torrent", tor.Hash())
-			tr, _ := NewTorrent(tor.TorrentSpec, bts)
-			if tr != nil {
-				tr.Title = tor.Title
-				tr.Poster = tor.Poster
-				tr.Data = tor.Data
-				tr.Size = tor.Size
-				tr.Timestamp = tor.Timestamp
-				tr.Category = tor.Category
-				tr.GotInfo()
-			}
-		}()
-	}
-	return tor
-}
-
-func SetTorrent(hashHex, title, poster, category string, data string) *Torrent {
-	hash := metainfo.NewHashFromHex(hashHex)
-	torr := bts.GetTorrent(hash)
-	torrDb := GetTorrentDB(hash)
-
-	if title == "" && torr == nil && torrDb != nil {
-		torr = GetTorrent(hashHex)
-		torr.GotInfo()
-		if torr.Torrent != nil && torr.Torrent.Info() != nil {
-			title = torr.Info().Name
-		}
-	}
-
-	if torr != nil {
-		if title == "" && torr.Torrent != nil && torr.Torrent.Info() != nil {
-			title = torr.Info().Name
-		}
-		torr.Title = title
-		torr.Poster = poster
-		torr.Category = category
-		if data != "" {
-			torr.Data = data
-		}
-	}
-	
-	if torrDb != nil {
-		torrDb.Title = title
-		torrDb.Poster = poster
-		torrDb.Category = category
-		if data != "" {
-			torrDb.Data = data
-		}
-		AddTorrentDB(torrDb)
-	}
-	if torr != nil {
-		return torr
-	} else {
-		return torrDb
-	}
-}
-
 func RemTorrent(hashHex string) {
-	if sets.ReadOnly {
-		log.TLogln("API RemTorrent: Read-only DB mode!", hashHex)
-		return
-	}
 	hash := metainfo.NewHashFromHex(hashHex)
-	if bts.RemoveTorrent(hash) {
-		if sets.BTsets.UseDisk && hashHex != "" && hashHex != "/" {
-			name := filepath.Join(sets.BTsets.TorrentsSavePath, hashHex)
-			ff, _ := os.ReadDir(name)
-			for _, f := range ff {
-				os.Remove(filepath.Join(name, f.Name()))
-			}
-			err := os.Remove(name)
-			if err != nil {
-				log.TLogln("Error remove cache:", err)
-			}
-		}
+
+	bts.mu.Lock()
+	torr, ok := bts.torrents[hash]
+	if ok {
+		delete(bts.torrents, hash)
 	}
-	RemTorrentDB(hash)
+	bts.mu.Unlock()
+
+	if ok && torr != nil {
+		torr.Close()
+		log.TLogln("Explicitly removed torrent from client and references:", hashHex)
+	} else {
+		log.TLogln("Attempted to remove torrent not found in active client:", hashHex)
+	}
+}
+
+func GetTorrent(hash metainfo.Hash) *Torrent {
+	bts.mu.Lock()
+	defer bts.mu.Unlock()
+	return bts.torrents[hash]
 }
 
 func ListTorrent() []*Torrent {
 	btlist := bts.ListTorrents()
-	dblist := ListTorrentsDB()
 
-	for hash, t := range dblist {
-		if _, ok := btlist[hash]; !ok {
-			btlist[hash] = t
-		}
-	}
 	var ret []*Torrent
-
 	for _, t := range btlist {
 		ret = append(ret, t)
 	}
@@ -218,7 +99,7 @@ func ListTorrent() []*Torrent {
 		if ret[i].Timestamp != ret[j].Timestamp {
 			return ret[i].Timestamp > ret[j].Timestamp
 		} else {
-			return ret[i].Title > ret[j].Title
+			return ret[i].FileName > ret[j].FileName
 		}
 	})
 
@@ -226,8 +107,7 @@ func ListTorrent() []*Torrent {
 }
 
 func DropTorrent(hashHex string) {
-	hash := metainfo.NewHashFromHex(hashHex)
-	bts.RemoveTorrent(hash)
+	RemTorrent(hashHex)
 }
 
 func SetSettings(set *sets.BTSets) {
@@ -236,12 +116,12 @@ func SetSettings(set *sets.BTSets) {
 		return
 	}
 	sets.SetBTSets(set)
-	log.TLogln("drop all torrents")
+	log.TLogln("dropping all torrents for settings change")
 	dropAllTorrent()
 	time.Sleep(time.Second * 1)
-	log.TLogln("disconect")
+	log.TLogln("disconnecting BT client")
 	bts.Disconnect()
-	log.TLogln("connect")
+	log.TLogln("connecting BT client with new settings")
 	bts.Connect()
 	time.Sleep(time.Second * 1)
 	log.TLogln("end set settings")
@@ -253,21 +133,28 @@ func SetDefSettings() {
 		return
 	}
 	sets.SetDefaultConfig()
-	log.TLogln("drop all torrents")
+	log.TLogln("dropping all torrents for default settings change")
 	dropAllTorrent()
 	time.Sleep(time.Second * 1)
-	log.TLogln("disconect")
+	log.TLogln("disconnecting BT client")
 	bts.Disconnect()
-	log.TLogln("connect")
+	log.TLogln("connecting BT client with default settings")
 	bts.Connect()
 	time.Sleep(time.Second * 1)
 	log.TLogln("end set default settings")
 }
 
 func dropAllTorrent() {
-	for _, torr := range bts.torrents {
-		torr.drop()
-		<-torr.closed
+	bts.mu.Lock()
+	torrentsToDrop := make([]*Torrent, 0, len(bts.torrents))
+	for hash, torr := range bts.torrents {
+		torrentsToDrop = append(torrentsToDrop, torr)
+		delete(bts.torrents, hash)
+	}
+	bts.mu.Unlock()
+
+	for _, torr := range torrentsToDrop {
+		torr.Close()
 	}
 }
 
@@ -279,5 +166,9 @@ func Shutdown() {
 }
 
 func WriteStatus(w io.Writer) {
-	bts.client.WriteStatus(w)
+	if bts.client != nil {
+		bts.client.WriteStatus(w)
+	} else {
+		io.WriteString(w, "Torrent client is not connected.\n")
+	}
 }

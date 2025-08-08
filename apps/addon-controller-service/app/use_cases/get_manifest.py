@@ -6,6 +6,12 @@ from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
 from core.utils.logging import log_http, log_error, log_cache
 from app.domain.cache.i_manifest_cache import IManifestCache
+import asyncio
+from typing import Dict
+
+# Request-scoped cache for manifest objects
+manifest_request_cache: Dict[str, AddonManifest] = {}
+manifest_request_lock = asyncio.Lock()
 
 
 class GetManifestUseCase:
@@ -18,10 +24,19 @@ class GetManifestUseCase:
         self.manifest_cache = manifest_cache
 
     async def execute(self, url: str) -> AddonManifest:
+        # 1. Check request-local cache first
+        async with manifest_request_lock:
+            if url in manifest_request_cache:
+                log_cache(f"Request-local manifest content cache HIT for: {url}")
+                return manifest_request_cache[url]
+
+        # 2. Check distributed (Redis) cache
         cached_manifest = await self.manifest_cache.get(url)
         if cached_manifest:
             log_cache(f"Manifest cache HIT for: {url}")
             cached_manifest.manifest_url = url
+            async with manifest_request_lock:
+                manifest_request_cache[url] = cached_manifest
             return cached_manifest
 
         log_cache(f"Manifest cache MISS for: {url}")
@@ -37,8 +52,12 @@ class GetManifestUseCase:
 
         result.manifest_url = url
 
+        # 3. Populate both caches
         await self.manifest_cache.set(url, result)
         log_cache(f"Successfully cached manifest for: {result.name}")
+
+        async with manifest_request_lock:
+            manifest_request_cache[url] = result
 
         log_http(f"Successfully validated manifest for: {result.name}")
         return result

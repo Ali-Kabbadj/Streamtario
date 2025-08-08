@@ -1,93 +1,79 @@
 package torr
 
 import (
-	"encoding/hex"
-	"errors"
-	"fmt"
 	"log"
-	"net"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"server/settings"
+	"strconv"
 	"time"
 
-	"github.com/anacrolix/dms/dlna"
-	"github.com/anacrolix/missinggo/v2/httptoo"
 	"github.com/anacrolix/torrent"
-
-	mt "server/mimetype"
-	sets "server/settings"
-	"server/torr/state"
+	"github.com/anacrolix/torrent/metainfo"
+	"github.com/gin-gonic/gin"
 )
 
-func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter) error {
-	if !t.GotInfo() {
-		http.NotFound(resp, req)
-		return errors.New("torrent don't get info")
+func Stream(c *gin.Context) {
+
+	infoHashHex := c.Param("hash")
+	idStr := c.Param("id")
+	fileIdx, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid file index")
+		return
 	}
 
-	st := t.Status()
-	var stFile *state.TorrentFileStat
-	for _, fileStat := range st.FileStats {
-		if fileStat.Id == fileID {
-			stFile = fileStat
-			break
-		}
-	}
-	if stFile == nil {
-		return fmt.Errorf("file with id %v not found", fileID)
+	infoHash := metainfo.NewHashFromHex(infoHashHex)
+
+	spec := &torrent.TorrentSpec{
+		InfoHash:                 infoHash,
+		DisableInitialPieceCheck: true,
 	}
 
-	files := t.Files()
-	var file *torrent.File
-	for _, tfile := range files {
-		if tfile.Path() == stFile.Path {
-			file = tfile
-			break
-		}
-	}
-	if file == nil {
-		return fmt.Errorf("file with id %v not found", fileID)
+	torr, err := AddTorrent(spec, "", fileIdx)
+	if err != nil {
+		log.Printf("Failed to prepare torrent %s (file %d): %v", infoHashHex, fileIdx, err)
+		c.String(http.StatusInternalServerError, "Failed to prepare torrent for streaming")
+		return
 	}
 
-	reader := t.NewReader(file)
-	if sets.Get().ResponsiveMode {
-		reader.SetResponsive()
+	torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+
+	if !torr.GotInfo() {
+		log.Printf("Torrent info not available for %s after waiting", infoHashHex)
+		c.String(http.StatusNotFound, "Torrent metadata could not be retrieved in time")
+		return
 	}
 
-	host, port, err := net.SplitHostPort(req.RemoteAddr)
-	if sets.Get().EnableDebug {
-		if err != nil {
-			log.Println("Connect client")
-		} else {
-			log.Println("Connect client", host, port)
-		}
+	files := torr.Files()
+	if fileIdx < 0 || fileIdx >= len(files) {
+		log.Printf("File index %d out of bounds for torrent %s", fileIdx, infoHashHex)
+		c.String(http.StatusBadRequest, "File index out of bounds")
+		return
+	}
+	targetFile := files[fileIdx]
+
+	torr.muTorrent.Lock()
+	if torr.FileName == "" {
+		torr.FileName = filepath.Base(targetFile.Path())
+	}
+	torr.FileIdx = fileIdx
+	torr.muTorrent.Unlock()
+
+	reader := targetFile.NewReader()
+	reader.SetReadahead(settings.Get().CacheSize)
+	defer reader.Close()
+
+	extension := filepath.Ext(torr.FileName)
+	mimeType := mime.TypeByExtension(extension)
+	if mimeType != "" {
+		c.Header("Content-Type", mimeType)
+	} else {
+		c.Header("Content-Type", "application/octet-stream")
 	}
 
-	sets.SetViewed(&sets.Viewed{Hash: t.Hash().HexString(), FileIndex: fileID})
+	log.Printf("Streaming file %s (index %d, size %d) from torrent %s", torr.FileName, fileIdx, targetFile.Length(), infoHashHex)
 
-	resp.Header().Set("Connection", "close")
-	etag := hex.EncodeToString([]byte(fmt.Sprintf("%s/%s", t.Hash().HexString(), file.Path())))
-	resp.Header().Set("ETag", httptoo.EncodeQuotedString(etag))
-	resp.Header().Set("transferMode.dlna.org", "Streaming")
-	mime, err := mt.ByPath(file.Path())
-	if err == nil && mime.IsMedia() {
-		resp.Header().Set("content-type", mime.String())
-	}
-	if req.Header.Get("getContentFeatures.dlna.org") != "" {
-		resp.Header().Set("contentFeatures.dlna.org", dlna.ContentFeatures{
-			SupportRange:    true,
-			SupportTimeSeek: true,
-		}.String())
-	}
-
-	http.ServeContent(resp, req, file.Path(), time.Unix(t.Timestamp, 0), reader)
-
-	t.CloseReader(reader)
-	if sets.Get().EnableDebug {
-		if err != nil {
-			log.Println("Disconnect client")
-		} else {
-			log.Println("Disconnect client", host, port)
-		}
-	}
-	return nil
+	http.ServeContent(c.Writer, c.Request, torr.FileName, time.Unix(torr.Timestamp, 0), reader)
 }

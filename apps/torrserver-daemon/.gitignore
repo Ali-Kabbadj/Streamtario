@@ -31,3 +31,5 @@ go.work.sum
 # .idea/
 # .vscode/
 config.db
+cache
+go.sum

@@ -1,12 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useReducer } from "react";
 import { type WebViewCommand } from "@/types/webview/commands";
 import { type MpvEvent } from "@/types/webview/events";
-import { APP_CONFIG } from "@/config/env";
-import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type { Stream } from "@/features/meta/types";
 
-type Stream = NonNullable<GetStreamsQuery["profile"]>["streams"][number];
+const isWebView = () =>
+    typeof window !== "undefined" && !!window.chrome?.webview;
 
-const isWebView = () => typeof window !== "undefined" && !!window.chrome?.webview;
+export interface MpvTrack {
+    id: number;
+    "ff-index": number;
+    type: "audio" | "sub" | "video";
+    lang?: string;
+    title?: string;
+    selected?: boolean;
+    codec?: string;
+    "audio-channels"?: number;
+    externalFilename?: string;
+}
 
 export interface PlayerState {
     isPaused: boolean;
@@ -14,125 +24,250 @@ export interface PlayerState {
     duration: number;
     volume: number;
     isMuted: boolean;
+    isBuffering: boolean;
+    trackList: MpvTrack[];
 }
 
-// Add the new event to our type definition
-interface PlaybackStartedEvent {
-    event: "playback-started";
+interface State {
+    status: "idle" | "playing" | "error";
+    hasPlaybackStarted: boolean;
+    errorMessage: string | null;
+    activeStreamInfo: {
+        infoHash: string | null | undefined;
+        fileIndex: number | null | undefined;
+    } | null;
+    playerState: PlayerState;
 }
 
-type WebViewEvent = MpvEvent | PlaybackStartedEvent;
+const initialState: State = {
+    status: "idle",
+    hasPlaybackStarted: false,
+    errorMessage: null,
+    activeStreamInfo: null,
+    playerState: {
+        isPaused: true,
+        time: 0,
+        duration: 0,
+        volume: 70,
+        isMuted: false,
+        isBuffering: false,
+        trackList: [],
+    },
+};
+
+type Action =
+    | {
+        type: "PLAY_COMMAND_ISSUED";
+        payload: {
+            url: string;
+            startTime: number;
+            infoHash?: string | null;
+            fileIndex?: number | null;
+        };
+    }
+    | { type: "PLAYBACK_FAILED"; payload: { message: string } }
+    | { type: "PROPERTY_CHANGE"; payload: { property: string; value: unknown } }
+    | { type: "STOP_PLAYBACK" };
+
+function playerReducer(state: State, action: Action): State {
+    switch (action.type) {
+        case "PLAY_COMMAND_ISSUED":
+            return {
+                ...initialState,
+                status: "playing",
+                activeStreamInfo: {
+                    infoHash: action.payload.infoHash,
+                    fileIndex: action.payload.fileIndex,
+                },
+            };
+        case "PLAYBACK_FAILED":
+            return {
+                ...state,
+                status: "error",
+                errorMessage: action.payload.message,
+            };
+        case "PROPERTY_CHANGE": {
+            const { property, value } = action.payload;
+
+            if (property === "track-list" && Array.isArray(value)) {
+                return {
+                    ...state,
+                    playerState: { ...state.playerState, trackList: value as MpvTrack[] },
+                };
+            }
+
+            if (
+                property === "time-pos" &&
+                typeof value === "number" &&
+                value > 0 &&
+                !state.hasPlaybackStarted
+            ) {
+                return {
+                    ...state,
+                    hasPlaybackStarted: true,
+                    playerState: { ...state.playerState, time: value },
+                };
+            }
+
+            const keyMap: Record<string, keyof PlayerState> = {
+                "time-pos": "time",
+                pause: "isPaused",
+                mute: "isMuted",
+                volume: "volume",
+                duration: "duration",
+                "paused-for-cache": "isBuffering",
+                buffering: "isBuffering",
+            }; // Add "buffering"
+            const stateKey = keyMap[property];
+
+            if (stateKey) {
+                if (
+                    (stateKey === "isPaused" ||
+                        stateKey === "isMuted" ||
+                        stateKey === "isBuffering") &&
+                    typeof value === "boolean"
+                ) {
+                    return {
+                        ...state,
+                        playerState: { ...state.playerState, [stateKey]: value },
+                    };
+                }
+                if (typeof value === "number") {
+                    return {
+                        ...state,
+                        playerState: { ...state.playerState, [stateKey]: value },
+                    };
+                }
+            }
+            return state;
+        }
+        case "STOP_PLAYBACK":
+            return initialState;
+        default:
+            return state;
+    }
+}
 
 export function useMpvPlayer() {
-    const [status, setStatus] = useState<"idle" | "preparing" | "playing" | "error">("idle");
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [activeStream, setActiveStream] = useState<{ infoHash: string | null; fileIndex: number | null; title: string; logo?: string | null; } | null>(null);
-    const [playerState, setPlayerState] = useState<PlayerState>({
-        isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false,
-    });
-    const lastVolumeRef = useRef(playerState.volume);
-    const streamingApiUrl = `${APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('/graphql', '')}/api/v1/stream`;
+    const [state, dispatch] = useReducer(playerReducer, initialState);
 
     const sendCommand = useCallback((command: WebViewCommand) => {
         const message = JSON.stringify(command);
-        if (isWebView() && window.chrome?.webview) window.chrome.webview.postMessage(message);
+        if (isWebView() && window.chrome?.webview)
+            window.chrome.webview.postMessage(message);
         else console.log("WebView Outgoing:", message);
     }, []);
-
-    const stopAction = useCallback(() => {
-        sendCommand({ command: "set-webview-visibility", payload: { visible: false } });
-
-        const currentActiveStream = activeStream;
-        if (currentActiveStream?.infoHash) {
-            const cleanupUrl = `${streamingApiUrl}/cleanup/${currentActiveStream.infoHash}`;
-            navigator.sendBeacon(cleanupUrl);
-            console.log(`[Player] Sent cleanup beacon for ${currentActiveStream.infoHash}`);
-        }
-
-        sendCommand({ command: "stop" });
-        setStatus("idle");
-        setActiveStream(null);
-        setPlayerState({ isPaused: true, time: 0, duration: 0, volume: 70, isMuted: false });
-    }, [sendCommand, activeStream, streamingApiUrl]);
-
 
     useEffect(() => {
         if (!isWebView()) return;
         const handleEvent = (e: MessageEvent<string>) => {
             try {
-                const data: WebViewEvent = JSON.parse(e.data) as WebViewEvent;
-
-                // THE NEW LOGIC: We only switch to "playing" on our new, reliable event.
-                if (data.event === "playback-started") {
-                    if (status === 'preparing') {
-                        setStatus('playing');
-                    }
-                } else if (data.event === "property-change") {
-                    const { property, value } = data.payload;
-                    const keyMap: Record<string, keyof PlayerState> = { "time-pos": "time", "pause": "isPaused", "mute": "isMuted", "volume": "volume", "duration": "duration" };
-                    const stateKey = keyMap[property as keyof typeof keyMap];
-                    if (stateKey) {
-                        if ((stateKey === "isPaused" || stateKey === "isMuted") && typeof value === "boolean") {
-                            setPlayerState((prev) => ({ ...prev, [stateKey]: value }));
-                        } else if ((stateKey === "time" || stateKey === "duration" || stateKey === "volume") && typeof value === "number") {
-                            setPlayerState((prev) => ({ ...prev, [stateKey]: value }));
-                            if (stateKey === "volume" && value > 0) {
-                                lastVolumeRef.current = value;
-                            }
-                        }
-                    }
+                const data:
+                    | MpvEvent
+                    | { event: "playback-error"; payload: { message: string } } =
+                    JSON.parse(e.data);
+                if (data.event === "property-change") {
+                    dispatch({ type: "PROPERTY_CHANGE", payload: data.payload });
                 } else if (data.event === "playback-ended") {
-                    stopAction();
+                    dispatch({ type: "STOP_PLAYBACK" });
+                } else if (data.event === "playback-error") {
+                    dispatch({ type: "PLAYBACK_FAILED", payload: { message: data.payload.message } });
                 }
             } catch (error) {
                 console.error("Failed to parse WebView message:", error);
             }
         };
-        if (!window?.chrome?.webview) {
-            console.warn("WebView API not available.");
-            return;
-        }
+
         window.chrome.webview.addEventListener("message", handleEvent);
         return () => {
-            if (window.chrome?.webview) {
+            if (window?.chrome?.webview)
                 window.chrome.webview.removeEventListener("message", handleEvent);
-            }
         };
-    }, [stopAction, status]); // status is a dependency now
+    }, []);
+
+    const stopAction = useCallback(() => {
+        sendCommand({ command: "stop" });
+        dispatch({ type: "STOP_PLAYBACK" });
+    }, [sendCommand]);
 
     const actions = {
-        playStream: useCallback((stream: Stream, title: string, logo?: string | null) => {
-            if (stream.infoHash == null || stream.fileIdx == null) {
-                setStatus("error");
-                setErrorMessage("This stream is not a valid torrent.");
-                return;
-            }
-
-            setStatus("preparing");
-            setActiveStream({ infoHash: stream.infoHash, fileIndex: stream.fileIdx, title, logo });
-            sendCommand({ command: "set-webview-visibility", payload: { visible: true } });
-
-            const streamUrl = `${streamingApiUrl}/direct/${stream.infoHash}/${stream.fileIdx}`;
-            sendCommand({ command: "play", payload: { url: streamUrl } });
-        }, [sendCommand, streamingApiUrl]),
-
+        play: useCallback(
+            (url: string, startTime: number, stream?: Stream) => {
+                dispatch({
+                    type: "PLAY_COMMAND_ISSUED",
+                    payload: {
+                        url,
+                        startTime,
+                        infoHash: stream?.infoHash,
+                        fileIndex: stream?.fileIdx,
+                    },
+                });
+                sendCommand({ command: "play", payload: { url, startTime } });
+            },
+            [sendCommand],
+        ),
         stop: stopAction,
-        togglePause: useCallback(() => sendCommand({ command: "toggle-pause" }), [sendCommand]),
-        toggleFullscreen: useCallback(() => sendCommand({ command: "toggle-fullscreen" }), [sendCommand]),
-        seek: useCallback((time: number) => sendCommand({ command: "seek", payload: { time } }), [sendCommand]),
-        setVolume: useCallback((volume: number) => {
-            const newVolume = Math.max(0, Math.min(100, volume));
-            sendCommand({ command: "set-volume", payload: { volume: newVolume } });
-            if (playerState.isMuted) sendCommand({ command: "toggle-mute" });
-        }, [sendCommand, playerState.isMuted]),
+        togglePause: useCallback(
+            () => sendCommand({ command: "toggle-pause" }),
+            [sendCommand],
+        ),
+        toggleFullscreen: useCallback(
+            () => sendCommand({ command: "toggle-fullscreen" }),
+            [sendCommand],
+        ),
+        seek: useCallback(
+            (time: number) => sendCommand({ command: "seek", payload: { time } }),
+            [sendCommand],
+        ),
+        setVolume: useCallback(
+            (volume: number) => {
+                const newVolume = Math.max(0, Math.min(100, volume));
+                sendCommand({ command: "set-volume", payload: { volume: newVolume } });
+                if (state.playerState.isMuted) sendCommand({ command: "toggle-mute" });
+            },
+            [sendCommand, state.playerState.isMuted],
+        ),
         toggleMute: useCallback(() => {
-            if (playerState.isMuted && playerState.volume === 0) {
-                const newVolume = lastVolumeRef.current > 0 ? lastVolumeRef.current : 70;
+            const currentVolume = state.playerState.volume;
+            if (state.playerState.isMuted && currentVolume === 0) {
+                const newVolume = 70;
                 sendCommand({ command: "set-volume", payload: { volume: newVolume } });
             }
             sendCommand({ command: "toggle-mute" });
-        }, [sendCommand, playerState.isMuted, playerState.volume]),
+        }, [sendCommand, state.playerState.isMuted, state.playerState.volume]),
+        setAudioId: useCallback(
+            (id: number) => {
+                sendCommand({
+                    command: "set-property",
+                    payload: { property: "aid", value: String(id) },
+                });
+            },
+            [sendCommand],
+        ),
+        setSubtitleId: useCallback(
+            (id: number) => {
+                const value = id === -1 ? "no" : String(id);
+                sendCommand({
+                    command: "set-property",
+                    payload: { property: "sid", value: value },
+                });
+            },
+            [sendCommand],
+        ),
+        loadSubtitle: useCallback(
+            (url: string) => {
+                sendCommand({ command: "load-subtitle", payload: { url } });
+            },
+            [sendCommand],
+        ),
     };
 
-    return { status, errorMessage, activeStream, playerState, actions };
+    return {
+        status: state.status,
+        errorMessage: state.errorMessage,
+        activeStreamInfo: state.activeStreamInfo,
+        playerState: state.playerState,
+        actions,
+        hasPlaybackStarted: state.hasPlaybackStarted,
+    };
 }

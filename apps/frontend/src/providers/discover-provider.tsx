@@ -3,53 +3,62 @@
 import React, {
   createContext,
   useContext,
-  useState,
+  useReducer,
   type ReactNode,
 } from "react";
 
-interface DiscoverState {
+export interface DiscoverState {
   selectedType: string;
-  setSelectedType: (type: string) => void;
   selectedProvider: string;
-  setSelectedProvider: (provider: string) => void;
   selectedCatalogId: string;
-  setSelectedCatalogId: (catalogId: string) => void;
   extraFilters: Record<string, string>;
-  setExtraFilters: (filters: Record<string, string>) => void;
   scrollPosition: number;
-  setScrollPosition: (position: number) => void;
-  resetFilters: () => void;
 }
 
-const DiscoverContext = createContext<DiscoverState | undefined>(undefined);
+type Action =
+  | { type: "SET_STATE"; payload: Partial<DiscoverState> }
+  | { type: "RESET_FILTERS" };
+
+const discoverReducer = (
+  state: DiscoverState,
+  action: Action,
+): DiscoverState => {
+  switch (action.type) {
+    case "SET_STATE":
+      return { ...state, ...action.payload };
+    case "RESET_FILTERS":
+      return {
+        ...state,
+        selectedType: "",
+        selectedProvider: "",
+        selectedCatalogId: "",
+        extraFilters: {},
+      };
+    default:
+      return state;
+  }
+};
+
+const initialState: DiscoverState = {
+  selectedType: "",
+  selectedProvider: "",
+  selectedCatalogId: "",
+  extraFilters: {},
+  scrollPosition: 0,
+};
+
+interface DiscoverContextType extends DiscoverState {
+  dispatch: React.Dispatch<Action>;
+}
+
+const DiscoverContext = createContext<DiscoverContextType | undefined>(
+  undefined,
+);
 
 export function DiscoverProvider({ children }: { children: ReactNode }) {
-  const [selectedType, setSelectedType] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("");
-  const [selectedCatalogId, setSelectedCatalogId] = useState("");
-  const [extraFilters, setExtraFilters] = useState<Record<string, string>>({});
-  const [scrollPosition, setScrollPosition] = useState(0);
+  const [state, dispatch] = useReducer(discoverReducer, initialState);
 
-  const resetFilters = () => {
-    setSelectedType("");
-    setSelectedProvider("");
-    setSelectedCatalogId("");
-    setExtraFilters({});
-  };
-
-  const value = {
-    selectedType,
-    setSelectedType,
-    selectedProvider,
-    setSelectedProvider,
-    selectedCatalogId,
-    setSelectedCatalogId,
-    extraFilters,
-    setExtraFilters,
-    scrollPosition,
-    setScrollPosition,
-    resetFilters,
-  };
+  const value = { ...state, dispatch };
 
   return (
     <DiscoverContext.Provider value={value}>

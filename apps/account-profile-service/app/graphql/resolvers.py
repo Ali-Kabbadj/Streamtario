@@ -1,9 +1,15 @@
+from typing import List
 from dependency_injector.wiring import inject, Provide
 from strawberry.types import Info
+import strawberry
+import dataclasses
+
 from app.security.dependencies import get_current_user_payload
 from security.schemas import TokenPayload
 from app.containers import Container
 from app.use_cases.account.get_account import GetAccountUseCase
+from app.use_cases.profile.get_playback_history import GetPlaybackHistoryUseCase
+from app.use_cases.profile.get_continue_watching import GetContinueWatchingUseCase
 from app.use_cases.profile.get_profile import GetProfileUseCase
 from app.use_cases.account.create_account import CreateAccountUseCase
 from app.use_cases.profile.install_addon import InstallAddonUseCase
@@ -15,14 +21,14 @@ from app.use_cases.profile.create_profile import CreateProfileUseCase
 from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
+from app.use_cases.profile.update_advanced_settings import UpdateAdvancedSettingsUseCase
+from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
+from app.use_cases.profile.update_profile_settings import UpdateProfileSettingsUseCase
 from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
 from domain_exceptions.exceptions import ApiException
 from api_contract.errors import ApiErrorCode
 from .types import (
-    InstallAddonForAllProfilesError,
-    InstallAddonForAllProfilesInput,
-    InstallAddonForAllProfilesSuccess,
     ProfileType,
     CreateAccountInput,
     CreateAccountSuccess,
@@ -32,29 +38,67 @@ from .types import (
     InstallAddonSuccess,
     InstallAddonError,
     InstalledAddonType,
-    UninstallAddonFromAllProfilesError,
-    UninstallAddonFromAllProfilesInput,
-    UninstallAddonFromAllProfilesSuccess,
     UninstallAddonInput,
     UninstallAddonSuccess,
     UninstallAddonError,
     CreateProfileInput,
     CreateProfileSuccess,
     CreateProfileError,
+    UpdateAdvancedSettingsError,
+    UpdateAdvancedSettingsInput,
+    UpdateAdvancedSettingsSuccess,
     UpdateProfileInput,
     UpdateProfileSuccess,
     UpdateProfileError,
+    UpdateProfileSettingsInput,
+    UpdateProfileSettingsSuccess,
+    UpdateProfileSettingsError,
     VerifyProfilePinInput,
     VerifyProfilePinSuccess,
     VerifyProfilePinError,
+    PlaybackHistoryType,
+    UpdatePlaybackHistoryInput,
+    InstallAddonForAllProfilesError,
+    InstallAddonForAllProfilesInput,
+    InstallAddonForAllProfilesSuccess,
+    UninstallAddonFromAllProfilesError,
+    UninstallAddonFromAllProfilesInput,
+    UninstallAddonFromAllProfilesSuccess,
 )
-import strawberry
 from core.utils.logging import log_info, log_error
 
-from domain_exceptions.exceptions import ApiException
-from api_contract.errors import ApiErrorCode
 
-# --- QUERIES ---
+@inject
+async def resolve_continue_watching(
+    info: Info,
+    profile_id: strawberry.ID,
+    use_case: GetContinueWatchingUseCase = Provide[
+        Container.get_continue_watching_use_case
+    ],
+) -> List[PlaybackHistoryType]:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    history_items = await use_case.execute(
+        requesting_account_id=current_user.sub, profile_id=str(profile_id)
+    )
+    return [PlaybackHistoryType.from_pydantic(item) for item in history_items]
+
+
+@inject
+async def resolve_playback_history_by_imdb_id(
+    info: Info,
+    profile_id: strawberry.ID,
+    imdb_id: str,
+    use_case: GetPlaybackHistoryUseCase = Provide[
+        Container.get_playback_history_use_case
+    ],
+) -> List[PlaybackHistoryType]:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    history_items = await use_case.execute(
+        requesting_account_id=current_user.sub,
+        profile_id=str(profile_id),
+        imdb_id=imdb_id,
+    )
+    return [PlaybackHistoryType.from_pydantic(item) for item in history_items]
 
 
 @inject
@@ -68,14 +112,13 @@ async def resolve_profile(
         current_user_payload = get_current_user_payload(info.context["request"])
     except ApiException:
         pass
-
     pydantic_profile = await use_case.execute(
         profile_id=str(id),
         requesting_account_id=(
             current_user_payload.sub if current_user_payload else None
         ),
     )
-    return ProfileType.from_pydantic(pydantic_profile)
+    return ProfileType.from_pydantic(pydantic_profile) if pydantic_profile else None
 
 
 @inject
@@ -85,13 +128,31 @@ async def resolve_account(
 ) -> AccountType | None:
     current_user: TokenPayload = get_current_user_payload(info.context["request"])
     account_id = current_user.sub
-
     log_info(f"GraphQL: Fetching account details for {account_id}", context="graphql")
     pydantic_account = await use_case.execute(account_id=account_id)
-    return AccountType.from_pydantic(pydantic_account)
+    return AccountType.from_pydantic(pydantic_account) if pydantic_account else None
 
 
-# --- MUTATIONS ---
+@inject
+async def resolve_update_playback_history(
+    info: Info,
+    input: UpdatePlaybackHistoryInput,
+    use_case: UpdatePlaybackHistoryUseCase = Provide[
+        Container.update_playback_history_use_case
+    ],
+) -> PlaybackHistoryType:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    history_item = await use_case.execute(
+        requesting_account_id=current_user.sub,
+        profile_id=str(input.profile_id),
+        content_id=input.content_id,
+        imdb_id=input.imdb_id,
+        item_type=input.item_type,
+        position_seconds=input.position_seconds,
+        duration_seconds=input.duration_seconds,
+        last_stream_details=input.last_stream_details,
+    )
+    return PlaybackHistoryType.from_pydantic(history_item)
 
 
 @inject
@@ -149,6 +210,38 @@ async def resolve_update_profile(
             "GraphQL: Unexpected error during profile update", data={"error": str(e)}
         )
         return UpdateProfileError(code=e_code.name, message=e_code.value.ui_message)
+
+
+@inject
+async def resolve_update_profile_settings(
+    info: Info,
+    input: UpdateProfileSettingsInput,
+    use_case: UpdateProfileSettingsUseCase = Provide[
+        Container.update_profile_settings_use_case
+    ],
+) -> UpdateProfileSettingsSuccess | UpdateProfileSettingsError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    try:
+        settings_dict = dataclasses.asdict(input.settings)
+        updated_profile = await use_case.execute(
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            settings=settings_dict,
+        )
+        return UpdateProfileSettingsSuccess(
+            profile=ProfileType.from_pydantic(updated_profile)
+        )
+    except ApiException as e:
+        return UpdateProfileSettingsError(code=e.code, message=e.ui_message)
+    except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
+        log_error(
+            "GraphQL: Unexpected error during profile settings update",
+            data={"error": str(e)},
+        )
+        return UpdateProfileSettingsError(
+            code=e_code.name, message=e_code.value.ui_message
+        )
 
 
 @inject
@@ -315,3 +408,34 @@ async def resolve_create_account(
     except Exception:
         e_code = ApiErrorCode.UNEXPECTED_ERROR
         return CreateAccountError(code=e_code.name, message=e_code.value.ui_message)
+
+
+@inject
+async def resolve_update_advanced_settings(
+    info: Info,
+    input: UpdateAdvancedSettingsInput,
+    use_case: UpdateAdvancedSettingsUseCase = Provide[
+        Container.update_advanced_settings_use_case
+    ],
+) -> UpdateAdvancedSettingsSuccess | UpdateAdvancedSettingsError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    try:
+        updated_profile = await use_case.execute(
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            settings_payload=input.settings,
+        )
+        return UpdateAdvancedSettingsSuccess(
+            profile=ProfileType.from_pydantic(updated_profile)
+        )
+    except ApiException as e:
+        return UpdateAdvancedSettingsError(code=e.code, message=e.ui_message)
+    except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
+        log_error(
+            "GraphQL: Unexpected error during advanced settings update",
+            data={"error": str(e)},
+        )
+        return UpdateAdvancedSettingsError(
+            code=e_code.name, message=e_code.value.ui_message
+        )

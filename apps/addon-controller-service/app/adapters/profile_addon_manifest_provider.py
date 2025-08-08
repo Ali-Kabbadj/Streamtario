@@ -43,8 +43,7 @@ class ProfileAddonManifestProvider(IProfileAddonManifestProvider):
         fresh_urls = response.data.manifest_urls
 
         if fresh_urls:
-            for url in fresh_urls:
-                await self.profile_manifest_cache.add_manifest(profile_id, url)
+            await self.profile_manifest_cache.add_manifests(profile_id, fresh_urls)
             log_cache(
                 f"Successfully cached {len(fresh_urls)} manifest URLs for profile: {profile_id}"
             )

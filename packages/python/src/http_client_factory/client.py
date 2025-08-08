@@ -1,7 +1,7 @@
 import httpx
 import json
 import asyncio
-from typing import Type, Union
+from typing import Type, Union, Optional, Dict, Any
 from pydantic import BaseModel, ValidationError, TypeAdapter
 from api_contract.responses import ApiResponse, ErrorDetail
 
@@ -28,13 +28,13 @@ class ApiClient:
         return self._client
 
     async def get[T: BaseModel](
-        self, url: str, response_model: Type[T]
+        self, url: str, response_model: Type[T], params: Optional[Dict[str, Any]] = None
     ) -> ApiResponse[T]:
         client = await self._get_client()
         last_exception = None
         for attempt in range(self.retries):
             try:
-                response = await client.get(url)
+                response = await client.get(url, params=params)
                 response.raise_for_status()
                 api_response = TypeAdapter(ApiResponse[response_model]).validate_json(
                     response.content
