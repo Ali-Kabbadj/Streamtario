@@ -10,26 +10,12 @@ import {
   Maximize,
   Settings,
 } from "lucide-react";
-import type { MpvTrack, PlayerState } from "../hooks/useMpvPlayer";
+import type { MpvTrack } from "../hooks/useMpvPlayer";
 import { StreamingStatusIndicator } from "./StreamingStatusIndicator";
 import { useMemo, useState } from "react";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { SettingsSheet, type TrackItem } from "./SettingsSheet";
 import type { SubtitleType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-
-interface PlayerControlsProps {
-  playerState: PlayerState;
-  actions: {
-    togglePause: () => void;
-    seek: (time: number) => void;
-    setVolume: (volume: number) => void;
-    toggleMute: () => void;
-    toggleFullscreen: () => void;
-    setAudioId: (id: number) => void;
-    setSubtitleId: (id: number) => void;
-    loadSubtitle: (url: string) => void;
-  };
-}
 
 function formatTime(seconds: number): string {
   const totalSeconds = Math.floor(seconds);
@@ -41,9 +27,9 @@ function formatTime(seconds: number): string {
   return `${pad(m)}:${pad(s)}`;
 }
 
-export function PlayerControls({ playerState, actions }: PlayerControlsProps) {
+export function PlayerControls() {
+  const { playerState, actions, externalSubtitles } = usePlayer();
   const { isPaused, time, duration, volume, isMuted, trackList } = playerState;
-  const { externalSubtitles } = usePlayer();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const { audioTracks, selectedAudioTrackId } = useMemo(() => {

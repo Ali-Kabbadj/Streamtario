@@ -13,10 +13,13 @@ type torrReqJS struct {
 	Hash     string   `json:"hash"`
 	Link     string   `json:"link"`
 	Announce []string `json:"announce"`
+	FileIdx  int      `json:"file_idx"`
 }
 
 func Torrents(c *gin.Context) {
 	var req torrReqJS
+	// Set default file index to -1 for requests that don't provide it (like old clients)
+	req.FileIdx = -1
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
@@ -30,7 +33,7 @@ func Torrents(c *gin.Context) {
 		if len(req.Announce) > 0 {
 			spec.Trackers = append(spec.Trackers, req.Announce)
 		}
-		AddTorrent(&spec, "", -1)
+		AddTorrent(&spec, "", req.FileIdx) // Pass the file index here
 		c.Status(http.StatusOK)
 	case "cleanup":
 		RemTorrent(req.Hash)

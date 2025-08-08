@@ -53,10 +53,8 @@ static void MpvWakeup(void *ctx)
 void HandleMpvEvents()
 {
     if (!g_mpv)
-    {
-        LOG_INFO("UI_Thread", "g_mpv null, exiting HandleMpvEvents.");
         return;
-    };
+
     while (true)
     {
         mpv_event *ev = mpv_wait_event(g_mpv, 0);
@@ -77,49 +75,32 @@ void HandleMpvEvents()
             if (prop->data == NULL)
                 break;
 
-            if (strcmp(prop->name, "track-list") == 0)
-            {
-                if (prop->format == MPV_FORMAT_NODE)
-                {
-                    json trackListJson = MpvNodeToJson((mpv_node *)prop->data);
-                    WebViewProtocol::EventEmitter::emitPropertyChange(prop->name, trackListJson);
-                }
-                break;
-            }
-
             json value;
-            if (prop->format == MPV_FORMAT_DOUBLE)
+            switch (prop->format)
             {
+            case MPV_FORMAT_DOUBLE:
                 value = *(double *)prop->data;
-            }
-            else if (prop->format == MPV_FORMAT_FLAG)
-            {
-                value = (*(int *)prop->data ? true : false);
-            }
-            else if (prop->format == MPV_FORMAT_INT64)
-            {
+                break;
+            case MPV_FORMAT_FLAG:
+                value = (*(int *)prop->data != 0);
+                break;
+            case MPV_FORMAT_INT64:
                 value = *(int64_t *)prop->data;
-            }
-            else
-            {
+                break;
+            case MPV_FORMAT_NODE:
+                value = MpvNodeToJson((mpv_node *)prop->data);
+                break;
+            default:
                 continue;
             }
-
             WebViewProtocol::EventEmitter::emitPropertyChange(prop->name, value);
             break;
         }
 
         case MPV_EVENT_FILE_LOADED:
         {
-            LOG_INFO("MPV_Event", "MPV_EVENT_FILE_LOADED received. Checking for resume position.");
-
-            double startTime = 0;
-            if (mpv_get_property(g_mpv, "start", MPV_FORMAT_DOUBLE, &startTime) == 0 && startTime > 1.0)
-            {
-                std::string timeStr = std::to_string(startTime);
-                HandleMpvCommand({"seek", timeStr, "absolute"});
-                LOG_INFO("MPV_Event", "Found resume time. Issued explicit seek to: " + timeStr + "s");
-            }
+            g_isMpvPlaying = true;
+            LOG_INFO("MPV_Event", "MPV_EVENT_FILE_LOADED received. Querying initial state.");
 
             double duration = 0;
             int64_t volume = 0;
@@ -140,10 +121,11 @@ void HandleMpvEvents()
 
         case MPV_EVENT_END_FILE:
         {
+            g_isMpvPlaying = false;
             mpv_event_end_file *end_file_info = (mpv_event_end_file *)ev->data;
             if (end_file_info->reason == MPV_END_FILE_REASON_ERROR)
             {
-                std::string error_message = "Playback failed. The file could not be read from the stream.";
+                std::string error_message = "Playback failed.";
                 if (end_file_info->error != 0)
                 {
                     error_message = mpv_error_string(end_file_info->error);
@@ -151,15 +133,10 @@ void HandleMpvEvents()
                 LOG_ERROR("MPV_Event", "Playback ended with error: " + error_message);
                 WebViewProtocol::EventEmitter::emitPlaybackError(error_message);
             }
-            else if (g_isMpvPlaying)
-            {
-                LOG_INFO("MPV_Event", "Playback finished naturally.");
-                g_isMpvPlaying = false;
-                WebViewProtocol::EventEmitter::emitPlaybackEnded();
-            }
             else
             {
-                LOG_INFO("MPV_Event", "Playback stopped by user command.");
+                LOG_INFO("MPV_Event", "Playback finished or stopped.");
+                WebViewProtocol::EventEmitter::emitPlaybackEnded();
             }
             break;
         }
@@ -175,7 +152,6 @@ void HandleMpvEvents()
         }
     }
 }
-
 void HandleMpvCommand(const std::vector<std::string> &args)
 {
     if (!g_mpv || args.empty())

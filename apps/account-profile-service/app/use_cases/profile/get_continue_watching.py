@@ -25,7 +25,7 @@ class GetContinueWatchingUseCase:
         )
 
         async with self.uow_factory() as uow:
-            history_items = await uow.profiles.get_playback_history_for_profile(
+            history_items = await uow.profiles.get_continue_watching_for_profile(
                 profile_id=profile_id, limit=20
             )
 

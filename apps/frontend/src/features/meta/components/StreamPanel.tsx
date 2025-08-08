@@ -33,6 +33,7 @@ type SortKey = "best" | "seeders" | "size";
 interface StreamPanelContent {
   itemType: string;
   itemId: string;
+  metaId: string;
   title: string;
   imageUrl?: string | null;
 }
@@ -233,6 +234,7 @@ export function StreamPanel({
   ).reduce((acc: number, current: Set<string>) => acc + current.size, 0);
 
   const contentId = content?.itemId ?? "";
+  const metaId = content?.metaId ?? "";
 
   return (
     <AnimatePresence>
@@ -353,6 +355,7 @@ export function StreamPanel({
                 mediaTitle={content.title}
                 logoUrl={logoUrl}
                 contentId={contentId}
+                metaId={metaId}
                 itemType={itemType}
                 imdbId={imdbId}
               />

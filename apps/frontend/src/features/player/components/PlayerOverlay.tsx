@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
@@ -8,7 +8,7 @@ import { PlayerHeader } from "./PlayerHeader";
 import { PlayerControls } from "./PlayerControls";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { useStreamingServerStats } from "../hooks/useStreamingServerStats";
-import { PreparingSplash } from "./PreparingSplash";
+import { PreparingSplash, type AnimationState } from "./PreparingSplash";
 
 export function PlayerOverlay() {
   const {
@@ -17,7 +17,7 @@ export function PlayerOverlay() {
     errorMessage,
     actions,
     playerState,
-    hasPlaybackStarted,
+    isPlaybackActive,
   } = usePlayer();
   const { stats } = useStreamingServerStats();
   const [isControlsVisible, setIsControlsVisible] = useState(true);
@@ -26,77 +26,11 @@ export function PlayerOverlay() {
   const activeTorrentStats =
     stats?.find((t) => t.hash === activeStream?.infoHash) ?? null;
 
-  const progressControls = useAnimationControls();
-  const lastAnimationState = useRef<"determinate" | "indeterminate" | "idle">(
-    "idle",
-  );
-
-  useEffect(() => {
-    const isInitialBuffering = !hasPlaybackStarted;
-    const isSeekBuffering = hasPlaybackStarted && playerState.isBuffering;
-    const shouldShowBufferingSplash = isInitialBuffering || isSeekBuffering;
-
-    if (!shouldShowBufferingSplash) {
-      if (lastAnimationState.current !== "idle") {
-        progressControls.stop();
-        progressControls.set({ width: "0%" });
-        lastAnimationState.current = "idle";
-      }
-      return;
-    }
-
-    if (isSeekBuffering) {
-      if (lastAnimationState.current !== "indeterminate") {
-        lastAnimationState.current = "indeterminate";
-        void progressControls.start({
-          width: ["30%", "70%"],
-          transition: {
-            duration: 1,
-            ease: "easeInOut",
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-        });
-      }
-    } else if (isInitialBuffering && activeTorrentStats) {
-      lastAnimationState.current = "determinate";
-
-      const bufferGoal =
-        activeTorrentStats.preload_size > 0
-          ? activeTorrentStats.preload_size
-          : 25 * 1024 * 1024;
-
-      const loadedBytes = activeTorrentStats.preloaded_bytes;
-      const rawProgress = bufferGoal > 0 ? loadedBytes / bufferGoal : 0;
-      const cappedProgress = Math.min(rawProgress, 0.99);
-      const progressPercentage = cappedProgress * 100;
-
-      void progressControls.start({
-        width: `${progressPercentage}%`,
-        transition: { type: "tween", ease: "linear", duration: 0.4 },
-      });
-    }
-  }, [
-    activeTorrentStats,
-    hasPlaybackStarted,
-    playerState.isBuffering,
-    progressControls,
-  ]);
-
-  useEffect(() => {
-    if (hasPlaybackStarted) {
-      void progressControls.start({
-        width: "100%",
-        transition: { duration: 0.2 },
-      });
-    }
-  }, [hasPlaybackStarted, progressControls]);
-
   useEffect(() => {
     const handleActivity = () => {
       setIsControlsVisible(true);
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
-      if (hasPlaybackStarted && !playerState.isPaused) {
+      if (isPlaybackActive) {
         activityTimeoutRef.current = setTimeout(
           () => setIsControlsVisible(false),
           3000,
@@ -104,11 +38,7 @@ export function PlayerOverlay() {
       }
     };
 
-    if (
-      !hasPlaybackStarted ||
-      playerState.isPaused ||
-      playerState.isBuffering
-    ) {
+    if (!isPlaybackActive) {
       setIsControlsVisible(true);
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
     }
@@ -132,19 +62,23 @@ export function PlayerOverlay() {
           clearTimeout(activityTimeoutRef.current);
       };
     }
-  }, [
-    status,
-    hasPlaybackStarted,
-    playerState.isPaused,
-    playerState.isBuffering,
-  ]);
+  }, [status, isPlaybackActive, playerState.isPaused]);
 
   if (status === "idle") {
     return null;
   }
 
-  const shouldShowBufferingSplash =
-    !hasPlaybackStarted || playerState.isBuffering;
+  const hasStarted = playerState.time > 0;
+  let animationState: AnimationState = "playing";
+  if (hasStarted && playerState.isPaused && !playerState.isBuffering) {
+    animationState = "paused";
+  } else if (hasStarted && playerState.isBuffering) {
+    animationState = "seeking";
+  } else if (!hasStarted) {
+    animationState = "initial";
+  }
+
+  const shouldShowSplash = status === "playing" && animationState !== "playing";
 
   return (
     <AnimatePresence>
@@ -168,17 +102,19 @@ export function PlayerOverlay() {
         {status === "playing" && (
           <>
             <AnimatePresence>
-              {shouldShowBufferingSplash && (
+              {shouldShowSplash && (
                 <motion.div
-                  key="buffering-splash"
-                  initial={{ opacity: 0 }}
+                  key="splash-screen"
+                  initial={{ opacity: 1 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   className="absolute inset-0 z-20 flex items-center justify-center bg-black/80"
                 >
                   <PreparingSplash
                     logoUrl={activeStream?.logo}
-                    animationControls={progressControls}
+                    torrentStats={activeTorrentStats}
+                    animationState={animationState}
                   />
                 </motion.div>
               )}
@@ -196,7 +132,7 @@ export function PlayerOverlay() {
                     title={activeStream?.title ?? ""}
                     onBack={actions.stop}
                   />
-                  <PlayerControls playerState={playerState} actions={actions} />
+                  <PlayerControls />
                 </motion.div>
               )}
             </AnimatePresence>

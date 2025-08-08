@@ -1,9 +1,10 @@
 import asyncio
-from typing import Optional
+from typing import Optional, List
 from urllib.parse import quote
 from .get_manifest import GetManifestUseCase
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.meta.meta import MetaResponse
+from core.pydantic.addons.manifest import AddonManifest, Resource
 from core.utils.logging import log_info, log_warn, log_error
 
 
@@ -33,7 +34,7 @@ class GetMetaUseCase:
             if item_type:
                 url = f"{base_url}/meta/{item_type}/{encoded_item_id}.json"
                 result = await self.addon_provider.get(url, response_model=MetaResponse)
-                if result:
+                if result and result.meta:
                     return result
                 log_warn(f"Direct meta fetch failed for {url}")
 
@@ -43,15 +44,25 @@ class GetMetaUseCase:
             if not meta_resource:
                 return None
 
-            types_to_check = meta_resource.types or manifest.types
+            types_to_check = []
+            if isinstance(meta_resource, Resource) and meta_resource.types:
+                types_to_check = meta_resource.types
+            elif manifest.types:
+                types_to_check = manifest.types
+
             if not types_to_check:
                 return None
 
             async def _try_fetch(t: str) -> Optional[MetaResponse]:
                 url = f"{base_url}/meta/{t}/{encoded_item_id}.json"
-                return await self.addon_provider.get(url, response_model=MetaResponse)
+                response = await self.addon_provider.get(
+                    url, response_model=MetaResponse
+                )
+                if response and response.meta:
+                    return response
+                return None
 
-            tasks = [_try_fetch(t) for t in types_to_check]
+            tasks = [_try_fetch(t) for t in types_to_check if t != item_type]
             for future in asyncio.as_completed(tasks):
                 successful_response = await future
                 if successful_response:

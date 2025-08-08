@@ -103,7 +103,6 @@ class AppExtrasType:
 
 @strawberry.type
 class MetaItemType:
-    # imdb_id: Optional[str] = None
     imdb_id: str
     country: Optional[str]
     description: Optional[str] = None
@@ -193,14 +192,12 @@ from strawberry.federation.schema_directives import Requires
 class PlaybackHistoryType:
     id: strawberry.ID = strawberry.federation.field(external=True)
 
-    # These are the fields our resolver needs from the accounts service.
     profile_id: strawberry.ID = strawberry.federation.field(
         external=True, name="profileId"
     )
     content_id: str = strawberry.federation.field(external=True)
     item_type: str = strawberry.federation.field(external=True)
 
-    # The @requires directive tells the gateway to provide these fields to our resolver.
     @strawberry.field(directives=[Requires(fields="profileId contentId itemType")])
     async def meta(self) -> Optional["MetaItemType"]:
         from .resolvers import resolve_meta_for_playback_history
@@ -237,7 +234,7 @@ class CatalogResult:
 @strawberry.type
 class AddonSearchResultType:
     addon_name: str
-    results_by_type: JSON  # type: ignore
+    results_by_type: JSON
     error: Optional[str] = None
 
 
@@ -268,22 +265,13 @@ class StreamType:
     yt_id: Optional[str] = None
     info_hash: Optional[str] = None
     file_idx: Optional[int] = None
-    behavior_hints: Optional[JSON] = None  # type: ignore
+    behavior_hints: Optional[JSON] = None
     addon_name: Optional[str] = None
     announce: Optional[List[str]] = None
-    video_hash: Optional[str] = None
     files: Optional[List["StreamFileType"]] = None
 
     @classmethod
     def from_pydantic(cls, model: Stream) -> "StreamType":
-        video_hash = model.video_hash
-        if (
-            not video_hash
-            and model.behavior_hints
-            and "videoHash" in model.behavior_hints
-        ):
-            video_hash = model.behavior_hints["videoHash"]
-
         return cls(
             name=model.name,
             title=model.title,
@@ -294,7 +282,6 @@ class StreamType:
             behavior_hints=model.behavior_hints,
             addon_name=model.addon_name,
             announce=model.announce,
-            video_hash=video_hash,
         )
 
 
@@ -314,7 +301,7 @@ class ProfileExtension:
         itemType: str,
         catalogId: Optional[str] = None,
         manifestId: Optional[str] = None,
-        extraProps: Optional[JSON] = None,  # type: ignore
+        extraProps: Optional[JSON] = None,
         filterByType: Optional[str] = None,
     ) -> "CatalogResult":
         from .resolvers import resolve_profile_catalog

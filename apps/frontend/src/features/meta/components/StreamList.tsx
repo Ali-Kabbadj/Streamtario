@@ -14,6 +14,7 @@ interface StreamListProps {
   mediaTitle: string;
   logoUrl?: string | null;
   contentId: string;
+  metaId: string;
   itemType: string;
   imdbId: string;
 }
@@ -26,6 +27,7 @@ export function StreamList({
   mediaTitle,
   logoUrl,
   contentId,
+  metaId,
   itemType,
   imdbId,
 }: StreamListProps) {
@@ -65,6 +67,7 @@ export function StreamList({
             mediaTitle={mediaTitle}
             logoUrl={logoUrl}
             contentId={contentId}
+            metaId={metaId}
             itemType={itemType}
             imdbId={imdbId}
           />

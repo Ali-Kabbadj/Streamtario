@@ -8,14 +8,15 @@ interface UseSubtitlesProps {
     itemType?: string;
     filename?: string;
     videoSize?: number;
-    videoHash?: string;
+    videoHash?: string | null;
+    enabled?: boolean;
 }
 
-export const useSubtitles = ({ contentId, itemType, filename, videoSize, videoHash }: UseSubtitlesProps) => {
+export const useSubtitles = ({ contentId, itemType, filename, videoSize, videoHash, enabled = true }: UseSubtitlesProps) => {
     const { selectedProfile } = useProfileContext();
     const profileId = selectedProfile?.id ?? "";
 
-    const isEnabled = !!(profileId && contentId && itemType && filename && videoHash && videoSize !== undefined);
+    const isQueryReady = !!(profileId && contentId && itemType && filename && videoHash && videoSize !== undefined);
 
     return useQuery({
         queryKey: ['subtitles', profileId, contentId, filename, videoHash],
@@ -30,6 +31,6 @@ export const useSubtitles = ({ contentId, itemType, filename, videoSize, videoHa
             });
             return data.profile?.subtitles ?? [];
         },
-        enabled: isEnabled,
+        enabled: enabled && isQueryReady,
     });
 };

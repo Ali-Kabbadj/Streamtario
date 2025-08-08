@@ -33,6 +33,33 @@ class ProfileRepository(IProfileRepository):
         history_orms = result.scalars().all()
         return [PlaybackHistory.model_validate(h) for h in history_orms]
 
+    async def get_continue_watching_for_profile(
+        self, profile_id: str, limit: int
+    ) -> List[PlaybackHistory]:
+
+        distinct_query = (
+            select(PlaybackHistoryOrm)
+            .distinct(PlaybackHistoryOrm.imdb_id)
+            .where(PlaybackHistoryOrm.profile_id == profile_id)
+            .order_by(PlaybackHistoryOrm.imdb_id, desc(PlaybackHistoryOrm.watched_at))
+        )
+
+        cte = distinct_query.cte("distinct_history")
+
+        final_stmt = (
+            select(PlaybackHistoryOrm)
+            .join(
+                cte,
+                PlaybackHistoryOrm.id == cte.c.id,
+            )
+            .order_by(desc(cte.c.watched_at))
+            .limit(limit)
+        )
+
+        result = await self.session.execute(final_stmt)
+        history_orms = result.scalars().all()
+        return [PlaybackHistory.model_validate(h) for h in history_orms]
+
     async def create(
         self,
         account_id: str,
@@ -124,7 +151,6 @@ class ProfileRepository(IProfileRepository):
         profile_id: str,
         content_id: str,
         item_type: str,
-        # imdb_id: Optional[str],
         imdb_id: str,
         season: Optional[int],
         episode: Optional[int],
@@ -133,7 +159,6 @@ class ProfileRepository(IProfileRepository):
         last_stream_details: Optional[Dict[str, Any]],
     ) -> PlaybackHistory:
 
-        # 1. Find existing record by canonical ID (IMDB + S/E) if available
         existing_orm = None
         if imdb_id and item_type == "series":
             stmt = select(PlaybackHistoryOrm).where(
@@ -152,7 +177,6 @@ class ProfileRepository(IProfileRepository):
             result = await self.session.execute(stmt)
             existing_orm = result.scalars().first()
 
-        # 2. If not found by canonical ID, try the specific content_id
         if not existing_orm:
             stmt = select(PlaybackHistoryOrm).where(
                 PlaybackHistoryOrm.profile_id == profile_id,
@@ -183,7 +207,6 @@ class ProfileRepository(IProfileRepository):
             result = await self.session.execute(update_stmt)
             updated_orm = result.scalars().one()
         else:
-            # Insert a new record
             insert_stmt = (
                 insert(PlaybackHistoryOrm)
                 .values(profile_id=profile_id, **values_to_update)

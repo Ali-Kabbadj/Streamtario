@@ -14,13 +14,11 @@ class GetPlaybackHistoryUseCase:
         self.uow_factory = uow_factory
         self.authorization_policy = authorization_policy
 
-    # CORRECTED: The signature and logic now depend on the arguments provided
     async def execute(
         self,
         requesting_account_id: str,
         profile_id: str,
-        # imdb_id: Optional[str] = None,
-        imdb_id: str,
+        imdb_id: Optional[str] = None,
         content_ids: Optional[List[str]] = None,
     ) -> List[PlaybackHistory]:
         await self.authorization_policy.check_profile_ownership(
