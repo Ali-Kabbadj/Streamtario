@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.utils.logging import log_cache
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T", bound="BaseModel")
 
 QUERY_CACHE_TTL_SECONDS = 60 * 15
 QUERY_CACHE_KEY_PREFIX = "addon-query:"

@@ -1,6 +1,6 @@
 import asyncio
 from typing import List
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.subtitles.subtitles import SubtitleResponse, SubtitleFile
 from core.utils.logging import log_info

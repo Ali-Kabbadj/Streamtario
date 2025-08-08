@@ -55,17 +55,13 @@ namespace WebViewProtocol
         m_commands["set-property"] = [](const json &payload)
         {
             auto p = payload.get<SetPropertyPayload>();
-            // This now correctly handles both "aid" and "sid"
             HandleMpvCommand({"set", p.property, p.value});
         };
 
-        // FINAL ADDITION: Handle loading external subtitles
         m_commands["load-subtitle"] = [](const json &payload)
         {
             auto p = payload.get<LoadSubtitlePayload>();
-            // "sub-add" is the MPV command to load an external subtitle file.
-            // "select" makes it the active subtitle track immediately.
-            HandleMpvCommand({"sub-add", p.url, "select"});
+            HandleMpvCommand({"sub-add", p.url, "select", p.url});
         };
     }
 
@@ -97,4 +93,4 @@ namespace WebViewProtocol
             LOG_ERROR("CommandHandler", "JSON Key Error: " + std::string(e.what()));
         }
     }
-} // namespace WebViewProtocol
+}

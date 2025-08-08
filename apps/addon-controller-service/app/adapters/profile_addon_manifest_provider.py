@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List
 from http_client_factory.client import ApiClient
 from app.domain.cache.i_profile_manifest_cache import IProfileManifestCache
 from app.domain.providers.i_profile_addon_manifest_provider import (
@@ -6,11 +6,6 @@ from app.domain.providers.i_profile_addon_manifest_provider import (
 )
 from core.utils.logging import log_cache, log_http
 from core.pydantic.api.internals import ManifestUrlsResponse
-import asyncio
-
-# A simple, in-memory cache for the duration of a single request-response cycle
-request_local_cache: Dict[str, List[str]] = {}
-request_local_lock = asyncio.Lock()
 
 
 class ProfileAddonManifestProvider(IProfileAddonManifestProvider):
@@ -25,18 +20,9 @@ class ProfileAddonManifestProvider(IProfileAddonManifestProvider):
         self.account_profile_service_url = account_profile_service_url
 
     async def get_manifest_urls(self, profile_id: str) -> List[str]:
-        async with request_local_lock:
-            if profile_id in request_local_cache:
-                log_cache(
-                    f"Request-local manifest URL cache HIT for profile: {profile_id}"
-                )
-                return request_local_cache[profile_id]
-
         cached_urls = await self.profile_manifest_cache.get_manifests(profile_id)
         if cached_urls:
             log_cache(f"Profile manifest cache HIT for profile: {profile_id}")
-            async with request_local_lock:
-                request_local_cache[profile_id] = cached_urls
             return cached_urls
 
         log_cache(f"Profile manifest cache MISS for profile: {profile_id}")
@@ -62,9 +48,4 @@ class ProfileAddonManifestProvider(IProfileAddonManifestProvider):
                 f"Successfully cached {len(fresh_urls)} manifest URLs for profile: {profile_id}"
             )
 
-        async with request_local_lock:
-            request_local_cache[profile_id] = fresh_urls
-
-        # This should be cleared after the request is done. We need a middleware for this.
-        # For now, let's rely on the short-lived nature of the application instance in a serverless context.
         return fresh_urls

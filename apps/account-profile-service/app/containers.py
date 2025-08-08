@@ -27,6 +27,7 @@ from app.use_cases.profile.install_addon_for_all_profiles import (
 from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
+from app.use_cases.profile.update_advanced_settings import UpdateAdvancedSettingsUseCase
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
 from app.use_cases.profile.update_profile_settings import UpdateProfileSettingsUseCase
 from app.use_cases.profile.verify_profile_pin import VerifyProfilePinUseCase
@@ -224,4 +225,13 @@ class Container(containers.DeclarativeContainer):
         uow_factory=uow.provider,
         authorization_policy=authorization_policy,
         get_meta_for_id_use_case=get_meta_for_id_use_case,
+    )
+
+    update_advanced_settings_use_case: providers.Factory[
+        UpdateAdvancedSettingsUseCase
+    ] = providers.Factory(
+        UpdateAdvancedSettingsUseCase,
+        uow_factory=uow.provider,
+        authorization_policy=authorization_policy,
+        event_publisher=event_publisher,
     )

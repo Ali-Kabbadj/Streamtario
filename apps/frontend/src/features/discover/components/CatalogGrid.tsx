@@ -48,21 +48,20 @@ export function CatalogGrid({
   const renderSkeletons = (count: number) =>
     Array.from({ length: count }).map((_, i) => (
       <div key={`skeleton-${i}`} className="flex flex-col space-y-3">
-        <Skeleton className="h-[300px] w-full rounded-xl" />
+        <Skeleton className="h-full w-full rounded-xl" />
       </div>
     ));
 
+  const gridClassName =
+    "grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-4";
+
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-        {renderSkeletons(12)}
-      </div>
-    );
+    return <div className={gridClassName}>{renderSkeletons(12)}</div>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
+      <div className={gridClassName}>
         {allItems.map((item, index) => {
           const isPrefetchTrigger =
             allItems.length > PREFETCH_THRESHOLD &&

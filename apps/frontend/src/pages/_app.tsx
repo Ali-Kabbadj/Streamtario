@@ -9,6 +9,7 @@ import { ProfileProvider } from "@/providers/profile-provider";
 import { ViewProvider } from "@/providers/view-provider";
 import { DiscoverProvider } from "@/providers/discover-provider";
 import { PlayerProvider } from "@/providers/PlayerProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -28,6 +29,7 @@ export default function App({ Component, pageProps }: AppProps) {
                     <PlayerProvider>
                       <div id="app-root">
                         <Component {...pageProps} />
+                        <Toaster />
                       </div>
                     </PlayerProvider>
                   </DiscoverProvider>

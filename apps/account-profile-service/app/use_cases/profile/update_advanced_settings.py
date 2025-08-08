@@ -7,10 +7,9 @@ from app.domain.interfaces.i_unit_of_work import IUnitOfWork
 from app.domain.policies.i_authorization_policy import IAuthorizationPolicy
 from core.utils.logging import log_info
 from core.pydantic.events.base import ProfileUpdatedEvent
-import strawberry
 
 
-class UpdateProfileSettingsUseCase:
+class UpdateAdvancedSettingsUseCase:
     def __init__(
         self,
         uow_factory: Callable[[], IUnitOfWork],
@@ -25,13 +24,12 @@ class UpdateProfileSettingsUseCase:
         self,
         requesting_account_id: str,
         profile_id: str,
-        settings: Dict[str, Any],
+        settings_payload: Dict[str, Any],
     ) -> Profile:
         log_info(
-            f"Attempting to update settings for profile {profile_id}",
+            f"Attempting to update advanced settings for profile {profile_id}",
             data={"account_id": requesting_account_id},
         )
-
         await self.authorization_policy.check_profile_ownership(
             requesting_account_id=requesting_account_id, profile_id=profile_id
         )
@@ -43,17 +41,16 @@ class UpdateProfileSettingsUseCase:
                     ApiErrorCode.PROFILE_NOT_FOUND, details={"profile_id": profile_id}
                 )
 
-            update_data = {
-                k: v for k, v in settings.items() if v is not strawberry.UNSET
-            }
-            updated_settings = profile.settings.model_copy(update=update_data)
-            profile.settings = updated_settings
-
+            profile.advanced_settings = settings_payload
             updated_profile = await uow.profiles.update(profile)
             await uow.commit()
 
         await self.event_publisher.publish(
-            ProfileUpdatedEvent(updated_fields=["settings"], profile_id=profile_id)
+            ProfileUpdatedEvent(
+                updated_fields=["advanced_settings"], profile_id=profile_id
+            )
         )
-        log_info(f"Successfully updated settings for profile {updated_profile.id}")
+        log_info(
+            f"Successfully updated advanced settings for profile {updated_profile.id}"
+        )
         return updated_profile

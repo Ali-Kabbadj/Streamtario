@@ -43,7 +43,7 @@ export function HomeView() {
     data.profile.homeCatalogs.length > 0;
 
   return (
-    <div className="container mx-auto space-y-12">
+    <div className="space-y-12">
       <div className="flex items-baseline justify-between">
         <h1 className="mb-4 text-6xl font-bold tracking-tight">Home</h1>
       </div>

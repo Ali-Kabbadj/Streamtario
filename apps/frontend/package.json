@@ -18,6 +18,9 @@
     "codegen": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 graphql-codegen --config codegen.ts"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.1.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -62,6 +65,7 @@
     "graphql": "^16.11.0",
     "graphql-request": "^7.2.0",
     "graphql-ws": "^6.0.6",
+    "immer": "^10.1.1",
     "input-otp": "^1.4.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.525.0",
@@ -78,6 +82,7 @@
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "use-debounce": "^10.0.5",
     "vaul": "^1.1.2",
     "zod": "^3.25.76"
   },

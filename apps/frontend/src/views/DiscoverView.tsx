@@ -48,6 +48,32 @@ export function DiscoverView() {
     }
   }, [discoverData, selectedType, setState]);
 
+  // This new effect handles state validation when discoverData changes
+  useEffect(() => {
+    if (!discoverData || discoverData.length === 0 || !selectedType) {
+      return;
+    }
+
+    const availableProvidersForType = discoverData.filter(
+      (c) => c.catalogType === selectedType,
+    );
+
+    const isSelectedProviderValid = availableProvidersForType.some(
+      (p) => p.manifestId === selectedProvider,
+    );
+
+    if (!isSelectedProviderValid && availableProvidersForType.length > 0) {
+      const newProvider = availableProvidersForType[0];
+      if (newProvider) {
+        setState({
+          selectedProvider: newProvider.manifestId,
+          selectedCatalogId: newProvider.catalogId,
+          extraFilters: {},
+        });
+      }
+    }
+  }, [discoverData, selectedType, selectedProvider, setState]);
+
   useEffect(() => {
     const container = window;
     const handleScroll = () => {
@@ -129,7 +155,7 @@ export function DiscoverView() {
   });
 
   return (
-    <div className="container mx-auto">
+    <div className="space-y-8">
       <div className="mb-8">
         <h1 className="mb-4 text-6xl font-bold tracking-tight">Discover</h1>
       </div>

@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from core.pydantic.domain.addon import InstalledAddon
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
+from .profile_settings import ProfileSettings
 
 
 class PlaybackHistory(BaseModel):
@@ -10,7 +11,6 @@ class PlaybackHistory(BaseModel):
     profile_id: str = Field(..., alias="profileId")
     content_id: str = Field(..., alias="contentId")
     item_type: str = Field(..., alias="itemType")
-    # imdb_id: Optional[str] = Field(None, alias="imdbId")
     imdb_id: str = Field(alias="imdbId")
     season: Optional[int] = Field(None)
     episode: Optional[int] = Field(None)
@@ -31,7 +31,10 @@ class Profile(BaseModel):
     )
     is_private: bool = Field(False, alias="isPrivate")
     pin_hash: Optional[str] = Field(None, alias="pinHash")
-    settings: Dict[str, Any] = Field(default_factory=dict)
+    settings: ProfileSettings = Field(default_factory=ProfileSettings)
+    advanced_settings: Dict[str, Any] = Field(
+        default_factory=dict, alias="advancedSettings"
+    )
     installed_addons: List[InstalledAddon] = Field(
         default_factory=list, alias="installedAddons"
     )
@@ -43,6 +46,15 @@ class Profile(BaseModel):
     @field_validator("settings", mode="before")
     @classmethod
     def empty_settings_if_none(cls, v: Any) -> Any:
+        if v is None:
+            return ProfileSettings()
+        if isinstance(v, dict):
+            return ProfileSettings(**v)
+        return v
+
+    @field_validator("advanced_settings", mode="before")
+    @classmethod
+    def empty_advanced_settings_if_none(cls, v: Any) -> Any:
         return v if v is not None else {}
 
     @property

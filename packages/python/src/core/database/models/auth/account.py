@@ -48,6 +48,7 @@ class ProfileOrm(Base):
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     pin_hash: Mapped[str] = mapped_column(String, nullable=True)
     settings: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=True)
+    advanced_settings: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), nullable=False)
     account: Mapped["AccountOrm"] = relationship(back_populates="profiles")
     installed_addons: Mapped[List["InstalledAddonOrm"]] = relationship(

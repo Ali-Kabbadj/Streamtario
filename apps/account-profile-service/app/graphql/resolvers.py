@@ -2,6 +2,7 @@ from typing import List
 from dependency_injector.wiring import inject, Provide
 from strawberry.types import Info
 import strawberry
+import dataclasses
 
 from app.security.dependencies import get_current_user_payload
 from security.schemas import TokenPayload
@@ -20,6 +21,7 @@ from app.use_cases.profile.create_profile import CreateProfileUseCase
 from app.use_cases.profile.uninstall_addon_from_all_profiles import (
     UninstallAddonFromAllProfilesUseCase,
 )
+from app.use_cases.profile.update_advanced_settings import UpdateAdvancedSettingsUseCase
 from app.use_cases.profile.update_playback_history import UpdatePlaybackHistoryUseCase
 from app.use_cases.profile.update_profile import UpdateProfileUseCase
 from app.use_cases.profile.update_profile_settings import UpdateProfileSettingsUseCase
@@ -42,6 +44,9 @@ from .types import (
     CreateProfileInput,
     CreateProfileSuccess,
     CreateProfileError,
+    UpdateAdvancedSettingsError,
+    UpdateAdvancedSettingsInput,
+    UpdateAdvancedSettingsSuccess,
     UpdateProfileInput,
     UpdateProfileSuccess,
     UpdateProfileError,
@@ -61,8 +66,6 @@ from .types import (
     UninstallAddonFromAllProfilesSuccess,
 )
 from core.utils.logging import log_info, log_error
-
-# --- QUERIES ---
 
 
 @inject
@@ -128,9 +131,6 @@ async def resolve_account(
     log_info(f"GraphQL: Fetching account details for {account_id}", context="graphql")
     pydantic_account = await use_case.execute(account_id=account_id)
     return AccountType.from_pydantic(pydantic_account) if pydantic_account else None
-
-
-# --- MUTATIONS ---
 
 
 @inject
@@ -222,10 +222,11 @@ async def resolve_update_profile_settings(
 ) -> UpdateProfileSettingsSuccess | UpdateProfileSettingsError:
     current_user: TokenPayload = get_current_user_payload(info.context["request"])
     try:
+        settings_dict = dataclasses.asdict(input.settings)
         updated_profile = await use_case.execute(
             requesting_account_id=current_user.sub,
             profile_id=str(input.profile_id),
-            settings=input.settings,
+            settings=settings_dict,
         )
         return UpdateProfileSettingsSuccess(
             profile=ProfileType.from_pydantic(updated_profile)
@@ -407,3 +408,34 @@ async def resolve_create_account(
     except Exception:
         e_code = ApiErrorCode.UNEXPECTED_ERROR
         return CreateAccountError(code=e_code.name, message=e_code.value.ui_message)
+
+
+@inject
+async def resolve_update_advanced_settings(
+    info: Info,
+    input: UpdateAdvancedSettingsInput,
+    use_case: UpdateAdvancedSettingsUseCase = Provide[
+        Container.update_advanced_settings_use_case
+    ],
+) -> UpdateAdvancedSettingsSuccess | UpdateAdvancedSettingsError:
+    current_user: TokenPayload = get_current_user_payload(info.context["request"])
+    try:
+        updated_profile = await use_case.execute(
+            requesting_account_id=current_user.sub,
+            profile_id=str(input.profile_id),
+            settings_payload=input.settings,
+        )
+        return UpdateAdvancedSettingsSuccess(
+            profile=ProfileType.from_pydantic(updated_profile)
+        )
+    except ApiException as e:
+        return UpdateAdvancedSettingsError(code=e.code, message=e.ui_message)
+    except Exception as e:
+        e_code = ApiErrorCode.UNEXPECTED_ERROR
+        log_error(
+            "GraphQL: Unexpected error during advanced settings update",
+            data={"error": str(e)},
+        )
+        return UpdateAdvancedSettingsError(
+            code=e_code.name, message=e_code.value.ui_message
+        )
