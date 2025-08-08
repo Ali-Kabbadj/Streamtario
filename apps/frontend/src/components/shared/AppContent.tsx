@@ -12,6 +12,7 @@ import { DiscoverView } from "@/views/DiscoverView";
 import { AddonsView } from "@/views/AddonsView";
 import { SearchView } from "@/views/SearchView";
 import { MetaView } from "@/views/MetaView";
+import { SettingsView } from "@/views/SettingsView";
 
 const RenderActiveView = () => {
   const { currentView } = useView();
@@ -29,6 +30,8 @@ const RenderActiveView = () => {
       return (
         <MetaView itemId={currentView.itemId} itemType={currentView.itemType} />
       );
+    case "settings":
+      return <SettingsView />;
     default:
       return <HomeView />;
   }

@@ -26,6 +26,9 @@ from .types import (
     UninstallAddonError,
     UninstallAddonInput,
     UninstallAddonSuccess,
+    UpdateAdvancedSettingsError,
+    UpdateAdvancedSettingsInput,
+    UpdateAdvancedSettingsSuccess,
     UpdateProfileError,
     UpdateProfileInput,
     UpdateProfileSuccess,
@@ -48,6 +51,7 @@ from .resolvers import (
     resolve_profile,
     resolve_uninstall_addon,
     resolve_uninstall_addon_from_all_profiles,
+    resolve_update_advanced_settings,
     resolve_update_profile,
     resolve_update_profile_settings,
     resolve_verify_profile_pin,
@@ -185,6 +189,12 @@ class Mutation:
     ) -> UninstallAddonFromAllProfilesSuccess | UninstallAddonFromAllProfilesError:
         return await resolve_uninstall_addon_from_all_profiles(info, input)
 
+    @strawberry.mutation
+    async def update_advanced_settings(
+        self, info: Info, input: UpdateAdvancedSettingsInput
+    ) -> UpdateAdvancedSettingsSuccess | UpdateAdvancedSettingsError:
+        return await resolve_update_advanced_settings(info, input)
+
 
 schema = strawberry.federation.Schema(
     query=Query,
@@ -209,6 +219,8 @@ schema = strawberry.federation.Schema(
         UninstallAddonFromAllProfilesError,
         VerifyProfilePinSuccess,
         VerifyProfilePinError,
+        UpdateAdvancedSettingsSuccess,
+        UpdateAdvancedSettingsError,
     ],
 )
 

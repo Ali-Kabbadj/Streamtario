@@ -1,5 +1,88 @@
 import { graphql } from './gen/gql';
 
+export const UpdateAdvancedSettingsDocument = graphql(`
+  mutation UpdateAdvancedSettings($profileId: ID!, $settings: JSON!) {
+    updateAdvancedSettings(input: { profileId: $profileId, settings: $settings }) {
+      __typename
+      ... on UpdateAdvancedSettingsSuccess {
+        profile {
+          id
+          advancedSettings
+        }
+      }
+      ... on UpdateAdvancedSettingsError {
+        code
+        message
+      }
+    }
+  }
+`);
+
+export const UpdateProfileSettingsDocument = graphql(`
+  mutation UpdateProfileSettings($profileId: ID!, $settings: ProfileSettingsInput!) {
+    updateProfileSettings(input: { profileId: $profileId, settings: $settings }) {
+      __typename
+      ... on UpdateProfileSettingsSuccess {
+        profile {
+          id
+          settings {
+            cacheSizeGb
+            preferredAudioLanguage
+            preferredSubtitleLanguage
+            streamWithoutCache
+            audio {
+              preferredChannelLayout
+            }
+            mpv {
+              customCommands {
+                name
+                command
+              }
+            }
+          }
+        }
+      }
+      ... on UpdateProfileSettingsError {
+        code
+        message
+      }
+    }
+  }
+`);
+
+export const GetFullProfileDocument = graphql(`
+  query GetFullProfile($profileId: ID!) {
+    profile(id: $profileId) {
+      id
+      name
+      avatar
+      isPrivate
+      installedAddons {
+        id
+        manifestId
+        manifestUrl
+      }
+      settings {
+        cacheSizeGb
+        preferredAudioLanguage
+        preferredSubtitleLanguage
+        streamWithoutCache
+        audio {
+          preferredChannelLayout
+        }
+        mpv {
+          customCommands {
+            name
+            command
+          }
+        }
+      }
+      advancedSettings
+    }
+  }
+`);
+
+// ... keep all other queries the same as before
 export const GetContinueWatchingDocument = graphql(`
   query GetContinueWatching($profileId: ID!) {
     profile(id: $profileId) {
@@ -154,22 +237,6 @@ export const ManifestByUrlDocument = graphql(`
       version
       logo
       types
-    }
-  }
-`);
-
-export const GetFullProfileDocument = graphql(`
-  query GetFullProfile($profileId: ID!) {
-    profile(id: $profileId) {
-      id
-      name
-      avatar
-      isPrivate
-      installedAddons {
-        id
-        manifestId
-        manifestUrl
-      }
     }
   }
 `);

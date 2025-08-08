@@ -34,7 +34,6 @@ class ApiClient:
         last_exception = None
         for attempt in range(self.retries):
             try:
-                # THE FIX: Pass params to the get request
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 api_response = TypeAdapter(ApiResponse[response_model]).validate_json(
@@ -43,7 +42,6 @@ class ApiClient:
                 return api_response
 
             except httpx.HTTPStatusError as e:
-                # ... (error handling is unchanged)
                 try:
                     error_body = e.response.json()
                 except json.JSONDecodeError:

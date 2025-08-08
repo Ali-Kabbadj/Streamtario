@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from http_client_factory.public_client import PublicApiClient
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T", bound="BaseModel")
 
 
 class ExternalAddonProvider(IExternalAddonProvider):

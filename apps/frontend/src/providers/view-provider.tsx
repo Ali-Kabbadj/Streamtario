@@ -12,7 +12,8 @@ export type View =
   | { name: "discover" }
   | { name: "addons" }
   | { name: "search"; query: string }
-  | { name: "meta"; itemType: string; itemId: string };
+  | { name: "meta"; itemType: string; itemId: string }
+  | { name: "settings" };
 
 interface ViewContextType {
   viewStack: View[];
@@ -39,7 +40,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const currentView = viewStack[viewStack.length - 1];
   const value: ViewContextType = {
     viewStack,
-    currentView: currentView ?? { name: "home" }, // Use nullish coalescing operator
+    currentView: currentView ?? { name: "home" },
     navigateTo,
     navigateBack,
   };

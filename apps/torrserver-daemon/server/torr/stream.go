@@ -38,7 +38,6 @@ func Stream(c *gin.Context) {
 		return
 	}
 
-	// This is the heartbeat. It's called for every HTTP request.
 	torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
 
 	if !torr.GotInfo() {
@@ -62,10 +61,8 @@ func Stream(c *gin.Context) {
 	torr.FileIdx = fileIdx
 	torr.muTorrent.Unlock()
 
-	// THE FIX: We no longer call our custom NewReader/CloseReader.
-	// We get the reader directly from the library's file object.
 	reader := targetFile.NewReader()
-	// The reader MUST be closed to prevent resource leaks.
+	reader.SetReadahead(settings.Get().CacheSize)
 	defer reader.Close()
 
 	extension := filepath.Ext(torr.FileName)

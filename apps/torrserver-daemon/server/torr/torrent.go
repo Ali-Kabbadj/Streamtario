@@ -187,7 +187,6 @@ func (t *Torrent) saveMetadataAndSetFilePriorities() {
 		}
 	}
 
-	// This is the crucial change. Only set priorities if we have a valid file index.
 	if t.FileIdx < 0 {
 		log.Printf("File index is %d, skipping priority setting for now.", t.FileIdx)
 		return
@@ -200,10 +199,10 @@ func (t *Torrent) saveMetadataAndSetFilePriorities() {
 	}
 
 	log.Printf("Setting stream priorities for torrent %s, file index %d", t.Hash().HexString(), t.FileIdx)
-	
+
 	targetFile := files[t.FileIdx]
-	targetFile.SetPriority(torrent.PiecePriorityNormal)
-	
+	targetFile.SetPriority(torrent.PiecePriorityNone)
+
 	startPiece := int(targetFile.Offset() / t.Info().PieceLength)
 	endPiece := int((targetFile.Offset() + targetFile.Length() - 1) / t.Info().PieceLength)
 
@@ -323,7 +322,7 @@ func (t *Torrent) Status() *state.TorrentStatus {
 
 			if t.FileIdx >= 0 && t.FileIdx < len(files) {
 				targetFile := files[t.FileIdx]
-				st.PreloadSize = 25 * 1024 * 1024 
+				st.PreloadSize = 25 * 1024 * 1024
 				st.PreloadedBytes = targetFile.BytesCompleted()
 			}
 		}

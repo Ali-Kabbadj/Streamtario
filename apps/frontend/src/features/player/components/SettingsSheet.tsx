@@ -8,17 +8,20 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Check, AudioLines, Captions } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getLanguageName } from "@/lib/language-utils";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export interface TrackItem {
   id: string | number;
   label: string;
   description?: string;
   lang: string;
-  source: string; // "Embedded" or Addon Name
+  source: string;
 }
 
 interface SettingsSheetProps {
@@ -27,7 +30,7 @@ interface SettingsSheetProps {
   audioTracks: TrackItem[];
   subtitleTracks: TrackItem[];
   selectedAudioId?: number;
-  selectedSubtitleId?: number;
+  selectedSubtitleId?: number | string;
   onSelectAudio: (id: number) => void;
   onSelectSubtitle: (track: TrackItem) => void;
 }
@@ -65,13 +68,23 @@ export function SettingsSheet({
 }: SettingsSheetProps) {
   const [view, setView] = useState<View>({ type: "main" });
   const [direction, setDirection] = useState(1);
+  const [lastSelectedSubId, setLastSelectedSubId] = useState<
+    string | number | undefined
+  >();
+
+  useEffect(() => {
+    if (selectedSubtitleId && selectedSubtitleId !== -1) {
+      setLastSelectedSubId(selectedSubtitleId);
+    }
+  }, [selectedSubtitleId]);
 
   const groupedSubtitles = useMemo(() => {
     const map = new Map<string, TrackItem[]>();
     for (const sub of subtitleTracks) {
-      const lang = sub.lang || "Unknown";
-      if (!map.has(lang)) map.set(lang, []);
-      map.get(lang)!.push(sub);
+      const lang = sub.lang || "unk";
+      const langName = getLanguageName(lang);
+      if (!map.has(langName)) map.set(langName, []);
+      map.get(langName)!.push(sub);
     }
     return map;
   }, [subtitleTracks]);
@@ -92,7 +105,7 @@ export function SettingsSheet({
 
   const handleClose = (open: boolean) => {
     if (!open) {
-      setTimeout(() => setView({ type: "main" }), 200); // Reset view on close
+      setTimeout(() => setView({ type: "main" }), 200);
     }
     onOpenChange(open);
   };
@@ -117,7 +130,7 @@ export function SettingsSheet({
           className="absolute top-0 left-0 h-full w-full"
         >
           <SheetHeader
-            className={cn("flex-row items-center space-y-0", {
+            className={cn("flex-row items-center space-y-0 p-4", {
               "justify-between": view.type !== "main",
             })}
           >
@@ -126,36 +139,57 @@ export function SettingsSheet({
                 <ChevronLeft />
               </Button>
             )}
-            <SheetTitle className="flex-grow text-center">
+            <SheetTitle className="flex-grow text-center text-lg font-semibold">
               {
                 {
                   main: "Player Settings",
                   audio: "Audio Tracks",
-                  subtitles_lang: "Subtitle Languages",
-                  subtitles_track: `Subtitles (${view.type === "subtitles_track" ? view.lang : ""})`,
+                  subtitles_lang: "Subtitles",
+                  subtitles_track: `Subtitles (${
+                    view.type === "subtitles_track" ? view.lang : ""
+                  })`,
                 }[view.type]
               }
             </SheetTitle>
             {view.type !== "main" && <div className="w-10" />}
           </SheetHeader>
 
-          <ScrollArea className="h-[calc(100%-4rem)]">
-            <div className="space-y-2 p-4">
+          <ScrollArea className="h-[calc(100%-5rem)]">
+            <div className="space-y-1 p-4">
               {view.type === "main" && (
                 <>
                   <Button
-                    variant="outline"
-                    className="w-full justify-start py-6"
+                    variant="ghost"
+                    className="h-auto w-full justify-start py-4 text-left"
                     onClick={() => navigateTo({ type: "audio" })}
                   >
-                    <AudioLines className="mr-4" /> Audio Tracks
+                    <AudioLines className="mr-4 h-5 w-5 flex-shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Audio Tracks</span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {audioTracks.find((t) => t.id === selectedAudioId)
+                          ?.label ?? "Default"}
+                      </span>
+                    </div>
                   </Button>
                   <Button
-                    variant="outline"
-                    className="w-full justify-start py-6"
+                    variant="ghost"
+                    className="h-auto w-full justify-start py-4 text-left"
                     onClick={() => navigateTo({ type: "subtitles_lang" })}
                   >
-                    <Captions className="mr-4" /> Subtitles
+                    <Captions className="mr-4 h-5 w-5 flex-shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Subtitles</span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {selectedSubtitleId === -1 || !selectedSubtitleId
+                          ? "None"
+                          : getLanguageName(
+                              subtitleTracks.find(
+                                (t) => t.id === selectedSubtitleId,
+                              )?.lang ?? "",
+                            )}
+                      </span>
+                    </div>
                   </Button>
                 </>
               )}
@@ -165,7 +199,7 @@ export function SettingsSheet({
                   <Button
                     key={track.id}
                     variant="ghost"
-                    className="h-auto w-full flex-col items-start"
+                    className="h-auto w-full flex-col items-start justify-center py-2 text-left"
                     onClick={() => onSelectAudio(track.id as number)}
                   >
                     <div className="flex w-full items-center">
@@ -179,47 +213,73 @@ export function SettingsSheet({
                       />
                       <span className="truncate">{track.label}</span>
                     </div>
-                    <span className="text-muted-foreground ml-6 truncate text-xs">
-                      {track.description}
-                    </span>
+                    {track.description && (
+                      <span className="text-muted-foreground ml-6 truncate text-xs">
+                        {track.description}
+                      </span>
+                    )}
                   </Button>
                 ))}
 
               {view.type === "subtitles_lang" && (
-                <>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() =>
-                      onSelectSubtitle({
-                        id: -1,
-                        label: "None",
-                        lang: "",
-                        source: "None",
-                      })
-                    }
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4 shrink-0",
-                        selectedSubtitleId === -1 ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    None
-                  </Button>
-                  {Array.from(groupedSubtitles.keys()).map((lang) => (
-                    <Button
-                      key={lang}
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() =>
-                        navigateTo({ type: "subtitles_track", lang })
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between rounded-lg p-3">
+                    <Label htmlFor="subtitles-enabled" className="font-medium">
+                      Enable Subtitles
+                    </Label>
+                    <Switch
+                      id="subtitles-enabled"
+                      checked={
+                        selectedSubtitleId !== -1 && !!selectedSubtitleId
                       }
-                    >
-                      {lang}
-                    </Button>
-                  ))}
-                </>
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          const idToSelect =
+                            lastSelectedSubId ??
+                            (subtitleTracks.length > 0
+                              ? subtitleTracks[0]?.id
+                              : undefined);
+                          const trackToSelect = subtitleTracks.find(
+                            (t) => t.id === idToSelect,
+                          );
+                          if (trackToSelect) {
+                            onSelectSubtitle(trackToSelect);
+                          } else if (subtitleTracks.length > 0) {
+                            onSelectSubtitle(subtitleTracks[0]);
+                          }
+                        } else {
+                          onSelectSubtitle({
+                            id: -1,
+                            label: "None",
+                            lang: "",
+                            source: "None",
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div
+                    className={cn(
+                      "flex flex-col gap-1 transition-opacity",
+                      selectedSubtitleId === -1 || !selectedSubtitleId
+                        ? "pointer-events-none opacity-50"
+                        : "",
+                    )}
+                  >
+                    {Array.from(groupedSubtitles.keys()).map((lang) => (
+                      <Button
+                        key={lang}
+                        variant="ghost"
+                        className="w-full justify-start py-3"
+                        onClick={() =>
+                          navigateTo({ type: "subtitles_track", lang })
+                        }
+                      >
+                        {lang}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {view.type === "subtitles_track" &&
@@ -227,7 +287,7 @@ export function SettingsSheet({
                   <Button
                     key={track.id}
                     variant="ghost"
-                    className="h-auto w-full flex-col items-start"
+                    className="h-auto w-full flex-col items-start justify-center py-2 text-left"
                     onClick={() => onSelectSubtitle(track)}
                   >
                     <div className="flex w-full items-center">

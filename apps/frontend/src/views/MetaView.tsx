@@ -124,11 +124,12 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
   const handleEpisodeClick = (episode: VideoType) => {
     if (!meta) return;
     const episodeStreamId = `${meta.id}:${episode.season}:${episode.episode}`;
+    const fullTitle = `${meta.name} - S${episode.season} E${episode.episode}: ${episode.title}`;
     setStreamPanelContent({
       itemType: "series",
       itemId: episodeStreamId,
       metaId: meta.id,
-      title: `S${episode.season} E${episode.episode}: ${episode.title}`,
+      title: fullTitle,
       imageUrl: episode.thumbnail,
     });
   };
@@ -139,7 +140,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
       itemType: "movie",
       itemId: meta.id,
       metaId: meta.id,
-      title: `${meta.name} | Sources`,
+      title: meta.name,
       imageUrl: meta.poster,
     });
   };
@@ -228,7 +229,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
           transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
           className="relative z-10 w-full"
         >
-          <div className="container mx-auto pt-8 pb-12">
+          <div className="space-y-8">
             <MetaHeader
               meta={meta}
               allTrailers={allTrailers}
@@ -244,6 +245,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                 videos={meta.videos}
                 onEpisodeClick={handleEpisodeClick}
                 playbackHistoryMap={playbackHistoryMap}
+                metaName={meta.name}
                 metaLogo={meta.logo}
                 initialSeason={initialSeason}
               />

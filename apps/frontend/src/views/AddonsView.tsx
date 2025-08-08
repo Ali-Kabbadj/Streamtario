@@ -110,7 +110,7 @@ export function AddonsView() {
 
   return (
     <>
-      <div className="container mx-auto">
+      <div className="space-y-8">
         <div className="mb-8 flex items-center justify-between">
           <div className="mb-8">
             <h1 className="mb-4 text-6xl font-bold tracking-tight">

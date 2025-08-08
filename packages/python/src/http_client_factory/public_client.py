@@ -1,7 +1,7 @@
 import httpx
 import json
 import asyncio
-from typing import Type, Union, Optional
+from typing import Type, Union, Optional, Dict, Any
 from pydantic import BaseModel, ValidationError
 from core.utils.logging import log_error
 

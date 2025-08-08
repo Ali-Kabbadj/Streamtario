@@ -41,11 +41,15 @@ export function Header() {
     }
   };
 
+  const handleGoToSettings = () => {
+    navigateTo({ name: "settings" });
+  };
+
   const showBackButton = currentView.name === "meta";
   const showSearchBar = currentView.name !== "meta";
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 px-4 backdrop-blur-sm md:px-6">
+    <header className="sticky top-0 flex h-16 items-center justify-between gap-4 bg-transparent px-4 md:px-6">
       <div className="flex flex-1 items-center justify-start">
         {showBackButton && (
           <Button variant="ghost" size="icon" onClick={navigateBack}>
@@ -88,7 +92,9 @@ export function Header() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{selectedProfile?.name}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleGoToSettings}>
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSwitchProfile}>

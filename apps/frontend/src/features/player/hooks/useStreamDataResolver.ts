@@ -27,13 +27,13 @@ export const useStreamDataResolver = (
     useEffect(() => {
         const resolve = async () => {
             if (!activeStream?.infoHash || typeof activeStream.fileIndex !== 'number') {
+                setResolvedData(null);
                 return;
             }
 
             const { stream, infoHash, fileIndex, contentId, itemType } = activeStream;
-
             const hints = stream.behaviorHints;
-            let videoHash = stream.videoHash ?? hints?.videoHash;
+            let videoHash = hints?.videoHash;
             let videoSize = hints?.videoSize;
             let filename = hints?.filename;
 
@@ -42,13 +42,12 @@ export const useStreamDataResolver = (
                     const stats = await fetchClient<FileStats>(
                         `/api/v1/stream/file-stats/${infoHash}/${fileIndex}`,
                     );
-                    if (!videoHash && stats.hash) {
-                        videoHash = stats.hash;
-                    }
+                    videoHash ??= stats.hash;
                     videoSize ??= stats.size;
                     filename ??= stream.title ?? "video.mp4";
                 } catch (error) {
                     console.error("Failed to fetch file stats:", error);
+                    setResolvedData(null);
                     return;
                 }
             }
@@ -62,6 +61,8 @@ export const useStreamDataResolver = (
                     videoHash,
                     fileIndex,
                 });
+            } else {
+                setResolvedData(null);
             }
         };
 
@@ -71,11 +72,6 @@ export const useStreamDataResolver = (
             setResolvedData(null);
         }
     }, [activeStream]);
-
-    useEffect(() => {
-        setResolvedData(null);
-    }, [activeStream?.stream.infoHash, activeStream?.stream.fileIdx]);
-
 
     return resolvedData;
 };

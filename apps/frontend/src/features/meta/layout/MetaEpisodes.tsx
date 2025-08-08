@@ -22,6 +22,7 @@ interface MetaEpisodesProps {
   videos: (Video | null)[] | null | undefined;
   onEpisodeClick: (episode: Video) => void;
   playbackHistoryMap: PlaybackHistoryMap;
+  metaName: string;
   metaLogo?: string | null;
   initialSeason?: string;
 }
@@ -30,6 +31,7 @@ export function MetaEpisodes({
   videos,
   onEpisodeClick,
   playbackHistoryMap,
+  metaName,
   metaLogo,
   initialSeason,
 }: MetaEpisodesProps) {
@@ -79,15 +81,18 @@ export function MetaEpisodes({
   };
 
   const handleResumeEpisode = (
+    episode: VideoType,
     historyItem: GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0],
   ) => {
-    const itemWithMeta = {
+    const fullTitle = `${metaName} - S${episode.season} E${episode.episode}: ${episode.title}`;
+    const itemForPlayer = {
       ...historyItem,
       meta: {
+        name: fullTitle,
         logo: metaLogo,
       },
     };
-    playerActions.resumeStream(itemWithMeta);
+    playerActions.resumeStream(itemForPlayer);
   };
 
   if (!videos || videos.length === 0 || seasonKeys.length === 0) {
@@ -151,7 +156,9 @@ export function MetaEpisodes({
                     episode={episode}
                     isReleased={isReleased}
                     onShowSources={() => onEpisodeClick(episode)}
-                    onResume={() => history && handleResumeEpisode(history)}
+                    onResume={() =>
+                      history && handleResumeEpisode(episode, history)
+                    }
                     playbackHistory={history}
                   />
                 );

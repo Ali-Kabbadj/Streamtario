@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "./Slider";
 import {
   Play,
   Pause,
@@ -16,8 +16,10 @@ import { useMemo, useState } from "react";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { SettingsSheet, type TrackItem } from "./SettingsSheet";
 import type { SubtitleType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import { getLanguageName } from "@/lib/language-utils";
 
 function formatTime(seconds: number): string {
+  if (isNaN(seconds) || seconds < 0) return "00:00";
   const totalSeconds = Math.floor(seconds);
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -32,52 +34,69 @@ export function PlayerControls() {
   const { isPaused, time, duration, volume, isMuted, trackList } = playerState;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const { audioTracks, selectedAudioTrackId } = useMemo(() => {
-    const tracks: MpvTrack[] = trackList.filter(
-      (track) => track.type === "audio",
-    );
+  const { audioTracks, selectedAudioId } = useMemo(() => {
+    const tracks: MpvTrack[] =
+      trackList?.filter((track) => track.type === "audio") ?? [];
     const selectedTrack = tracks.find((track) => track.selected);
     return {
       audioTracks: tracks.map(
         (track): TrackItem => ({
           id: track.id,
-          label:
-            track.title ?? track.lang ?? track.codec ?? `Track ${track.id}`,
-          description: `${track.codec ?? "N/A"}, ${track["audio-channels"] ?? "N/A"} channels`,
+          label: track.title ?? getLanguageName(track.lang ?? "unknown"),
+          description: `${track.codec ?? "N/A"}, ${
+            track["audio-channels"] ?? "N/A"
+          } channels`,
           lang: track.lang ?? "unknown",
           source: "Embedded",
         }),
       ),
-      selectedAudioTrackId: selectedTrack?.id,
+      selectedAudioId: selectedTrack?.id,
     };
   }, [trackList]);
 
-  const { subtitleTracks, selectedSubtitleTrackId } = useMemo(() => {
-    const embeddedSubs: TrackItem[] = trackList
-      .filter((track) => track.type === "sub")
-      .map((track) => ({
-        id: track.id,
-        label: track.title ?? track.lang ?? `Track ${track.id}`,
-        lang: track.lang ?? "unknown",
-        source: "Embedded",
-      }));
+  const { subtitleTracks, selectedSubtitleId } = useMemo(() => {
+    const embeddedSubs: TrackItem[] =
+      trackList
+        ?.filter((track) => track.type === "sub")
+        .map((track) => ({
+          id: track.id,
+          label: track.title ?? getLanguageName(track.lang ?? "unknown"),
+          lang: track.lang ?? "unknown",
+          source: "Embedded",
+        })) ?? [];
 
     const externalSubs: TrackItem[] = (externalSubtitles ?? []).map(
-      (sub: SubtitleType) => ({
+      (sub: SubtitleType): TrackItem => ({
         id: sub.url,
-        label: `${sub.type ?? "Addon"} - ${sub.lang}`,
+
+        label: getLanguageName(sub.lang),
+
         lang: sub.lang,
         source: sub.type ?? "Addon",
       }),
     );
 
     const allSubs = [...embeddedSubs, ...externalSubs];
-    const selectedTrack = trackList.find(
+
+    const selectedTrack = trackList?.find(
       (track) => track.type === "sub" && track.selected,
     );
+    let finalSelectedId: string | number | undefined;
+
+    if (selectedTrack) {
+      const matchingExternal = externalSubtitles?.find(
+        (sub) => sub.url === selectedTrack.title,
+      );
+      if (matchingExternal) {
+        finalSelectedId = matchingExternal.url;
+      } else {
+        finalSelectedId = selectedTrack.id;
+      }
+    }
+
     return {
       subtitleTracks: allSubs,
-      selectedSubtitleTrackId: selectedTrack?.id,
+      selectedSubtitleId: finalSelectedId,
     };
   }, [trackList, externalSubtitles]);
 
@@ -119,7 +138,7 @@ export function PlayerControls() {
             </Button>
             <div className="flex w-32 items-center gap-2">
               <Button variant="ghost" size="icon" onClick={actions.toggleMute}>
-                {(isMuted ?? volume === 0) ? (
+                {isMuted || volume === 0 ? (
                   <VolumeX className="h-6 w-6" />
                 ) : (
                   <Volume2 className="h-6 w-6" />
@@ -157,8 +176,8 @@ export function PlayerControls() {
         onOpenChange={setIsSettingsOpen}
         audioTracks={audioTracks}
         subtitleTracks={subtitleTracks}
-        selectedAudioId={selectedAudioTrackId}
-        selectedSubtitleId={selectedSubtitleTrackId}
+        selectedAudioId={selectedAudioId}
+        selectedSubtitleId={selectedSubtitleId}
         onSelectAudio={actions.setAudioId}
         onSelectSubtitle={handleSelectSubtitle}
       />
