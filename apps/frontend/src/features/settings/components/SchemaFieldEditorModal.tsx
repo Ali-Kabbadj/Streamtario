@@ -106,7 +106,7 @@ export const SchemaFieldEditorModal = ({
       name: data.name,
       label: data.label,
       description: data.description,
-      isCore: initialSchema?.isCore ?? false, // Preserve core status
+      isCore: initialSchema?.isCore ?? false,
     };
 
     let finalSchema: SettingsSchema;
@@ -124,6 +124,8 @@ export const SchemaFieldEditorModal = ({
           ...baseSchema,
           type: "array",
           itemLabel: (initialSchema as ArraySchema)?.itemLabel ?? "Item",
+          // FIX: Add the missing defaultValue when creating an array schema.
+          defaultValue: (initialSchema as ArraySchema)?.defaultValue ?? [],
           itemSchema: (initialSchema as ArraySchema)?.itemSchema ?? {
             type: "object",
             fields: [],
@@ -164,6 +166,7 @@ export const SchemaFieldEditorModal = ({
     onOpenChange(false);
   };
 
+  // ... (rest of the JSX is correct)
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">

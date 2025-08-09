@@ -10,10 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, Controller } from "react-hook-form";
 import type { FieldSchema } from "../schemas/settings-schema";
 import type { FieldErrors } from "react-hook-form";
-import { useSettingsForm } from "./SettingsFormContext";
 
 interface FormFieldProps {
   schema: FieldSchema;
@@ -23,11 +22,9 @@ interface FormFieldProps {
 export const SettingsFormField = ({ schema, path }: FormFieldProps) => {
   const {
     register,
-    setValue,
-    watch,
+    control,
     formState: { errors },
   } = useFormContext();
-  const { triggerSave } = useSettingsForm();
 
   const getError = (p: string) => {
     const parts = p.split(".");
@@ -42,50 +39,57 @@ export const SettingsFormField = ({ schema, path }: FormFieldProps) => {
     return current?.message as string | undefined;
   };
 
-  const currentValue = watch(path);
   const error = getError(path);
   const { type, label, description } = schema;
-
-  const handleChange = (value: unknown) => {
-    setValue(path, value, { shouldDirty: true });
-    triggerSave();
-  };
 
   const renderInput = () => {
     switch (type) {
       case "boolean":
         return (
-          <Switch
-            checked={currentValue}
-            onCheckedChange={handleChange}
-            id={path}
+          <Controller
+            name={path}
+            control={control}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                id={path}
+              />
+            )}
           />
         );
       case "number":
       case "string":
         if ("options" in schema && schema.options) {
           return (
-            <Select
-              value={String(currentValue)}
-              onValueChange={(value) => {
-                const finalValue = type === "number" ? Number(value) : value;
-                handleChange(finalValue);
-              }}
-            >
-              <SelectTrigger id={path}>
-                <SelectValue placeholder={`Select ${label}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {schema.options.map((option) => (
-                  <SelectItem
-                    key={String(option.value)}
-                    value={String(option.value)}
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name={path}
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={String(field.value)}
+                  onValueChange={(value) => {
+                    const finalValue =
+                      type === "number" ? Number(value) : value;
+                    field.onChange(finalValue);
+                  }}
+                >
+                  <SelectTrigger id={path}>
+                    <SelectValue placeholder={`Select ${label}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schema.options?.map((option) => (
+                      <SelectItem
+                        key={String(option.value)}
+                        value={String(option.value)}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           );
         }
         return (
@@ -94,7 +98,6 @@ export const SettingsFormField = ({ schema, path }: FormFieldProps) => {
             id={path}
             {...register(path, {
               valueAsNumber: type === "number",
-              onChange: () => triggerSave(),
             })}
           />
         );

@@ -43,6 +43,7 @@ export interface ArraySchema {
     description?: string;
     itemLabel: string;
     type: "array";
+    defaultValue: Record<string, unknown>[];
     itemSchema: {
         type: "object";
         fields: FieldSchema[];
@@ -85,7 +86,7 @@ export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
         type: "object",
         label: "MPV Player Settings",
         isCore: true,
-        accepts: ["customCommands"], // This object can only accept items named 'customCommands'
+        accepts: ["customCommands"],
         fields: [
             {
                 name: "customCommands",
@@ -94,6 +95,8 @@ export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
                 description: "Add custom commands accessible in the player.",
                 itemLabel: "Command",
                 isCore: true,
+                // FIX: Ensure the default schema has a default value for the array.
+                defaultValue: [],
                 itemSchema: {
                     type: "object",
                     fields: [
@@ -106,13 +109,14 @@ export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
     },
 ];
 
-const generateDefaultData = (schema: SettingsSchema[]): Record<string, unknown> => {
+export const generateDefaultData = (schema: SettingsSchema[]): Record<string, unknown> => {
     const data: Record<string, unknown> = {};
     for (const item of schema) {
         if (item.type === "object") {
             data[item.name] = generateDefaultData(item.fields);
         } else if (item.type === "array") {
-            data[item.name] = [];
+            // Use the schema's default value for arrays if it exists
+            data[item.name] = item.defaultValue ?? [];
         } else {
             data[item.name] = item.defaultValue;
         }
