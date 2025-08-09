@@ -1,0 +1,137 @@
+{
+  "data": {
+    "mpv": { "customCommands": [] },
+    "asdfas": "",
+    "streaming": {
+      "asdfasdf": [],
+      "maxPeers": 25,
+      "cacheSizeGb": 50,
+      "streamWithoutCache": [],
+      "uploadSpeedLimitKbps": -1,
+      "downloadSpeedLimitKbps": -1
+    },
+    "preferences": {
+      "asdfasdf": [],
+      "preferredAudioLanguage": "eng",
+      "preferredSubtitleLanguage": "eng"
+    }
+  },
+  "schema": [
+    {
+      "name": "streaming",
+      "type": "object",
+      "label": "Streaming",
+      "fields": [
+        {
+          "name": "cacheSizeGb",
+          "type": "number",
+          "label": "Cache Size",
+          "isCore": true,
+          "options": [
+            { "label": "2 GB", "value": 2 },
+            { "label": "10 GB", "value": 10 },
+            { "label": "50 GB", "value": 50 },
+            { "label": "Unlimited", "value": -1 }
+          ],
+          "description": "Maximum disk space for streaming cache.",
+          "defaultValue": 10
+        },
+        {
+          "name": "downloadSpeedLimitKbps",
+          "type": "number",
+          "label": "Download Speed Limit (KB/s)",
+          "isCore": true,
+          "description": "Set to -1 for unlimited.",
+          "defaultValue": -1
+        },
+        {
+          "name": "uploadSpeedLimitKbps",
+          "type": "number",
+          "label": "Upload Speed Limit (KB/s)",
+          "isCore": true,
+          "description": "Set to -1 for unlimited.",
+          "defaultValue": -1
+        },
+        {
+          "name": "maxPeers",
+          "type": "number",
+          "label": "Max Peer Connections",
+          "isCore": true,
+          "description": "Maximum number of peers to connect to per torrent.",
+          "defaultValue": 25
+        },
+        {
+          "name": "streamWithoutCache",
+          "type": "boolean",
+          "label": "Stream Without Cache (Memory Mode)",
+          "isCore": true,
+          "description": "Stream directly to memory. Uses more RAM but no disk space.",
+          "defaultValue": false
+        }
+      ],
+      "isCore": true
+    },
+    {
+      "name": "preferences",
+      "type": "object",
+      "label": "Preferences",
+      "fields": [
+        {
+          "name": "preferredAudioLanguage",
+          "type": "string",
+          "label": "Preferred Audio Language",
+          "isCore": true,
+          "description": "Default audio track language (ISO 639-2 code).",
+          "defaultValue": "eng"
+        },
+        {
+          "name": "preferredSubtitleLanguage",
+          "type": "string",
+          "label": "Preferred Subtitle Language",
+          "isCore": true,
+          "description": "Default subtitle language (ISO 639-2 code).",
+          "defaultValue": "eng"
+        }
+      ],
+      "isCore": true
+    },
+    {
+      "name": "mpv",
+      "type": "object",
+      "label": "MPV Player Settings",
+      "fields": [
+        {
+          "name": "customCommands",
+          "type": "array",
+          "label": "Custom MPV Commands",
+          "isCore": true,
+          "itemLabel": "Command",
+          "itemSchema": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "name",
+                "type": "string",
+                "label": "Command Name",
+                "description": "A friendly name for the command (e.g., 'Next Frame').",
+                "defaultValue": "",
+                "isCore": true
+              },
+              {
+                "name": "command",
+                "type": "string",
+                "label": "MPV Command",
+                "description": "The raw MPV command string (e.g., 'frame-step').",
+                "defaultValue": "",
+                "isCore": true
+              }
+            ]
+          },
+          "description": "Add custom commands accessible in the player."
+        }
+      ],
+      "isCore": true,
+      "accepts": ["customCommands"]
+    }
+  ]
+}

@@ -1,248 +1,263 @@
+// components/SortableSchemaItem.tsx
 "use client";
 
-import React from "react";
-import {
-  useSortable,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import React, { useCallback } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { useFieldArray, useFormContext } from "react-hook-form";
-import { CSS } from "@dnd-kit/utilities";
 import type { SettingsSchema, FieldSchema } from "../schemas/settings-schema";
-import { SchemaItemControls } from "./SchemaItemControls";
 import { SettingsFormField } from "./SettingsFormField";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2 } from "lucide-react";
-import type { DropPosition } from "./SchemaEditor"; // FIX: Import DropPosition type
+import { TopRightControls } from "./TopRightControls";
+import { FileUploadPanel } from "./FileUploadPanel";
+import type { DropPosition } from "./SchemaEditor";
 
-interface SortableSchemaItemProps {
+/**
+ * Updated so TopRightControls is absolutely positioned in the top-right corner
+ * of the card and smaller.
+ */
+
+interface Props {
   id: string;
   schema: SettingsSchema;
   path: string;
-  // FIX: Add new props for indicator logic
   isOver: boolean;
-  dropPosition: DropPosition;
+  dropPosition: DropPosition | null;
   onEdit: (path: string) => void;
   onDelete: (path: string) => void;
   onAddChild: (path: string) => void;
 }
 
-export const SortableSchemaItem = React.memo(function SortableSchemaItem({
-  id,
-  schema,
-  path,
-  isOver,
-  dropPosition,
-  onEdit,
-  onDelete,
-  onAddChild,
-}: SortableSchemaItemProps) {
-  const { control } = useFormContext();
-  const { fields, append, remove } = useFieldArray({ control, name: path });
+export const SortableSchemaItem: React.FC<Props> = React.memo(
+  function SortableSchemaItem({
+    id,
+    schema,
+    path,
+    isOver,
+    dropPosition,
+    onEdit,
+    onDelete,
+    onAddChild,
+  }) {
+    const { control } = useFormContext();
+    const { fields, append, remove } = useFieldArray({
+      control,
+      name: path,
+    });
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id, data: { path, schema }, disabled: !!schema.isCore });
+    const {
+      attributes,
+      listeners,
+      setNodeRef: setDraggableNodeRef,
+      isDragging,
+    } = useDraggable({ id, data: { path, schema }, disabled: !!schema.isCore });
+    const { setNodeRef: setDroppableNodeRef } = useDroppable({ id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
+    const setNodeRef = useCallback(
+      (node: HTMLElement | null) => {
+        setDraggableNodeRef(node);
+        setDroppableNodeRef(node);
+      },
+      [setDraggableNodeRef, setDroppableNodeRef],
+    );
 
-  const isField = (s: SettingsSchema): s is FieldSchema => {
-    return ["string", "number", "boolean"].includes(s.type);
-  };
+    const isField = (s: SettingsSchema): s is FieldSchema =>
+      ["string", "number", "boolean"].includes(s.type);
 
-  // FIX: Logic to determine if the nesting indicator should be shown
-  const showNestIndicator = isOver && dropPosition === "nest";
+    const showNestIndicator = isOver && dropPosition === "nest";
 
-  const childIds = React.useMemo(() => {
+    const cardBase = cn("relative overflow-visible"); // relative so TopRightControls absolute works
+
     if (schema.type === "object") {
-      return schema.fields.map((field) => `${path}.${field.name}`);
+      return (
+        <div
+          ref={setNodeRef}
+          className={cn(cardBase, isDragging ? "opacity-50" : "opacity-100")}
+          data-dnd-id={id}
+        >
+          <Card
+            className={cn("border border-slate-700 bg-slate-900/50", {
+              "border-dashed border-slate-600": schema.isCore,
+            })}
+          >
+            <div className="relative">
+              <CardHeader className="flex items-start justify-between pr-10">
+                <div>
+                  <CardTitle className="text-base">{schema.label}</CardTitle>
+                </div>
+              </CardHeader>
+
+              {/* TopRightControls placed here, absolute */}
+              <TopRightControls
+                onEdit={() => onEdit(path)}
+                onDelete={() => onDelete(path)}
+                onAddChild={() => onAddChild(path)}
+                dragListeners={{ ...attributes, ...listeners }}
+                isCore={!!schema.isCore}
+              />
+            </div>
+
+            <CardContent
+              className={cn("pt-2 pr-4 pb-4 pl-6", {
+                "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900":
+                  showNestIndicator,
+              })}
+            >
+              <div className="space-y-3">
+                {schema.fields.map((f) => (
+                  <SortableSchemaItem
+                    key={f.name}
+                    id={`${path}.${f.name}`}
+                    schema={f}
+                    path={`${path}.${f.name}`}
+                    isOver={isOver}
+                    dropPosition={dropPosition}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onAddChild={onAddChild}
+                  />
+                ))}
+              </div>
+
+              {!schema.isCore && (
+                <div className="pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAddChild(path)}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Field
+                  </Button>
+                </div>
+              )}
+
+              {/* if this node is mpv (or isExtensible and accepts confs) show upload panel inline */}
+              {schema.name === "mpv" && (
+                <div className="mt-3">
+                  <FileUploadPanel
+                    accept=".conf,text/*"
+                    title="Upload mpv.conf"
+                    onUploaded={(p) => {
+                      // write prepared payload into form manually; parent component (SettingsEditor) has react-hook-form.
+                      // we cannot access it's setValue here — expect a handler or global action to persist.
+                      // To keep self-contained, we dispatch a CustomEvent which the SettingsEditor listens to.
+                      window.dispatchEvent(
+                        new CustomEvent("file-uploaded", {
+                          detail: {
+                            path: `${path}.mpv_conf_file`,
+                            payload: p,
+                          },
+                        }),
+                      );
+                    }}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      );
     }
-    return [];
-  }, [schema, path]);
 
-  // Assign a specific data attribute for the DropIndicator to find
-  const dndProps = { "data-dnd-id": id };
+    if (schema.type === "array") {
+      const handleAppend = () => {
+        const template: Record<string, unknown> = {};
+        for (const f of schema.itemSchema.fields)
+          template[f.name] = f.defaultValue ?? null;
+        append(template);
+      };
 
-  // --- START: RENDER LOGIC ---
+      return (
+        <div
+          ref={setNodeRef}
+          className={cn(cardBase, isDragging ? "opacity-50" : "opacity-100")}
+          data-dnd-id={id}
+        >
+          <Card
+            className={cn("border border-slate-700 bg-slate-900/50", {
+              "border-dashed border-slate-600": schema.isCore,
+            })}
+          >
+            <div className="relative">
+              <CardHeader className="flex items-start justify-between pr-10">
+                <div>
+                  <CardTitle className="text-base">{schema.label}</CardTitle>
+                </div>
+              </CardHeader>
 
-  if (schema.type === "object") {
+              <TopRightControls
+                onEdit={() => onEdit(path)}
+                onDelete={() => onDelete(path)}
+                dragListeners={{ ...attributes, ...listeners }}
+                isCore={!!schema.isCore}
+              />
+            </div>
+
+            <CardContent className="space-y-3 pt-2 pr-4 pb-4 pl-6">
+              <div className="space-y-2">
+                {fields.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="rounded-md border border-slate-800 p-3"
+                  >
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {schema.itemSchema.fields.map((fs) => (
+                        <div key={fs.name}>
+                          <SettingsFormField
+                            schema={fs}
+                            path={`${path}.${idx}.${fs.name}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(idx)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <Button variant="outline" size="sm" onClick={handleAppend}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add {schema.itemLabel}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // primitive field
     return (
       <div
         ref={setNodeRef}
-        style={style}
-        className="group/item relative"
-        {...dndProps}
+        className={cn(cardBase, isDragging ? "opacity-50" : "opacity-100")}
+        data-dnd-id={id}
       >
-        <Card
-          className={cn(
-            "border-slate-700 bg-slate-900/50 transition-all",
-            { "border-dashed border-slate-600": schema.isCore },
-            // FIX: Apply a ring when this item is a valid nest target
-            {
-              "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900":
-                showNestIndicator,
-            },
-          )}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>{schema.label}</span>
-              <SchemaItemControls
-                attributes={attributes}
-                listeners={listeners}
-                onEdit={() => onEdit(path)}
-                onDelete={() => onDelete(path)}
-                isCore={!!schema.isCore}
-              />
-            </CardTitle>
-            {schema.description && (
-              <p className="pt-1 text-sm text-slate-400">
-                {schema.description}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4 pt-2 pr-4 pb-4 pl-6">
-            <SortableContext
-              items={childIds}
-              strategy={verticalListSortingStrategy}
-            >
-              {schema.fields.map((field) => (
-                <SortableSchemaItem
-                  key={field.name}
-                  id={`${path}.${field.name}`}
-                  schema={field}
-                  path={`${path}.${field.name}`}
-                  isOver={isOver}
-                  dropPosition={dropPosition}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onAddChild={onAddChild}
-                />
-              ))}
-            </SortableContext>
-            {!schema.isCore && (
-              <div className="pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onAddChild(path)}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Field to{" "}
-                  {schema.label}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (schema.type === "array") {
-    const handleAddItem = () => {
-      const newItem = schema.itemSchema.fields.reduce(
-        (acc, field) => {
-          acc[field.name] = field.defaultValue;
-          return acc;
-        },
-        {} as Record<string, unknown>,
-      );
-      append(newItem);
-    };
-
-    return (
-      <div ref={setNodeRef} style={style} className="group/item relative">
-        <Card
-          className={cn("border-slate-700 bg-slate-900/50", {
-            "border-dashed border-slate-600": schema.isCore,
+        <div
+          className={cn("relative rounded-lg p-3 transition-all", {
+            "border border-dashed border-slate-700": schema.isCore,
           })}
         >
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>{schema.label}</span>
-              <SchemaItemControls
-                attributes={attributes}
-                listeners={listeners}
-                onEdit={() => onEdit(path)}
-                onDelete={() => onDelete(path)}
-                isCore={!!schema.isCore}
-              />
-            </CardTitle>
-            {schema.description && (
-              <p className="pt-1 text-sm text-slate-400">
-                {schema.description}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4 pt-2 pr-4 pb-4 pl-6">
-            <div className="space-y-3">
-              {fields.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-3 rounded-md border border-slate-800 p-3"
-                >
-                  <div className="flex-grow space-y-4">
-                    {schema.itemSchema.fields.map((fieldSchema) => (
-                      <SettingsFormField
-                        key={fieldSchema.name}
-                        schema={fieldSchema}
-                        path={`${path}.${index}.${fieldSchema.name}`}
-                      />
-                    ))}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 text-red-500 hover:text-red-400"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" size="sm" onClick={handleAddItem}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add {schema.itemLabel}
-            </Button>
-          </CardContent>
-        </Card>
+          {isField(schema) && <SettingsFormField schema={schema} path={path} />}
+          <TopRightControls
+            onEdit={() => onEdit(path)}
+            onDelete={() => onDelete(path)}
+            dragListeners={{ ...attributes, ...listeners }}
+            isCore={!!schema.isCore}
+          />
+        </div>
       </div>
     );
-  }
-
-  // Fallback for FieldSchema types
-  return (
-    <div ref={setNodeRef} style={style} className="group/item relative">
-      <div
-        className={cn(
-          "relative rounded-lg p-4 transition-colors",
-          {
-            "border border-transparent bg-slate-800/60 hover:border-slate-700":
-              !schema.isCore,
-          },
-          { "border border-dashed border-slate-700/50": schema.isCore },
-        )}
-      >
-        {isField(schema) && <SettingsFormField schema={schema} path={path} />}
-        <SchemaItemControls
-          attributes={attributes}
-          listeners={listeners}
-          onEdit={() => onEdit(path)}
-          onDelete={() => onDelete(path)}
-          isCore={!!schema.isCore}
-        />
-      </div>
-    </div>
-  );
-});
+  },
+);

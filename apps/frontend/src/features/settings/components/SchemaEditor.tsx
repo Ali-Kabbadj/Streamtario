@@ -1,167 +1,175 @@
+// components/SchemaEditor.tsx
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useCallback, useState } from "react";
 import {
   DndContext,
-  KeyboardSensor,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   DragOverlay,
-  closestCenter,
   type DragStartEvent,
-  type DragEndEvent,
   type DragOverEvent,
+  type DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
 import { produce } from "immer";
-import type { SettingsSchema } from "../schemas/settings-schema";
+import type { ObjectSchema, SettingsSchema } from "../schemas/settings-schema";
 import { SortableSchemaItem } from "./SortableSchemaItem";
 import { SchemaItem } from "./SchemaItem";
 import {
   findNodeAndParent,
-  getFlattenedIds,
   findSchemaItem,
 } from "../utils/schema-utils";
 import { DropIndicator } from "./DropIndicator";
+import { usePointerPosition } from "../hooks/usePointerPosition";
+import { getDropTargetFromPoint } from "../utils/drop-manager";
 
 export type DropPosition = "top" | "bottom" | "nest" | null;
 
-interface SchemaEditorProps {
+interface Props {
   schema: SettingsSchema[];
-  onSchemaChange: (schema: SettingsSchema[]) => void;
+  onSchemaChange: (s: SettingsSchema[]) => void;
   onEdit: (path: string) => void;
   onDelete: (path: string) => void;
   onAddChild: (path: string) => void;
 }
 
-export const SchemaEditor = React.memo(function SchemaEditor({
+export const SchemaEditor: React.FC<Props> = React.memo(function SchemaEditor({
   schema,
   onSchemaChange,
   onEdit,
   onDelete,
   onAddChild,
-}: SchemaEditorProps) {
+}) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<DropPosition>(null);
+  const [isAllowed, setIsAllowed] = useState<boolean | null>(null);
+
+  const pointerRef = usePointerPosition();
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
   );
 
-  const flattenedRootIds = useMemo(
-    () => getFlattenedIds(schema, "", 1),
-    [schema],
-  );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
+  const handleDragStart = useCallback((e: DragStartEvent) => {
+    setActiveId(String(e.active.id));
+    setIsAllowed(null);
   }, []);
 
   const handleDragOver = useCallback(
-    (event: DragOverEvent) => {
-      const { over, active } = event;
-      const currentOverId = over?.id ? String(over.id) : null;
-      setOverId(currentOverId);
+    (e: DragOverEvent) => {
+      const active = e.active;
+      // prefer pointer coordinates from event if present, else from global pointerRef
+      const pointer = "pointer" in e ? (e.pointer as PointerEvent) : null;
+      const last = pointerRef.current;
+      const x =
+        pointer && typeof pointer.clientX === "number"
+          ? pointer.clientX
+          : (last?.x ?? window.innerWidth / 2);
+      const y =
+        pointer && typeof pointer.clientY === "number"
+          ? pointer.clientY
+          : (last?.y ?? window.innerHeight / 2);
 
-      if (!currentOverId || !active.id || !over?.rect) {
-        setDropPosition(null);
+      const result = getDropTargetFromPoint({
+        x,
+        y,
+        draggedId: active?.id ? String(active.id) : undefined,
+      });
+
+      setOverId(result.overId);
+      setDropPosition(result.position);
+
+      // validate with schema rules
+      if (!result.overId || !active?.id) {
+        setIsAllowed(null);
         return;
       }
 
-      const isBelow = event.delta.y > 0;
-      let position: DropPosition = isBelow ? "bottom" : "top";
+      const activePath = String(active.id).split(".");
+      const overPath = String(result.overId).split(".");
+      const activeInfo = findNodeAndParent(activePath, schema);
+      const overInfo = findNodeAndParent(overPath, schema);
 
-      const overNode = findSchemaItem(currentOverId.split("."), schema);
-      if (overNode?.type === "object") {
-        if (event.delta.x > 24) {
-          position = "nest";
+      if (!activeInfo || !overInfo) {
+        setIsAllowed(false);
+        return;
+      }
+
+      // cannot move core nodes
+      if (activeInfo.node?.isCore) {
+        setIsAllowed(false);
+        return;
+      }
+
+      // nest requires object and if target is core, must be extensible
+      if (result.position === "nest") {
+        if (overInfo.node?.type !== "object") {
+          setIsAllowed(false);
+          return;
+        }
+        if (
+          overInfo.node.isCore &&
+          "isExtensible" in overInfo.node &&
+          !overInfo.node.isExtensible
+        ) {
+          setIsAllowed(false);
+          return;
         }
       }
 
-      setDropPosition(position);
+      setIsAllowed(true);
     },
-    [schema],
+    [pointerRef, schema],
   );
 
   const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
+    (e: DragEndEvent) => {
+      const active = e.active;
+      const finalPos = dropPosition;
+      const allowed = isAllowed;
 
       setActiveId(null);
       setOverId(null);
       setDropPosition(null);
+      setIsAllowed(null);
 
-      if (!over || !dropPosition || active.id === over.id) return;
+      if (!e.over || !finalPos || active.id === e.over.id) return;
+      if (!allowed) return;
 
       const activePath = String(active.id).split(".");
-      const overPath = String(over.id).split(".");
-
-      const activeNodeInfo = findNodeAndParent(activePath, schema);
-      // Rule: Cannot move a core item itself. This is our primary guard.
-      if (!activeNodeInfo || activeNodeInfo.node.isCore) return;
-
-      const overNodeInfo = findNodeAndParent(overPath, schema);
-      if (!overNodeInfo) return;
-
-      // --- REFINED VALIDATION LOGIC ---
-      if (dropPosition === "nest") {
-        const destinationContainer = overNodeInfo.node;
-        if (destinationContainer.type !== "object") return; // Can only nest in objects
-
-        // Rule: If destination is a core container, it must explicitly accept the item.
-        // This rule is fine and should remain.
-        if (
-          destinationContainer.isCore &&
-          !destinationContainer.accepts?.includes(activeNodeInfo.node.name)
-        ) {
-          return; // Not accepted
-        }
-      }
-      // FIX: The overly-strict rule that trapped custom items has been REMOVED.
-      // A non-core item is now always free to be re-parented. The `activeNodeInfo.node.isCore`
-      // check at the top is sufficient to lock actual core items in place.
-      // --- END VALIDATION LOGIC ---
+      const overPath = String(e.over.id).split(".");
 
       const newSchema = produce(schema, (draft) => {
-        const activeDraftInfo = findNodeAndParent(activePath, draft);
-        if (!activeDraftInfo) return;
+        const src = findNodeAndParent(activePath, draft);
+        if (!src) return;
+        const [moved] = src.items.splice(src.index, 1);
+        if (!moved) return;
 
-        const [movedItem] = activeDraftInfo.items.splice(
-          activeDraftInfo.index,
-          1,
-        );
-        if (!movedItem) return;
+        const dest = findNodeAndParent(overPath, draft);
+        if (!dest) return;
 
-        const overDraftInfo = findNodeAndParent(overPath, draft);
-        if (!overDraftInfo) return;
-
-        if (dropPosition === "nest" && overDraftInfo.node.type === "object") {
-          overDraftInfo.node.fields.push(movedItem);
+        if (finalPos === "nest" && dest.node?.type === "object") {
+          (dest.node as ObjectSchema).fields.push(moved);
         } else {
-          const dropIndex =
-            overDraftInfo.index + (dropPosition === "bottom" ? 1 : 0);
-          overDraftInfo.items.splice(dropIndex, 0, movedItem);
+          const insertIndex = dest.index + (finalPos === "bottom" ? 1 : 0);
+          dest.items.splice(insertIndex, 0, moved);
         }
       });
 
       onSchemaChange(newSchema);
     },
-    [schema, onSchemaChange, dropPosition],
+    [schema, dropPosition, isAllowed, onSchemaChange],
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
     setOverId(null);
     setDropPosition(null);
+    setIsAllowed(null);
   }, []);
 
   const activeSchemaItem = activeId
@@ -171,41 +179,37 @@ export const SchemaEditor = React.memo(function SchemaEditor({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <SortableContext
-        items={flattenedRootIds}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="space-y-2">
-          {schema.map((item) => (
-            <SortableSchemaItem
-              key={item.name}
-              id={item.name}
-              schema={item}
-              path={item.name}
-              // FIX: Pass down the necessary props for the new indicator
-              isOver={overId === item.name}
-              dropPosition={overId === item.name ? dropPosition : null}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onAddChild={onAddChild}
-            />
-          ))}
-        </div>
-      </SortableContext>
-      <DragOverlay dropAnimation={null}>
+      <div className="space-y-3">
+        {schema.map((it) => (
+          <SortableSchemaItem
+            key={it.name}
+            id={it.name}
+            schema={it}
+            path={it.name}
+            isOver={overId === it.name}
+            dropPosition={overId === it.name ? dropPosition : null}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAddChild={onAddChild}
+          />
+        ))}
+      </div>
+
+      <DragOverlay>
         {activeSchemaItem ? <SchemaItem schema={activeSchemaItem} /> : null}
       </DragOverlay>
-      {activeId && overId && (
+
+      {overId && dropPosition && (
         <DropIndicator
           isOver={!!overId}
           position={dropPosition}
           overId={overId}
+          color={isAllowed === false ? "#ef4444" : undefined}
         />
       )}
     </DndContext>

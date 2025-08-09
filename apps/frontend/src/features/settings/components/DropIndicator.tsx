@@ -1,55 +1,85 @@
+// components/DropIndicator.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-
 export type DropPosition = "top" | "bottom" | "nest" | null;
 
 interface DropIndicatorProps {
   isOver: boolean;
   position: DropPosition;
   overId: string | null;
+  color?: string;
 }
 
 export const DropIndicator = ({
   isOver,
   position,
   overId,
+  color,
 }: DropIndicatorProps) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
-    if (overId) {
-      // Use data-dnd-id to be more specific and avoid conflicts
-      const element = document.querySelector(`[data-dnd-id="${overId}"]`);
-      if (element) {
-        setRect(element.getBoundingClientRect());
-      }
-    } else {
+    if (!overId) {
       setRect(null);
+      return;
     }
+    const el = document.querySelector(`[data-dnd-id="${overId}"]`);
+    if (!el) {
+      setRect(null);
+      return;
+    }
+    setRect(el.getBoundingClientRect());
+
+    const onResize = () => {
+      const e2 = document.querySelector(`[data-dnd-id="${overId}"]`);
+      if (e2) setRect(e2.getBoundingClientRect());
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [overId]);
 
-  // FIX: Do not render anything if the position is 'nest', as the item itself will handle it.
-  if (!isOver || !position || position === "nest" || !rect) return null;
+  if (!isOver || !position || !rect) return null;
 
-  const style: React.CSSProperties = {
-    position: "fixed",
-    width: rect.width,
-    height: "2px",
-    backgroundColor: "#3b82f6", // blue-500
-    borderRadius: "1px",
-    pointerEvents: "none",
-    zIndex: 1000,
-    left: rect.left,
-    transform: "translateY(-50%)",
-  };
+  const accent = color ?? "#3b82f6";
 
-  if (position === "top") {
-    style.top = rect.top;
-  } else if (position === "bottom") {
-    style.top = rect.bottom;
+  if (position === "top" || position === "bottom") {
+    return (
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          left: rect.left,
+          width: rect.width,
+          pointerEvents: "none",
+          zIndex: 2000,
+          height: 3,
+          borderRadius: 2,
+          top: position === "top" ? rect.top - 1.5 : rect.bottom - 1.5,
+          "--accent-color": accent,
+          "--accent-color-alpha-22": `${accent}22`,
+        } as React.CSSProperties}
+        className="drop-indicator-bar"
+      />
+    );
   }
-  // The 'nest' case is removed from here.
 
-  return <div style={style} aria-hidden="true" />;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed",
+        left: rect.left,
+        width: rect.width,
+        pointerEvents: "none",
+        zIndex: 2000,
+        top: rect.top,
+        height: rect.height,
+        borderRadius: 8,
+        "--accent-color": accent,
+        "--accent-color-alpha-11": `${accent}11`,
+      } as React.CSSProperties}
+      className="drop-indicator-nest"
+    />
+  );
 };

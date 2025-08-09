@@ -189,5 +189,14 @@ body.player-active #app-root {
 }
 
 * {
+  -webkit-user-select: none;
   user-select: none;
+}
+.drop-indicator-bar {
+  background-color: var(--accent-color);
+  box-shadow: 0 0 8px var(--accent-color-alpha-22);
+}
+.drop-indicator-nest {
+  background-color: var(--accent-color-alpha-11);
+  box-shadow: inset 0 0 0 2px var(--accent-color);
 }

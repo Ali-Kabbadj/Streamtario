@@ -1,83 +1,97 @@
+// utils/schema-utils.ts
 import type { SettingsSchema, ObjectSchema } from "../schemas/settings-schema";
 import type { WritableDraft } from "immer";
 
+/**
+ * findNodeAndParent
+ * - path: segments array (["mpv","customCommands"] etc)
+ * - rootItems: schema array or draft (immer)
+ * returns { node, parent, items, index } or null if not found
+ */
 export const findNodeAndParent = (
     path: string[],
     rootItems: SettingsSchema[] | WritableDraft<SettingsSchema>[]
 ) => {
-    // FIX: Explicitly type `items` to avoid inference issues in the loop
-    let items: typeof rootItems = rootItems;
-    let parent: (ObjectSchema | WritableDraft<ObjectSchema>) | null = null;
+    if (!path || path.length === 0) return null;
+
+    let items: (SettingsSchema | WritableDraft<SettingsSchema>)[] = rootItems;
+    let parent: ObjectSchema | null = null;
 
     for (let i = 0; i < path.length; i++) {
         const segment = path[i];
         if (!segment) return null;
 
-        const foundIndex = items.findIndex((s) => s.name === segment);
-        if (foundIndex === -1) return null;
+        const idx = items.findIndex((it) => it.name === segment);
+        if (idx === -1) return null;
 
-        const node = items[foundIndex];
-        if (!node) return null;
-
+        const node = items[idx];
         if (i === path.length - 1) {
-            return { parent, items, node, index: foundIndex };
+            return { node, parent, items, index: idx };
         }
 
-        if (node.type !== 'object') {
-            return null; // Path continues, but current item is not a container
-        }
+        // continue traversing only if object
+        if (!node || node.type !== "object") return null;
 
-        parent = node;
-        items = node.fields;
+        parent = node as ObjectSchema;
+        items = (node as ObjectSchema).fields;
     }
+
     return null;
 };
 
+/**
+ * findSchemaItem: find item by path on read-only schema
+ */
+export const findSchemaItem = (
+  path: string[],
+  schema: readonly SettingsSchema[],
+): SettingsSchema | null => {
+  if (!path || path.length === 0) return null;
+  let currentLevel: readonly SettingsSchema[] | undefined = schema;
+  let found: SettingsSchema | null = null;
 
-export const findSchemaItem = (path: string[], schema: readonly SettingsSchema[]): SettingsSchema | null => {
-    let currentLevel: readonly SettingsSchema[] | undefined = schema;
-    let foundNode: SettingsSchema | null = null;
+  for (const segment of path) {
+    if (!currentLevel) return null;
+    const item: SettingsSchema | undefined = currentLevel.find(
+      (i) => i.name === segment,
+    );
+    if (!item) return null;
+    found = item;
+    currentLevel = item.type === "object" ? item.fields : undefined;
+  }
+  return found;
+};
 
-    for (const segment of path) {
-        if (!currentLevel) return null;
-        // FIX: Removed non-null assertion '!' for safer code
-        const item = currentLevel.find(i => i.name === segment);
-        if (!item) return null;
-
-        foundNode = item;
-        currentLevel = item.type === 'object' ? item.fields : undefined;
-    }
-
-    return foundNode;
-}
-
-export const getFlattenedIds = (schema: SettingsSchema[], parentPath = "", maxDepth = Infinity, currentDepth = 1): string[] => {
-    let ids: string[] = [];
-    if (currentDepth > maxDepth) return ids;
-
-    for (const item of schema) {
-        const currentPath = parentPath ? `${parentPath}.${item.name}` : item.name;
-        ids.push(currentPath);
-        if (item.type === 'object') {
-            ids = [...ids, ...getFlattenedIds(item.fields, currentPath, maxDepth, currentDepth + 1)];
+/**
+ * getFlattenedIds: returns list of dotted ids for sortable context
+ */
+export const getFlattenedIds = (
+    schema: SettingsSchema[],
+    parentPath = ""
+): string[] => {
+    const out: string[] = [];
+    const walk = (items: SettingsSchema[], prefix = "") => {
+        for (const it of items) {
+            const id = prefix ? `${prefix}.${it.name}` : it.name;
+            out.push(id);
+            if (it.type === "object") {
+                walk(it.fields, id);
+            }
         }
-    }
-    return ids;
-}
+    };
+    walk(schema, parentPath);
+    return out;
+};
 
-export const getDefaultValueForSchema = (schema: SettingsSchema): unknown => {
-    if ('defaultValue' in schema && typeof schema.defaultValue !== 'undefined') {
-        return schema.defaultValue;
+/**
+ * getDefaultValueForSchema: returns JS default for a schema node
+ */
+export const getDefaultValueForSchema = (s: SettingsSchema): unknown => {
+    if (s.type === "object") {
+        const obj: Record<string, unknown> = {};
+        for (const f of s.fields) obj[f.name] = getDefaultValueForSchema(f);
+        return obj;
     }
-    if (schema.type === 'object') {
-        return schema.fields.reduce((acc: Record<string, unknown>, field) => {
-            acc[field.name] = getDefaultValueForSchema(field);
-            return acc;
-        }, {});
-    }
-    // FIX: Ensure arrays get a default value from their schema if it exists.
-    if (schema.type === 'array') {
-        return schema.defaultValue ?? [];
-    }
-    return undefined;
+    if (s.type === "array") return s.defaultValue ?? [];
+    return "defaultValue" in s ? s.defaultValue : null;
 };

@@ -1,49 +1,58 @@
-export type FieldSchema =
-    | {
-        name: string;
-        label: string;
-        isCore?: boolean;
-        description?: string;
-        defaultValue: string;
-        type: "string";
-        options?: { value: string; label: string }[];
-    }
-    | {
-        name: string;
-        label: string;
-        isCore?: boolean;
-        description?: string;
-        defaultValue: number;
-        type: "number";
-        options?: { value: number; label: string }[];
-    }
-    | {
-        name: string;
-        label: string;
-        isCore?: boolean;
-        description?: string;
-        defaultValue: boolean;
-        type: "boolean";
-    };
+// schemas/settings-schema.ts
+export type FieldSchemaString = {
+    name: string;
+    label: string;
+    isCore?: boolean;
+    isExtensible?: boolean; // optional: core node that allows user-extensions
+    description?: string;
+    defaultValue: string;
+    type: "string";
+    options?: { value: string | number | boolean; label: string }[];
+};
+
+export type FieldSchemaNumber = {
+    name: string;
+    label: string;
+    isCore?: boolean;
+    isExtensible?: boolean;
+    description?: string;
+    defaultValue: number;
+    type: "number";
+    options?: { value: number; label: string }[];
+};
+
+export type FieldSchemaBoolean = {
+    name: string;
+    label: string;
+    isCore?: boolean;
+    isExtensible?: boolean;
+    description?: string;
+    defaultValue: boolean;
+    type: "boolean";
+};
+
+export type FieldSchema = FieldSchemaString | FieldSchemaNumber | FieldSchemaBoolean;
 
 export interface ObjectSchema {
     name: string;
     label: string;
-    isCore?: boolean;
-    description?: string;
     type: "object";
+    isCore?: boolean;
+    isExtensible?: boolean; // allow user to add children/files even if core
+    description?: string;
     fields: SettingsSchema[];
-    accepts?: string[]; // Defines what schema item 'names' this object can accept as children
+    accepts?: string[]; // whitelist of child names allowed (optional)
 }
 
 export interface ArraySchema {
     name: string;
     label: string;
+    type: "array";
     isCore?: boolean;
+    isExtensible?: boolean;
     description?: string;
     itemLabel: string;
-    type: "array";
-    defaultValue: Record<string, unknown>[];
+    defaultValue?: Record<string, unknown>[];
     itemSchema: {
         type: "object";
         fields: FieldSchema[];
@@ -53,75 +62,102 @@ export interface ArraySchema {
 
 export type SettingsSchema = FieldSchema | ObjectSchema | ArraySchema;
 
+/**
+ * Default schema example including mpv core (isCore + isExtensible).
+ * Keep this minimal/change to match your real defaults.
+ */
 export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
     {
-        name: "streaming",
-        label: "Streaming",
-        isCore: true,
-        type: "object",
-        fields: [
-            {
-                name: "cacheSizeGb", type: "number", label: "Cache Size",
-                description: "Maximum disk space for streaming cache.", defaultValue: 10, isCore: true,
-                options: [{ value: 2, label: "2 GB" }, { value: 10, label: "10 GB" }, { value: 50, label: "50 GB" }, { value: -1, label: "Unlimited" }],
-            },
-            { name: "downloadSpeedLimitKbps", type: "number", label: "Download Speed Limit (KB/s)", description: "Set to -1 for unlimited.", defaultValue: -1, isCore: true, },
-            { name: "uploadSpeedLimitKbps", type: "number", label: "Upload Speed Limit (KB/s)", description: "Set to -1 for unlimited.", defaultValue: -1, isCore: true, },
-            { name: "maxPeers", type: "number", label: "Max Peer Connections", description: "Maximum number of peers to connect to per torrent.", defaultValue: 25, isCore: true, },
-            { name: "streamWithoutCache", type: "boolean", label: "Stream Without Cache (Memory Mode)", description: "Stream directly to memory. Uses more RAM but no disk space.", defaultValue: false, isCore: true, },
-        ],
-    },
-    {
-        name: "preferences",
-        label: "Preferences",
-        type: "object",
-        isCore: true,
-        fields: [
-            { name: "preferredAudioLanguage", type: "string", label: "Preferred Audio Language", description: "Default audio track language (ISO 639-2 code).", defaultValue: "eng", isCore: true, },
-            { name: "preferredSubtitleLanguage", type: "string", label: "Preferred Subtitle Language", description: "Default subtitle language (ISO 639-2 code).", defaultValue: "eng", isCore: true, },
-        ],
-    },
-    {
         name: "mpv",
+        label: "MPV Player",
         type: "object",
-        label: "MPV Player Settings",
         isCore: true,
-        accepts: ["customCommands"],
+        isExtensible: true, // users may add mpv conf, commands, scripts
+        description: "mpv player settings, scripts, and uploads",
         fields: [
             {
-                name: "customCommands",
+                name: "mpv_conf",
+                label: "mpv.conf content",
+                type: "string",
+                defaultValue: "",
+            },
+            {
+                name: "lua_scripts",
+                label: "Lua scripts",
                 type: "array",
-                label: "Custom MPV Commands",
-                description: "Add custom commands accessible in the player.",
-                itemLabel: "Command",
-                isCore: true,
-                // FIX: Ensure the default schema has a default value for the array.
+                itemLabel: "Lua script",
                 defaultValue: [],
                 itemSchema: {
                     type: "object",
                     fields: [
-                        { name: "name", type: "string", label: "Command Name", description: "A friendly name for the command (e.g., 'Next Frame').", defaultValue: "", },
-                        { name: "command", type: "string", label: "MPV Command", description: "The raw MPV command string (e.g., 'frame-step').", defaultValue: "", },
+                        { name: "filename", label: "Filename", type: "string", defaultValue: "" },
+                        { name: "content", label: "Content", type: "string", defaultValue: "" },
+                    ],
+                },
+            },
+            {
+                name: "customCommands",
+                label: "Custom MPV Commands",
+                type: "array",
+                itemLabel: "Command",
+                defaultValue: [],
+                itemSchema: {
+                    type: "object",
+                    fields: [
+                        { name: "name", label: "Name", type: "string", defaultValue: "" },
+                        { name: "command", label: "Command", type: "string", defaultValue: "" },
                     ],
                 },
             },
         ],
     },
+
+    {
+        name: "appearance",
+        label: "Appearance",
+        type: "object",
+        isCore: false,
+        description: "Theme, scale and visual preferences",
+        fields: [
+            { name: "theme", label: "Theme", type: "string", defaultValue: "dark" },
+            { name: "scale", label: "UI scale", type: "number", defaultValue: 1 },
+        ],
+    },
+
+    {
+        name: "streaming",
+        label: "Streaming",
+        type: "object",
+        isCore: true,
+        description: "Streaming / cache related settings",
+        fields: [
+            {
+                name: "cacheSizeGb",
+                label: "Cache Size (GB)",
+                type: "number",
+                defaultValue: 10,
+                // options optional
+            },
+            { name: "streamWithoutCache", label: "Stream without cache", type: "boolean", defaultValue: false },
+        ],
+    },
 ];
 
+/**
+ * Helper to generate default data object (mirrors existing project function).
+ */
 export const generateDefaultData = (schema: SettingsSchema[]): Record<string, unknown> => {
-    const data: Record<string, unknown> = {};
-    for (const item of schema) {
-        if (item.type === "object") {
-            data[item.name] = generateDefaultData(item.fields);
-        } else if (item.type === "array") {
-            // Use the schema's default value for arrays if it exists
-            data[item.name] = item.defaultValue ?? [];
+    const out: Record<string, unknown> = {};
+    for (const s of schema) {
+        if (s.type === "object") {
+            out[s.name] = generateDefaultData(s.fields);
+        } else if (s.type === "array") {
+            out[s.name] = s.defaultValue ?? [];
         } else {
-            data[item.name] = item.defaultValue;
+            out[s.name] = (s).defaultValue;
         }
     }
-    return data;
+    return out;
 };
 
 export const DEFAULT_SETTINGS_DATA = generateDefaultData(DEFAULT_SETTINGS_SCHEMA);
