@@ -40,9 +40,13 @@ export function SettingsView() {
     };
   }, [profileData]);
 
-  if (isLoadingProfile) {
+  if (isLoadingProfile || !profileId) {
     return (
       <div className="space-y-6 p-4 sm:px-6 md:p-8">
+        <div className="mb-8">
+          <Skeleton className="mb-2 h-10 w-1/2" />
+          <Skeleton className="h-6 w-3/4" />
+        </div>
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -50,18 +54,20 @@ export function SettingsView() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="mb-8">
-        <h1 className="mb-2 text-4xl font-bold tracking-tight">
-          Advanced Settings
-        </h1>
-        <p className="text-lg text-slate-400">
-          Customize the app settings and schema. Use Basic for quick edits or
-          Advanced for schema-level control.
-        </p>
-      </div>
+    <div className="container mx-auto py-8">
+      <main>
+        <div className="mb-8">
+          <h1 className="mb-2 text-4xl font-bold tracking-tight">Settings</h1>
+          <p className="text-lg text-slate-400">
+            Customize application settings and manage dynamic lists.
+          </p>
+        </div>
 
-      <SettingsEditor profileId={profileId} initialSettings={initialSettings} />
+        <SettingsEditor
+          profileId={profileId}
+          initialSettings={initialSettings}
+        />
+      </main>
     </div>
   );
 }

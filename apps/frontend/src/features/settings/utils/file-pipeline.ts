@@ -1,31 +1,28 @@
 // utils/file-pipeline.ts
-/**
- * Front-end pipeline helpers to prepare uploaded files for storage.
- * Right now: read File -> produce an object containing
- *  - filename
- *  - size
- *  - mime
- *  - base64 (for sending to server)
- *  - parsed (if mpv.conf will be parsed by client)
- *
- * This is a client-side helper; server side will accept this payload and store it.
- */
+
+export interface FileUploadPayload {
+    filename: string;
+    mime: string;
+    size: number;
+    dataUri: string;
+}
 
 export async function fileToBase64(file: File): Promise<string> {
-    return await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => {
-            const result = r.result as string;
-            // r.result is like "data:<mime>;base64,xxxxx"
-            // return tail part with header, or full data URI depending on server
-            resolve(result);
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            } else {
+                reject(new Error('Failed to read file as Data URL.'));
+            }
         };
-        r.onerror = reject;
-        r.readAsDataURL(file);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
     });
 }
 
-export async function prepareUploadPayload(file: File) {
+export async function prepareUploadPayload(file: File): Promise<FileUploadPayload> {
     const dataUri = await fileToBase64(file);
     return {
         filename: file.name,

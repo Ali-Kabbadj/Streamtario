@@ -1,28 +1,18 @@
 // components/FileUploadPanel.tsx
 "use client";
 
-import React, { useRef, useState } from "react";
-import { prepareUploadPayload } from "../utils/file-pipeline";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
-
-/**
- * FileUploadPanel - small UI for uploading a file for a schema node.
- * - path: dotted path in form (e.g. "mpv.mpv_conf")
- * - onUploaded: callback(payload) where payload is the prepared object
- *
- * This component does NOT attempt to call server; it prepares payload and calls onUploaded.
- */
+import {
+  prepareUploadPayload,
+  type FileUploadPayload,
+} from "../utils/file-pipeline";
 
 interface Props {
   accept?: string;
   title?: string;
-  onUploaded?: (payload: {
-    filename: string;
-    mime: string;
-    size: number;
-    dataUri: string;
-  }) => void;
+  onUploaded: (payload: FileUploadPayload) => void;
 }
 
 export const FileUploadPanel: React.FC<Props> = ({
@@ -31,32 +21,32 @@ export const FileUploadPanel: React.FC<Props> = ({
   onUploaded,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [pendingName, setPendingName] = useState<string | null>(null);
 
   const onChoose = (file: File | null) => {
     if (!file) return;
-    setPendingName(file.name);
+
     prepareUploadPayload(file)
-      .then((p) => {
-        onUploaded?.(p);
+      .then((payload) => {
+        onUploaded(payload);
       })
       .catch((err) => {
-        console.error("file prepare error", err);
-        setPendingName(null);
+        console.error("File preparation error:", err);
       });
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <>
       <input
         ref={inputRef}
         type="file"
         accept={accept}
         className="hidden"
         aria-label={title}
+        // Reset the input value on change so selecting the same file again works
         onChange={(ev) => {
-          const f = ev.target.files?.[0] ?? null;
-          onChoose(f);
+          const file = ev.target.files?.[0] ?? null;
+          onChoose(file);
+          ev.target.value = "";
         }}
       />
       <Button
@@ -66,9 +56,6 @@ export const FileUploadPanel: React.FC<Props> = ({
       >
         <Upload className="mr-2 h-4 w-4" /> {title}
       </Button>
-      {pendingName && (
-        <span className="text-sm text-slate-300">{pendingName}</span>
-      )}
-    </div>
+    </>
   );
 };
