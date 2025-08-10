@@ -1,12 +1,14 @@
 import redis.asyncio as redis
 from typing import List
 
+from app.domain.cache.i_profile_manifest_cache import IProfileManifestCache
+
 
 def get_profile_cache_key(profile_id: str) -> str:
     return f"profile:{profile_id}:manifests"
 
 
-class RedisProfileManifestCache:
+class RedisProfileManifestCache(IProfileManifestCache):
     def __init__(self, redis_client: redis.Redis):
         self.redis_client = redis_client
 

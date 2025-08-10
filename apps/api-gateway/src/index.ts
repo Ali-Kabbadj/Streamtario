@@ -48,6 +48,7 @@ async function startGateway() {
     addons: { url: 'https://localhost:8001/graphql' },
     auth: { url: 'https://localhost:8003' },
     stream: { url: 'https://localhost:8004' },
+    addonController: { url: 'https://localhost:8001' }
   };
 
   const app = express();
@@ -152,6 +153,11 @@ async function startGateway() {
 
   const streamHttpProxy = createProxyMiddleware({ target: serviceMap.stream.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/stream': '' } });
   app.use('/api/v1/stream', streamHttpProxy);
+
+
+  const addonControllerProxy = createProxyMiddleware({ target: serviceMap.addonController.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/addon-controller': '' } });
+  app.use('/api/v1/addon-controller', addonControllerProxy);
+
 
   app.use('/graphql', express.json({ limit: '10mb' }), expressMiddleware(server, {
     context: async ({ req }) => ({ headers: req.headers }),

@@ -12,6 +12,7 @@ import {
   Droplets,
   Volume2,
   Tv,
+  Play,
 } from "lucide-react";
 import type { ParsedStreamDetails } from "@/lib/stream-parser";
 import type { JSX } from "react";
@@ -27,6 +28,7 @@ interface StreamItemProps {
   metaId: string; // This is the parent meta ID (for subtitles)
   imdbId: string;
   itemType: string;
+  progress?: { position: number; duration: number };
 }
 
 const tagIcons: Record<string, JSX.Element> = {
@@ -77,10 +79,13 @@ export function StreamItem({
   metaId,
   imdbId,
   itemType,
+  progress,
 }: StreamItemProps) {
   const { actions } = usePlayer();
   const { tags } = parsed;
-
+  const progressPercent = progress
+    ? (progress.position / progress.duration) * 100
+    : 0;
   const allTags = [
     tags.quality,
     tags.source,
@@ -105,11 +110,16 @@ export function StreamItem({
   return (
     <button
       onClick={handlePlayClick}
-      className="hover:bg-accent focus:bg-accent flex w-full flex-col gap-3 rounded-md border border-slate-700 p-3 text-left text-sm transition-colors focus:outline-none"
+      className="hover:bg-accent focus:bg-accent relative flex w-full flex-col gap-3 rounded-md border border-slate-700 p-3 text-left text-sm transition-colors focus:outline-none"
     >
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-white">{parsed.addonName}</span>
+          {progress != undefined && progress.position > 0 && (
+            <Badge variant="default" className="flex items-center gap-1">
+              <Play className="h-3 w-3" /> Resume
+            </Badge>
+          )}
           {parsed.releaseGroup && (
             <Badge variant="outline">{parsed.releaseGroup}</Badge>
           )}
@@ -143,6 +153,14 @@ export function StreamItem({
           {allTags.map((tag) => (
             <DetailBadge key={tag} tag={tag} />
           ))}
+        </div>
+      )}
+      {progressPercent > 0 && progressPercent < 95 && (
+        <div className="absolute bottom-0 left-0 h-1 w-full bg-slate-700/50">
+          <div
+            className="bg-primary h-full"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
       )}
     </button>

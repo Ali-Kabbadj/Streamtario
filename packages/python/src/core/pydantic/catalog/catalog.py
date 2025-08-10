@@ -6,13 +6,20 @@ from core.pydantic.api.error import ErrorResponse
 class CatalogItem(BaseModel):
     """
     Represents a single item in a media catalog.
-    Designed for clean mapping to a GraphQL type.
+    This is an enriched version of the Stremio Meta Preview Object.
     """
 
     id: str
     type: str
     name: Optional[str] = None
     poster: Optional[str] = None
+    background: Optional[str] = None
+    logo: Optional[str] = None
+    description: Optional[str] = None
+    release_info: Optional[str] = Field(None, alias="releaseInfo")
+    imdb_id: Optional[str] = Field(None, alias="imdb_id")
+    imdbRating: Optional[str] = None
+    genres: Optional[List[str]] = None
 
     class Config:
         populate_by_name = True

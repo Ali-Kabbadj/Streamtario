@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useProfileContext } from "@/providers/profile-provider";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { useMetaDetails } from "@/features/meta/hooks/useMetaDetails";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { GetPlaybackHistoryByImdbIdDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import { graphqlClient } from "@/lib/graphql-client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +23,9 @@ import { MetaSynopsis } from "@/features/meta/layout/MetaSynopsis";
 import { MetaCast } from "@/features/meta/layout/MetaCast";
 import { MetaEpisodes } from "@/features/meta/layout/MetaEpisodes";
 import { MetaLinks } from "@/features/meta/layout/MetaLinks";
+import { PersonDetailsModal } from "@/features/meta/components/PersonDetailsModal";
+import type { PersonDetails } from "@/features/meta/types";
+import { fetchPersonDetails } from "@/api/api-client";
 
 interface MetaViewProps {
   itemType: string;
@@ -31,8 +34,8 @@ interface MetaViewProps {
 
 interface StreamPanelContent {
   itemType: string;
-  itemId: string; // The specific video ID
-  metaId: string; // The parent meta ID
+  itemId: string;
+  metaId: string;
   title: string;
   imageUrl?: string | null;
 }
@@ -53,6 +56,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     undefined,
   );
   const initialSeasonSet = useRef(false);
+  const [isPersonModalOpen, setPersonModalOpen] = useState(false);
 
   const {
     data: meta,
@@ -96,6 +100,20 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     }
     return historyMap;
   }, [playbackHistoryData]);
+
+  const activeContentHistory = useMemo(() => {
+    if (!streamPanelContent) return undefined;
+    if (itemType === "movie") {
+      return playbackHistoryMap.get("movie");
+    }
+    const parts = streamPanelContent.itemId.split(":");
+    if (parts.length > 2) {
+      const season = parts[parts.length - 2];
+      const episode = parts[parts.length - 1];
+      return playbackHistoryMap.get(`${season}:${episode}`);
+    }
+    return undefined;
+  }, [streamPanelContent, itemType, playbackHistoryMap]);
 
   useEffect(() => {
     if (
@@ -148,6 +166,32 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
   const handleTrailerClick = (trailer: TrailerStreamType) => {
     setSelectedTrailer(trailer);
     setTrailerModalOpen(true);
+  };
+
+  const {
+    mutate: getPersonDetails,
+    data: personDetails,
+    isPending: isPersonLoading,
+    reset: resetPersonDetails,
+  } = useMutation<PersonDetails, Error, string>({
+    mutationFn: (name: string) => fetchPersonDetails(name),
+  });
+
+  // --- ADD THIS HANDLER FUNCTION ---
+  const handleShowPersonDetails = (name: string) => {
+    // Reset previous data before fetching new data
+    resetPersonDetails();
+    getPersonDetails(name);
+    setPersonModalOpen(true);
+  };
+
+  // --- ADD THIS FUNCTION TO PASS TO THE MODAL ---
+  const handleModalOpenChange = (isOpen: boolean) => {
+    setPersonModalOpen(isOpen);
+    if (!isOpen) {
+      // Clear data when modal is closed
+      resetPersonDetails();
+    }
   };
 
   const isPanelOpen = !!streamPanelContent;
@@ -238,8 +282,11 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
               onWatchTrailer={handleTrailerClick}
               playbackHistory={movieHistory}
             />
-            <MetaSynopsis meta={meta} />
-            <MetaCast cast={meta.appExtras?.cast} />
+            <MetaSynopsis meta={meta} onPersonClick={handleShowPersonDetails} />
+            <MetaCast
+              cast={meta.appExtras?.cast}
+              onPersonClick={handleShowPersonDetails}
+            />
             {meta.type !== "movie" && (
               <MetaEpisodes
                 videos={meta.videos}
@@ -250,7 +297,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
                 initialSeason={initialSeason}
               />
             )}
-            <MetaLinks links={meta.links} />
+            {/* <MetaLinks links={meta.links} /> */}
           </div>
         </motion.div>
 
@@ -260,6 +307,14 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
           logoUrl={meta.logo}
           itemType={itemType}
           imdbId={meta.imdbId}
+          playbackHistory={activeContentHistory}
+        />
+
+        <PersonDetailsModal
+          isOpen={isPersonModalOpen}
+          onOpenChange={handleModalOpenChange}
+          person={personDetails ?? null}
+          isLoading={isPersonLoading}
         />
 
         <Dialog open={isTrailerModalOpen} onOpenChange={setTrailerModalOpen}>

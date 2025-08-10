@@ -17,6 +17,9 @@ interface StreamListProps {
   metaId: string;
   itemType: string;
   imdbId: string;
+  lastStreamDetails?: Record<string, never> | null;
+  positionSeconds?: number;
+  durationSeconds?: number;
 }
 
 export function StreamList({
@@ -30,6 +33,9 @@ export function StreamList({
   metaId,
   itemType,
   imdbId,
+  lastStreamDetails,
+  positionSeconds,
+  durationSeconds,
 }: StreamListProps) {
   if (isLoading) {
     return (
@@ -59,6 +65,11 @@ export function StreamList({
       {streams.map((parsed) => {
         const rawStream = rawStreams?.[parsed.originalIndex];
         if (!rawStream) return null;
+
+        // Check if this is the last played stream
+        const isLastPlayed =
+          lastStreamDetails?.infoHash === rawStream.infoHash &&
+          lastStreamDetails?.fileIdx === rawStream.fileIdx;
         return (
           <StreamItem
             key={parsed.originalIndex}
@@ -70,6 +81,14 @@ export function StreamList({
             metaId={metaId}
             itemType={itemType}
             imdbId={imdbId}
+            progress={
+              isLastPlayed && durationSeconds
+                ? {
+                    position: positionSeconds ?? 0,
+                    duration: durationSeconds,
+                  }
+                : undefined
+            }
           />
         );
       })}

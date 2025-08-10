@@ -12,6 +12,7 @@ interface CatalogItemCardProps {
     name: string;
     type: string;
     poster?: string | null;
+    imdbId?: string | null; // <-- THE ITEM NOW HAS imdbId
   };
 }
 
@@ -20,7 +21,13 @@ export const CatalogItemCard = forwardRef<HTMLDivElement, CatalogItemCardProps>(
     const { navigateTo } = useView();
 
     const handleClick = () => {
-      navigateTo({ name: "meta", itemType: item.type, itemId: item.id });
+      // --- THE FIX: Prioritize the universal IMDb ID if it exists ---
+      const targetId = item.imdbId
+        ? `com.linvo.cinemeta:${item.imdbId}`
+        : item.id;
+      // We use the "com.linvo.cinemeta" prefix because it's the canonical source for IMDb-based lookups.
+
+      navigateTo({ name: "meta", itemType: item.type, itemId: targetId });
     };
 
     return (

@@ -81,8 +81,6 @@ export const GetFullProfileDocument = graphql(`
     }
   }
 `);
-
-// ... keep all other queries the same as before
 export const GetContinueWatchingDocument = graphql(`
   query GetContinueWatching($profileId: ID!) {
     profile(id: $profileId) {
@@ -295,6 +293,11 @@ export const CatalogDocument = graphql(`
           name
           type
           poster
+          imdbId # <-- ADDED
+          description # <-- ADDED
+          releaseInfo # <-- ADDED
+          genres # <-- ADDED
+          imdbRating # <-- ADDED
         }
       }
     }
@@ -313,6 +316,7 @@ export const HomeCatalogsDocument = graphql(`
             name
             type
             poster
+            imdbId
           }
         }
       }

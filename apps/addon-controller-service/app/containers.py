@@ -12,6 +12,8 @@ from app.domain.providers.i_profile_addon_manifest_provider import (
     IProfileAddonManifestProvider,
 )
 from app.adapters.profile_addon_manifest_provider import ProfileAddonManifestProvider
+from app.services import tmdb_api_service
+from app.services.tmdb_api_service import TmdbApiService
 from app.use_cases.event_handlers.handle_addon_installed import (
     HandleAddonInstalledEventUseCase,
 )
@@ -27,6 +29,7 @@ from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.get_meta_for_id import GetMetaForIdUseCase
+from app.use_cases.get_person_details import GetPersonDetailsUseCase
 from app.use_cases.get_subtitles import GetSubtitlesUseCase
 from app.use_cases.search_use_case import SearchUseCase
 from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
@@ -152,4 +155,18 @@ class Container(containers.DeclarativeContainer):
         get_manifest_use_case=get_manifest_use_case,
         addon_provider=addon_provider,
         profile_addon_manifest_provider=profile_addon_manifest_provider,
+    )
+
+    tmdb_api_service: providers.Singleton[TmdbApiService] = providers.Singleton(
+        TmdbApiService,
+        public_api_client=public_api_client,
+        api_key=settings.provided.TMDB_API_KEY,
+    )
+
+    get_person_details_use_case: providers.Factory[GetPersonDetailsUseCase] = (
+        providers.Factory(
+            GetPersonDetailsUseCase,
+            redis_client=redis_client,
+            tmdb_api_service=tmdb_api_service,
+        )
     )

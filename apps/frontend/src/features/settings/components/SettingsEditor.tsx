@@ -153,7 +153,7 @@ export const SettingsEditor: React.FC<Props> = ({
         string,
         unknown
       >[];
-      return arrayData?.[modalState.itemIndex] || null;
+      return arrayData?.[modalState.itemIndex] ?? null;
     }
     return null;
   };

@@ -27,6 +27,9 @@ import {
   type Stream,
 } from "@/lib/stream-parser";
 import { Label } from "@/components/ui/label";
+import type { GetPlaybackHistoryByImdbIdQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 
 type SortKey = "best" | "seeders" | "size";
 
@@ -44,6 +47,7 @@ interface StreamPanelProps {
   logoUrl?: string | null;
   itemType: string;
   imdbId: string;
+  playbackHistory?: PlaybackHistoryItem;
 }
 
 interface Filters {
@@ -125,6 +129,7 @@ export function StreamPanel({
   logoUrl,
   itemType,
   imdbId,
+  playbackHistory,
 }: StreamPanelProps) {
   const { selectedProfile } = useProfileContext();
   const [sortKey, setSortKey] = useState<SortKey>("best");
@@ -358,6 +363,9 @@ export function StreamPanel({
                 metaId={metaId}
                 itemType={itemType}
                 imdbId={imdbId}
+                lastStreamDetails={playbackHistory?.lastStreamDetails}
+                positionSeconds={playbackHistory?.positionSeconds}
+                durationSeconds={playbackHistory?.durationSeconds}
               />
             </div>
           </ScrollArea>

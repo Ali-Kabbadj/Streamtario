@@ -19,7 +19,7 @@ class PublicApiClient:
         self._client_args = {
             "http2": True,
             "follow_redirects": True,
-            "timeout": 15.0,
+            "timeout": 15.0,  # This remains the default global timeout
             "verify": verify,
         }
         self._client = client
@@ -29,12 +29,18 @@ class PublicApiClient:
             self._client = httpx.AsyncClient(**self._client_args)
         return self._client
 
-    async def get_raw_response(self, url: str) -> Optional[httpx.Response]:
+    async def get_raw_response(
+        self,
+        url: str,
+        headers: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+    ) -> Optional[httpx.Response]:
         client = await self._get_client()
         last_exception = None
         for attempt in range(self.retries):
             try:
-                response = await client.get(url)
+                # Use the specific request timeout if provided, otherwise the client's default
+                response = await client.get(url, headers=headers, timeout=timeout)
                 return response
             except httpx.RequestError as e:
                 last_exception = e
@@ -47,9 +53,9 @@ class PublicApiClient:
         return None
 
     async def get[T: BaseModel](
-        self, url: str, response_model: Type[T]
+        self, url: str, response_model: Type[T], timeout: Optional[float] = None
     ) -> Union[T, None]:
-        response = await self.get_raw_response(url)
+        response = await self.get_raw_response(url, timeout=timeout)
         if not response or response.status_code != 200:
             return None
 
@@ -61,6 +67,30 @@ class PublicApiClient:
                 data={"url": url, "error": str(e), "response_text": response.text},
             )
             return None
+
+    async def get_raw(
+        self, url: str, headers: Optional[Dict[str, Any]] = None
+    ) -> Optional[httpx.Response]:
+        return await self.get_raw_response(url, headers=headers)
+
+    async def post_raw(
+        self, url: str, json: dict, headers: Optional[dict] = None
+    ) -> Optional[httpx.Response]:
+        client = await self._get_client()
+        last_exception = None
+        for attempt in range(self.retries):
+            try:
+                response = await client.post(url, json=json, headers=headers)
+                return response
+            except httpx.RequestError as e:
+                last_exception = e
+                await asyncio.sleep(0.5 * (attempt + 1))
+                continue
+        log_error(
+            f"Failed to POST to public URL {url}",
+            data={"last_exception": str(last_exception)},
+        )
+        return None
 
     async def close(self):
         if self._client and not self._client.is_closed:

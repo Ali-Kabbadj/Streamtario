@@ -1,6 +1,6 @@
 import json
 import redis.asyncio as redis
-from typing import Type, TypeVar
+from typing import Type, TypeVar, Optional
 from pydantic import BaseModel
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.utils.logging import log_cache
@@ -25,7 +25,9 @@ class CachingExternalAddonProvider(IExternalAddonProvider):
     def _get_key(self, url: str) -> str:
         return f"{QUERY_CACHE_KEY_PREFIX}{url}"
 
-    async def get(self, url: str, response_model: Type[T]) -> T | None:
+    async def get(
+        self, url: str, response_model: Type[T], timeout: Optional[float] = None
+    ) -> T | None:
         key = self._get_key(url)
 
         try:
@@ -38,7 +40,9 @@ class CachingExternalAddonProvider(IExternalAddonProvider):
 
         # log_cache(f"Query cache MISS for URL: {url}")
 
-        fresh_data = await self.decorated_provider.get(url, response_model)
+        fresh_data = await self.decorated_provider.get(
+            url, response_model, timeout=timeout
+        )
 
         if fresh_data:
             try:

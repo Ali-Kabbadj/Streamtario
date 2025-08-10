@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, TypeVar
+from typing import Type, TypeVar, Optional
 from pydantic import BaseModel
 
 T = TypeVar("T", bound="BaseModel")
@@ -7,7 +7,9 @@ T = TypeVar("T", bound="BaseModel")
 
 class IExternalAddonProvider(ABC):
     @abstractmethod
-    async def get(self, url: str, response_model: Type[T]) -> T | None:
+    async def get(
+        self, url: str, response_model: Type[T], timeout: Optional[float] = None
+    ) -> T | None:
         """Performs a GET request and returns the parsed model or None on failure."""
         pass
 

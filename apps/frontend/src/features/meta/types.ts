@@ -1,8 +1,26 @@
-import type { GetStreamsQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+export interface FilmographyItem {
+    title: string;
+    year: string | null;
+    role: string;
+    type: string;
+}
 
-export type Stream = NonNullable<GetStreamsQuery["profile"]>["streams"][number];
+export interface ExternalLink {
+    site: string;
+    url: string | null;
+}
 
-export interface FileStats {
-    hash: string | null;
-    size: number;
+export interface PersonDetails {
+    name: string;
+    birthName: string | null;
+    summary: string | null;
+    biography: string | null;
+    birthDate: string | null;
+    birthPlace: string | null;
+    deathDate: string | null;
+    deathLocation: string | null;
+    imageUrl: string | null;
+    professions: string[];
+    filmography: FilmographyItem[];
+    externalLinks: ExternalLink[];
 }

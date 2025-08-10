@@ -38,6 +38,7 @@ export function MetaEpisodes({
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
   const tabsListRef = useRef<HTMLDivElement | null>(null);
   const { actions: playerActions } = usePlayer();
+  const initialSeasonSet = useRef(false); // <-- THE FIX: Part 1 - Create the flag
 
   const seasons = useMemo(() => {
     if (!videos) return {};
@@ -63,10 +64,17 @@ export function MetaEpisodes({
   }, [seasons]);
 
   useEffect(() => {
+    // THE FIX: Part 2 - Check the flag before running
+    if (initialSeasonSet.current) {
+      return;
+    }
+
     if (initialSeason && seasonKeys.includes(initialSeason)) {
       setSelectedSeason(initialSeason);
+      initialSeasonSet.current = true; // Set the flag so this doesn't run again
     } else if (seasonKeys.length > 0 && !selectedSeason) {
       setSelectedSeason(seasonKeys[0]);
+      initialSeasonSet.current = true; // Also set the flag here
     }
   }, [seasonKeys, initialSeason, selectedSeason]);
 

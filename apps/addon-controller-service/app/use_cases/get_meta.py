@@ -24,7 +24,11 @@ class GetMetaUseCase:
         self.addon_provider = addon_provider
 
     async def execute(
-        self, manifest_url: str, item_id: str, item_type: Optional[str]
+        self,
+        manifest_url: str,
+        item_id: str,
+        item_type: Optional[str],
+        timeout: Optional[float] = None,
     ) -> Optional[MetaResponse]:
         try:
             manifest = await self.get_manifest_use_case.execute(manifest_url)
@@ -33,9 +37,13 @@ class GetMetaUseCase:
 
             if item_type:
                 url = f"{base_url}/meta/{item_type}/{encoded_item_id}.json"
-                result = await self.addon_provider.get(url, response_model=MetaResponse)
+                # This call is now valid because the timeout parameter is passed down
+                result = await self.addon_provider.get(
+                    url, response_model=MetaResponse, timeout=timeout
+                )
                 if result and result.meta:
                     return result
+                # This log is now correct
                 log_warn(f"Direct meta fetch failed for {url}")
 
             meta_resource = next(
@@ -56,7 +64,7 @@ class GetMetaUseCase:
             async def _try_fetch(t: str) -> Optional[MetaResponse]:
                 url = f"{base_url}/meta/{t}/{encoded_item_id}.json"
                 response = await self.addon_provider.get(
-                    url, response_model=MetaResponse
+                    url, response_model=MetaResponse, timeout=timeout
                 )
                 if response and response.meta:
                     return response

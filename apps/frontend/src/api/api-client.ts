@@ -1,4 +1,5 @@
 import { APP_CONFIG } from "@/config/env";
+import type { PersonDetails } from "@/features/meta/types";
 
 type ApiError = {
     type: string;
@@ -53,4 +54,12 @@ export async function fetchClient<T>(
         });
         throw new ClientError(errorDetail);
     }
+}
+
+
+export async function fetchPersonDetails(name: string): Promise<PersonDetails> {
+    const encodedName = encodeURIComponent(name);
+    return fetchClient<PersonDetails>(`/api/v1/addon-controller/internal/v1/person-details?name=${encodedName}`, {
+        method: 'GET',
+    }, `No details could be found for ${name}.`);
 }

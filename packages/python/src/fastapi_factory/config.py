@@ -46,6 +46,7 @@ class BaseAppSettings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: Optional[int] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRETS_FILE: Optional[str] = None
+    TMDB_API_KEY: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=[

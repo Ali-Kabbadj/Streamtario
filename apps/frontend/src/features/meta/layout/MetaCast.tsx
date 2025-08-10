@@ -8,9 +8,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MetaCastProps {
   cast?: (CastType | null)[] | null;
+  onPersonClick: (name: string) => void; // <-- ADD PROP
 }
 
-export function MetaCast({ cast }: MetaCastProps) {
+export function MetaCast({ cast, onPersonClick }: MetaCastProps) {
   const castListRef = useRef<HTMLDivElement | null>(null);
 
   const scrollHorizontally = (
@@ -44,8 +45,12 @@ export function MetaCast({ cast }: MetaCastProps) {
           className="scrollbar-hide flex gap-4 overflow-x-auto"
         >
           {cast.map((member, index) =>
-            member ? (
-              <CastMemberCard key={`${member.name}-${index}`} member={member} />
+            member?.name ? (
+              <CastMemberCard
+                key={`${member.name}-${index}`}
+                member={member}
+                onClick={() => onPersonClick(member.name!)} // <-- PASS HANDLER
+              />
             ) : null,
           )}
         </div>

@@ -50,7 +50,7 @@ export function HomeView() {
 
       <ContinueWatchingSection />
 
-      {(isLoading || isPending) && renderSkeletons()}
+      {/* {(isLoading || isPending) && renderSkeletons()}
 
       {isSuccess && !hasContent && (
         <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50">
@@ -63,7 +63,7 @@ export function HomeView() {
       {hasContent &&
         data.profile!.homeCatalogs.map((addonData) => (
           <AddonSection key={addonData.addonName} data={addonData} />
-        ))}
+        ))} */}
     </div>
   );
 }

@@ -4,11 +4,15 @@ import type { CastType } from "@/orchestrators/graphql-query-orchestrator/gen/gr
 
 interface CastMemberCardProps {
   member: CastType;
+  onClick: () => void; // <-- ADD PROP
 }
 
-export function CastMemberCard({ member }: CastMemberCardProps) {
+export function CastMemberCard({ member, onClick }: CastMemberCardProps) {
   return (
-    <Card className="hover:border-primary/50 w-36 flex-shrink-0 border-2 border-transparent bg-slate-800/50 transition-all duration-300">
+    <Card
+      onClick={onClick}
+      className="hover:border-primary/50 w-36 flex-shrink-0 cursor-pointer border-2 border-transparent bg-slate-800/50 transition-all duration-300"
+    >
       <CardContent className="p-0 text-center">
         <div className="relative h-44 w-full">
           <ImageWithFallback

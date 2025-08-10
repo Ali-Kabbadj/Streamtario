@@ -42,6 +42,11 @@ class CatalogItemType:
     type: str
     name: str
     poster: Optional[str] = None
+    imdb_id: Optional[str] = None  # <-- ADDED
+    description: Optional[str] = None  # <-- ADDED
+    release_info: Optional[str] = None  # <-- ADDED
+    genres: Optional[List[str]] = None  # <-- ADDED
+    imdbRating: Optional[str] = None  # <-- ADDED
 
     @classmethod
     def from_pydantic(cls, model: CatalogItem) -> "CatalogItemType":
@@ -50,6 +55,11 @@ class CatalogItemType:
             type=model.type,
             name=model.name or f"Untitled {model.type}",
             poster=model.poster,
+            imdb_id=model.imdb_id,  # <-- ADDED
+            description=model.description,  # <-- ADDED
+            release_info=model.release_info,  # <-- ADDED
+            genres=model.genres,  # <-- ADDED
+            imdbRating=model.imdbRating,  # <-- ADDED
         )
 
 
@@ -234,7 +244,7 @@ class CatalogResult:
 @strawberry.type
 class AddonSearchResultType:
     addon_name: str
-    results_by_type: JSON
+    results_by_type: JSON  # type: ignore
     error: Optional[str] = None
 
 
@@ -265,7 +275,7 @@ class StreamType:
     yt_id: Optional[str] = None
     info_hash: Optional[str] = None
     file_idx: Optional[int] = None
-    behavior_hints: Optional[JSON] = None
+    behavior_hints: Optional[JSON] = None  # type: ignore
     addon_name: Optional[str] = None
     announce: Optional[List[str]] = None
     files: Optional[List["StreamFileType"]] = None
@@ -301,7 +311,7 @@ class ProfileExtension:
         itemType: str,
         catalogId: Optional[str] = None,
         manifestId: Optional[str] = None,
-        extraProps: Optional[JSON] = None,
+        extraProps: Optional[JSON] = None,  # type: ignore
         filterByType: Optional[str] = None,
     ) -> "CatalogResult":
         from .resolvers import resolve_profile_catalog
