@@ -11,6 +11,8 @@
 #include "logger/logger.h"
 #include "helpers/helpers.h"
 
+#define IDI_APPICON 101
+
 #ifndef _DEBUG
 void AssignProcessToJob(HANDLE hJob, HANDLE hProcess)
 {
@@ -110,7 +112,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = g_szWindowClass;
-    wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
+    wc.hIcon = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_APPICON));
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     RegisterClassW(&wc);

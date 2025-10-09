@@ -48,9 +48,15 @@ set(SOURCES
     src/webview/webview.cpp
     src/webview_protocol/command_handler/command_handler.cpp
     src/webview_protocol/event_emitter/event_emitter.cpp
+    src/resources/resource.rc
 )
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES})
+
+
+# ---- Unicode support ----
+target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE)
+
 
 # ---- Include Directories ----
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

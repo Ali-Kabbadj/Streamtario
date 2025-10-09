@@ -77,7 +77,9 @@ class ProfileRepository(IProfileRepository):
         )
         self.session.add(new_profile_orm)
         await self.session.flush()
-
+        await self.session.refresh(
+            new_profile_orm, attribute_names=["installed_addons", "playback_history"]
+        )
         return Profile.model_validate(new_profile_orm)
 
     async def update(self, profile: Profile) -> Profile:

@@ -33,11 +33,7 @@ export function SearchView({ query }: SearchViewProps) {
   );
 
   return (
-    <div className="space-y-12">
-      <h1 className="text-3xl font-bold tracking-tight">
-        Search results for {query}
-      </h1>
-
+    <div className="space-y-8 py-5">
       {isLoading && results.length === 0 && renderSkeletons()}
 
       {error && <p className="text-red-500">{error}</p>}

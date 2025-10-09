@@ -46,7 +46,7 @@ export const ContinueWatchingCard = ({ item }: ContinueWatchingCardProps) => {
 
   return (
     <motion.div
-      className="group relative cursor-pointer overflow-hidden rounded-lg"
+      className="group relative z-50 cursor-pointer overflow-hidden rounded-lg"
       whileHover={{ scale: 1.05 }}
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
       layout

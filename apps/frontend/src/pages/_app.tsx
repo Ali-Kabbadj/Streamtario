@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
+import Head from "next/head"; // <-- 1. IMPORT THIS
 import { GraphqlProvider } from "@/providers/graphql-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -14,6 +15,10 @@ import { Toaster } from "@/components/ui/sonner";
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
+      <Head>
+        <title>Streamtario</title>
+      </Head>
+
       <GoogleOAuthProvider clientId={APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
         <ThemeProvider
           attribute="class"

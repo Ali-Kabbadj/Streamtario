@@ -76,7 +76,7 @@ export function DiscoverFilters({
   }, [selectedCatalogData]);
 
   return (
-    <div className="mb-8 space-y-4">
+    <>
       <div className="flex flex-wrap items-center gap-4">
         <Select value={selectedType} onValueChange={onTypeChange}>
           <SelectTrigger className="w-auto min-w-[180px]">
@@ -143,6 +143,6 @@ export function DiscoverFilters({
           </Select>
         ))}
       </div>
-    </div>
+    </>
   );
 }

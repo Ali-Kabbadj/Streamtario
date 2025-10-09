@@ -250,7 +250,7 @@ export function StreamPanel({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="bg-card fixed top-16 right-0 z-20 flex h-[calc(100vh-4rem)] w-full flex-col border-l border-slate-700 shadow-2xl lg:w-1/3"
+          className="bg-card fixed top-16 right-0 z-20 flex h-[calc(100vh-4rem)] w-full flex-col rounded-tl-2xl shadow-2xl lg:w-1/3"
         >
           <div className="flex-shrink-0 p-4">
             <div className="flex items-start justify-between">
@@ -286,7 +286,7 @@ export function StreamPanel({
                     Sort by {sortKey}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="bg-secondary" align="start">
                   <DropdownMenuItem onClick={() => setSortKey("best")}>
                     Best Match
                   </DropdownMenuItem>
@@ -311,7 +311,10 @@ export function StreamPanel({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 space-y-4">
+                <PopoverContent
+                  className="bg-secondary w-48 space-y-4"
+                  align="end"
+                >
                   <FilterSection
                     title="Resolution"
                     options={filterOptions.resolutions}

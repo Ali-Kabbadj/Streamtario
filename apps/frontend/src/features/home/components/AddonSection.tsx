@@ -29,8 +29,10 @@ export function AddonSection({ data }: AddonSectionProps) {
     return null;
   }
   return (
-    <section className="space-y-8">
-      <h2 className="text-3xl font-bold tracking-tight">{data.addonName}</h2>
+    <section className="space-y-1">
+      <h2 className="text-center text-3xl font-bold tracking-tight">
+        {data.addonName}
+      </h2>
       {data.content.map((row) => (
         <ContentTypeRow key={row.title} title={row.title} items={row.items} />
       ))}

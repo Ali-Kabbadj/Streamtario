@@ -48,8 +48,6 @@ export const SettingsEditor: React.FC<Props> = ({
   const methods = useForm({ defaultValues: initialSettings.data });
   const { reset, getValues, setValue, watch, formState } = methods;
 
-  // FIX: The debounced save function is now stable because it's wrapped in useCallback.
-  // Its dependencies are stable and will not change on re-render.
   const debouncedSave = useDebouncedCallback(
     useCallback(
       (data: Record<string, unknown>) => {
@@ -75,9 +73,6 @@ export const SettingsEditor: React.FC<Props> = ({
     1200,
   );
 
-  // FIX: This is the stable useEffect hook for auto-saving.
-  // It runs only once and sets up a subscription. The logic inside the subscription
-  // has access to the latest form state via closures, breaking the loop.
   useEffect(() => {
     const subscription = watch((_value, { type }) => {
       // Only save on actual user input, not on programmatic changes

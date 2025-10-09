@@ -57,7 +57,7 @@ export function MetaHeader({
 
   return (
     <>
-      <div className="mt-40 flex flex-col gap-8 px-4 md:flex-row md:items-end md:px-0">
+      <div className="flex flex-col gap-x-8 px-4 md:flex-row md:items-end md:px-0">
         <div className="relative h-72 w-52 flex-shrink-0 self-center shadow-2xl md:self-end">
           <ImageWithFallback
             src={meta.poster}

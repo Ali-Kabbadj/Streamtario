@@ -102,10 +102,23 @@
           }
         }
       },
+      // {
+      //   "label": "CMake: Configure & Build",
+      //   "type": "shell",
+      //   "command": "cmake -S ${workspaceFolder:webview2-host} -B ${workspaceFolder:webview2-host}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ${workspaceFolder:webview2-host}/build --config Debug",
+      //   "group": { "kind": "build", "isDefault": true },
+      //   "problemMatcher": ["$msCompile"]
+      // },
       {
         "label": "CMake: Configure & Build",
         "type": "shell",
-        "command": "cmake -S ${workspaceFolder:webview2-host} -B ${workspaceFolder:webview2-host}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ${workspaceFolder:webview2-host}/build --config Debug",
+        "command": "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=amd64 && cmake -S ${workspaceFolder:webview2-host} -B ${workspaceFolder:webview2-host}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ${workspaceFolder:webview2-host}/build --config Debug",
+        "options": {
+          "shell": {
+            "executable": "cmd.exe",
+            "args": ["/d", "/c"]
+          }
+        },
         "group": { "kind": "build", "isDefault": true },
         "problemMatcher": ["$msCompile"]
       },
@@ -348,9 +361,9 @@
   "settings": {
     "python.analysis.autoImportCompletions": true,
     "python.analysis.extraPaths": ["./packages/python/src"],
-    "terminal.integrated.env.windows": {
-      "PYTHONPATH": "${workspaceFolder}\\packages\\python\\src"
-    },
+    // "terminal.integrated.env.windows": {
+    //   "PYTHONPATH": "${workspaceFolder}\\packages\\python\\src"
+    // },
     "terminal.integrated.env.linux": {
       "PYTHONPATH": "${workspaceFolder}/packages/python/src"
     },
@@ -399,6 +412,9 @@
       "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
       "CMAKE_TOOLCHAIN_FILE": "${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "VCPKG_TARGET_TRIPLET": "x64-windows"
+    },
+    "terminal.integrated.env.windows": {
+      "VCPKG_VISUAL_STUDIO_PATH": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community"
     },
     "files.associations": {
       "*.erd": "json",

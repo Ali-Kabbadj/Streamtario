@@ -22,8 +22,8 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="bg-background/50 z-10 flex w-20 flex-col border-r border-slate-700">
-        <nav className="flex flex-col items-center gap-4 px-2 py-4">
+      <aside className="z-10 flex w-20 flex-col">
+        <nav className="flex flex-col items-center gap-4 bg-transparent py-4">
           {navLinks.map(({ viewName, label, icon: Icon }) => {
             const isActive = currentView.name === viewName;
             return (
@@ -36,6 +36,9 @@ export function Sidebar() {
                       {
                         "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground":
                           isActive,
+                      },
+                      {
+                        "border-accent border-2": !isActive,
                       },
                     )}
                   >

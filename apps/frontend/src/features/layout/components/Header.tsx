@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useProfileContext } from "@/providers/profile-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useView } from "@/providers/view-provider";
-import Image from "next/image";
+import Image from "next/image"; // <-- 1. IMPORT next/image
 import { StreamingStatusIndicator } from "@/features/player/components/StreamingStatusIndicator";
 
 export function Header() {
@@ -45,16 +45,30 @@ export function Header() {
     navigateTo({ name: "settings" });
   };
 
-  const showBackButton = currentView.name === "meta";
+  const showBackButton = currentView.name !== "home";
   const showSearchBar = currentView.name !== "meta";
 
   return (
     <header className="sticky top-0 flex h-16 items-center justify-between gap-4 bg-transparent px-4 md:px-6">
       <div className="flex flex-1 items-center justify-start">
-        {showBackButton && (
+        {showBackButton ? (
           <Button variant="ghost" size="icon" onClick={navigateBack}>
             <ArrowLeft className="h-6 w-6" />
           </Button>
+        ) : (
+          <button
+            onClick={() => navigateTo({ name: "home" })}
+            className="focus:ring-ring rounded-md focus:ring-2 focus:outline-none"
+            aria-label="Go to Home"
+          >
+            <Image
+              src="/images/app.png"
+              alt="Streamtario Logo"
+              width={40}
+              height={40}
+              className="h-8 w-8"
+            />
+          </button>
         )}
       </div>
 

@@ -17,7 +17,7 @@ export function HomeView() {
       <div className="space-y-4">
         <Skeleton className="h-8 w-1/3" />
         <div className="flex space-x-4 overflow-x-auto pb-4">
-          {Array.from({ length: 6 }).map((_, j) => (
+          {Array.from({ length: 10 }).map((_, j) => (
             <div key={j} className="w-48 flex-shrink-0">
               <Skeleton className="h-[270px] w-full rounded-lg" />
             </div>
@@ -27,7 +27,29 @@ export function HomeView() {
       <div className="space-y-4">
         <Skeleton className="h-8 w-1/4" />
         <div className="flex space-x-4 overflow-x-auto pb-4">
-          {Array.from({ length: 6 }).map((_, j) => (
+          {Array.from({ length: 10 }).map((_, j) => (
+            <div key={j} className="w-48 flex-shrink-0">
+              <Skeleton className="h-[270px] w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-1/4" />
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {Array.from({ length: 10 }).map((_, j) => (
+            <div key={j} className="w-48 flex-shrink-0">
+              <Skeleton className="h-[270px] w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-1/4" />
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {Array.from({ length: 10 }).map((_, j) => (
             <div key={j} className="w-48 flex-shrink-0">
               <Skeleton className="h-[270px] w-full rounded-lg" />
             </div>
@@ -43,17 +65,19 @@ export function HomeView() {
     data.profile.homeCatalogs.length > 0;
 
   return (
-    <div className="space-y-12">
-      <div className="flex items-baseline justify-between">
-        <h1 className="mb-4 text-6xl font-bold tracking-tight">Home</h1>
-      </div>
+    <div className="space-y-8 pr-4">
+      {/* <div className="flex items-baseline justify-between">
+        <h1 className="pl-4 text-6xl font-bold tracking-tight sm:pr-6 md:pl-8">
+          Home
+        </h1>
+      </div> */}
 
       <ContinueWatchingSection />
 
-      {/* {(isLoading || isPending) && renderSkeletons()}
+      {(isLoading || isPending) && renderSkeletons()}
 
       {isSuccess && !hasContent && (
-        <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50">
+        <div className="flex h-40 w-[60vw] items-center justify-center self-baseline justify-self-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50 p-10">
           <p className="text-muted-foreground">
             No content to display. Try installing some addons!
           </p>
@@ -63,7 +87,7 @@ export function HomeView() {
       {hasContent &&
         data.profile!.homeCatalogs.map((addonData) => (
           <AddonSection key={addonData.addonName} data={addonData} />
-        ))} */}
+        ))}
     </div>
   );
 }

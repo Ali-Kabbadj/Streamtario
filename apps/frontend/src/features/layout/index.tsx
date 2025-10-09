@@ -19,7 +19,7 @@ export function MainAppLayout({ children }: MainAppLayoutProps) {
       <div className="flex flex-1 overflow-hidden">
         {showSideBar && <Sidebar />}
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="p-4 sm:px-6 md:p-8">{children}</div>
+          <div className="pl-2">{children}</div>
         </main>
       </div>
     </div>

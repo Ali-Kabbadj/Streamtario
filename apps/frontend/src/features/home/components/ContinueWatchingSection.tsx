@@ -14,7 +14,7 @@ export function ContinueWatchingSection() {
       <div className="space-y-4">
         <Skeleton className="h-8 w-1/3" />
         <div className="flex space-x-4 overflow-x-auto pb-4">
-          {Array.from({ length: 6 }).map((_, j) => (
+          {Array.from({ length: 10 }).map((_, j) => (
             <div key={j} className="w-48 flex-shrink-0">
               <Skeleton className="h-[270px] w-full rounded-lg" />
             </div>
@@ -31,10 +31,10 @@ export function ContinueWatchingSection() {
 
   return (
     <div>
-      <h2 className="mb-4 pt-4 text-3xl font-bold tracking-tight">
+      {/* <h2 className="mb-4 pr-4 text-3xl font-bold tracking-tight">
         Continue Watching
-      </h2>
-      <div className="flex space-x-4 overflow-x-auto pb-4">
+      </h2> */}
+      <div className="flex space-x-4 overflow-x-auto py-4 pt-4 pr-4 pb-2 pl-2">
         {data.map((item) => (
           <div key={item.contentId} className="w-48 flex-shrink-0">
             <ContinueWatchingCard item={item} />

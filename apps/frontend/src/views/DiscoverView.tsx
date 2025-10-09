@@ -155,10 +155,7 @@ export function DiscoverView() {
   });
 
   return (
-    <div className="space-y-8">
-      <div className="mb-8">
-        <h1 className="mb-4 text-6xl font-bold tracking-tight">Discover</h1>
-      </div>
+    <div className="space-y-8 py-5">
       {isLoadingDiscover ? (
         <div className="space-y-4">
           <Skeleton className="h-10 w-full max-w-lg" />

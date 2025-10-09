@@ -22,7 +22,6 @@ import { MetaHeader } from "@/features/meta/layout/MetaHeader";
 import { MetaSynopsis } from "@/features/meta/layout/MetaSynopsis";
 import { MetaCast } from "@/features/meta/layout/MetaCast";
 import { MetaEpisodes } from "@/features/meta/layout/MetaEpisodes";
-import { MetaLinks } from "@/features/meta/layout/MetaLinks";
 import { PersonDetailsModal } from "@/features/meta/components/PersonDetailsModal";
 import type { PersonDetails } from "@/features/meta/types";
 import { fetchPersonDetails } from "@/api/api-client";
@@ -245,7 +244,7 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative flex min-h-screen w-full"
+        className="relative flex min-h-screen w-full p-6"
       >
         {meta.background && (
           <>

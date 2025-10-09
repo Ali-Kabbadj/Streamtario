@@ -60,7 +60,7 @@ export function CatalogGrid({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pr-4 sm:pr-6 md:pr-8">
       <div className={gridClassName}>
         {allItems.map((item, index) => {
           const isPrefetchTrigger =

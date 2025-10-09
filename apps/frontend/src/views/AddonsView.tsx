@@ -109,31 +109,31 @@ export function AddonsView() {
   }, [selectedAddon, installedUrls]);
 
   return (
-    <>
-      <div className="space-y-8">
-        <div className="mb-8 flex items-center justify-between">
+    <div className="space-y-8 py-5">
+      <div className="pr-4 pb-4">
+        {/* <div className="mb-8 flex items-center justify-between">
           <div className="mb-8">
             <h1 className="mb-4 text-6xl font-bold tracking-tight">
               Add-on Management
             </h1>
           </div>
-        </div>
+        </div> */}
 
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as TabValue)}
           className="w-full"
         >
-          <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center justify-start">
             <TabsList>
               <TabsTrigger value="installed">Installed</TabsTrigger>
               <TabsTrigger value="official">Official</TabsTrigger>
               <TabsTrigger value="community">Community</TabsTrigger>
             </TabsList>
 
-            <div>
+            <div className="pl-2">
               <Button onClick={() => setInstallSheetOpen(true)}>
-                <Link className="mr-2 h-4 w-4" />
+                <Link className="mr-2 h-3 w-4" />
                 Install from URL
               </Button>
             </div>
@@ -166,6 +166,6 @@ export function AddonsView() {
         onInstall={() => selectedAddon && handleInstall(selectedAddon)}
         onUninstall={() => selectedAddon && handleUninstall(selectedAddon)}
       />
-    </>
+    </div>
   );
 }

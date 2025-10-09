@@ -19,6 +19,7 @@ class BaseAppSettings(BaseSettings):
     # --- SSL
     SSL_KEYFILE: Optional[str] = None
     SSL_CERTFILE: Optional[str] = None
+    SSL_CA_CERTFILE: Optional[str] = None
 
     # --- Database
     DB_USER: Optional[str] = None

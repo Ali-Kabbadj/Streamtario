@@ -16,6 +16,7 @@ extern bool g_isMpvPlaying;
 const WCHAR g_szWindowClass[] = L"WebViewMPVWindowClass";
 const WCHAR g_szTitle[] = L"Streamtario";
 
+
 // Globals
 extern HINSTANCE g_hInst;
 extern HWND g_hWnd;

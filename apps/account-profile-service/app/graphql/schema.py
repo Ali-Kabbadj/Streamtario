@@ -226,6 +226,10 @@ schema = strawberry.federation.Schema(
 
 
 class CustomGraphQLRouter(GraphQLRouter):
+    def __init__(self, schema, debug=False, **kwargs):
+        super().__init__(schema, **kwargs)
+        self.debug = debug  # store it locally for format_graphql_error()
+
     async def get_context(self, request: Request, response: Response) -> Any:
         return {"request": request}
 

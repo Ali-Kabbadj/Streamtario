@@ -54,14 +54,14 @@ export function SettingsView() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="space-y-8 py-5 pr-4">
       <main>
-        <div className="mb-8">
+        {/* <div className="mb-8">
           <h1 className="mb-2 text-4xl font-bold tracking-tight">Settings</h1>
           <p className="text-lg text-slate-400">
             Customize application settings and manage dynamic lists.
           </p>
-        </div>
+        </div> */}
 
         <SettingsEditor
           profileId={profileId}

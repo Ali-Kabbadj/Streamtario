@@ -10,3 +10,5 @@ dev_resources
 .env
 .env.local
 build
+.venv
+package-lock.json
