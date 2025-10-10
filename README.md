@@ -93,7 +93,7 @@ Streamtario is not just a clone; it's a complete, ground-up re-imagining of a mo
 *   **`webview2-host` (C++)**: The native Windows desktop application.
     *   **Responsibilities**: Hosts the Next.js frontend within a borderless WebView2 control. It embeds an MPV player instance, binding it to the main window handle. It facilitates a two-way communication protocol between the JavaScript frontend and the C++ backend to control playback, creating a seamless and highly performant native media player experience.
  
-*   **`StreamtarioLip` (Python)**:  A python library of shared with all the microservies.
+*   **`StreamtarioLib` (Python)**:  A python library of shared with all the microservies.
     *   **Responsibilities**: holds the data layer definitions, and shared code for all the python projects.
 
 ### Project State
@@ -155,5 +155,6 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 
 *   The **Stremio** team for the inspiration and the open-source addon ecosystem.
 *   The developers of all the open-source libraries and frameworks that made this project possible.
+
 
 
