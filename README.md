@@ -4,6 +4,12 @@
 
 **A modern, media streaming platform inspired by Stremio, built on a powerful microservices architecture.**
 
+#### Architecture Overview
+
+The system is composed of several independent services that communicate via REST APIs, a federated GraphQL gateway, and a Redis event bus. This design ensures separation of concerns, scalability, and resilience.
+
+![Alt text](./gitresources/diagrtamStreamtario.svg)
+
 </div>
 
 ---
@@ -19,6 +25,7 @@ https://github.com/user-attachments/assets/fe2326ab-b8dc-43c5-b529-5ab1a416bc66
 </div>
 
 ---
+
 
 ### ✨ Features
 
@@ -45,11 +52,6 @@ https://github.com/user-attachments/assets/fe2326ab-b8dc-43c5-b529-5ab1a416bc66
 
 Streamtario is not just a clone; it's a complete, ground-up re-imagining of a modern streaming application using a distributed, microservices-oriented architecture.
 
-#### Architecture Overview
-
-The system is composed of several independent services that communicate via REST APIs, a federated GraphQL gateway, and a Redis event bus. This design ensures separation of concerns, scalability, and resilience.
-
-![Alt text](./gitresources/diagrtamStreamtario.svg)
 
 
 #### Technology Stack
@@ -150,3 +152,4 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 
 *   The **Stremio** team for the inspiration and the open-source addon ecosystem.
 *   The developers of all the open-source libraries and frameworks that made this project possible.
+
