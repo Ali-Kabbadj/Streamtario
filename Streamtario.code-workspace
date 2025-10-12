@@ -8,6 +8,10 @@
       "name": "python-libs",
       "path": "packages/python"
     },
+    {
+      "name": "scripts",
+      "path": "scripts"
+    },
     { "name": "frontend", "path": "apps/frontend" },
     { "name": "state-tracker-service", "path": "apps/state-tracker-service" },
     {
@@ -15,7 +19,6 @@
       "path": "apps/account-profile-service"
     },
     { "name": "webview2-host", "path": "apps/webview2-host" },
-    { "name": "build", "path": "build" },
     { "name": "local_dev_deps", "path": "local_dev_deps" },
     { "name": "database", "path": "database" },
     { "name": "dev resources", "path": "dev_resources" },
