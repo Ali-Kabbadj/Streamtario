@@ -1,0 +1,102 @@
+---
+config:
+  layout: dagre
+---
+flowchart TD
+ subgraph Client_Environment["Client Environment"]
+        Frontend["Frontend (Next.js)<br>(Runs in WebView2)"]
+        Desktop_Client["Desktop Client (C++)<br>(Hosts WebView2)"]
+        MPV["libmpv Player<br>(Embedded Instance)"]
+  end
+ subgraph Core_Data_Services["Core Data Services"]
+        Account_Profile_Service["Account/Profile Service (Python)<br>(Domain Logic)"]
+        Addon_Controller_Service["Addon Controller Service (Python)<br>(Aggregator)"]
+        Auth_Service["Auth Service (Python)<br>(JWT Management)"]
+  end
+ subgraph Streaming_Pipeline["Streaming Pipeline"]
+        Streaming_Service["Streaming Service (TS)<br>(Controller/Aggregator)"]
+        TorrServer_Daemon["TorrServer Daemon (Go)<br>(Manages on-demand piece download and stream cache)"]
+  end
+ subgraph Shared_Infrastructure["Shared Infrastructure"]
+        PostgreSQL[("PostgreSQL<br>(Primary Database)")]
+        Redis[("Redis<br>(Cache &amp; Pub/Sub Event Bus)")]
+  end
+ subgraph Backend_Infrastructure["Backend Infrastructure"]
+        API_Gateway["API Gateway (Apollo)<br>(GraphQL Federation &amp; Proxy)"]
+        Core_Data_Services
+        Streaming_Pipeline
+        Shared_Infrastructure
+  end
+ subgraph Streamtario["Streamtario"]
+        Client_Environment
+        Backend_Infrastructure
+  end
+    Frontend L_Frontend_Desktop_Client_0@-- "Sends JS Commands<br>(e.g., play, seek, volume)" --> Desktop_Client
+    Desktop_Client L_Desktop_Client_Frontend_0@-- "Sends C++ Events<br>(e.g., playback status, time updates)" --> Frontend
+    Desktop_Client L_Desktop_Client_MPV_0@-- Controls Playback</br> --> MPV
+    Frontend L_Frontend_API_Gateway_0@-- GraphQL Queries/Mutations<br>(User data, Addons, Metadata) --> API_Gateway
+    Frontend L_Frontend_API_Gateway_2@-- REST (Auth) & WebSocket (Stream Stats) --> API_Gateway
+    API_Gateway L_API_Gateway_Account_Profile_Service_0@-- Federates GraphQL Schema --> Account_Profile_Service & Addon_Controller_Service
+    API_Gateway L_API_Gateway_Auth_Service_0@-- Proxies REST Auth Requests --> Auth_Service
+    API_Gateway L_API_Gateway_Streaming_Service_0@-- Proxies Stream Control API & WebSockets --> Streaming_Service
+    Auth_Service L_Auth_Service_Account_Profile_Service_0@-- Authentication state --> Account_Profile_Service
+    Account_Profile_Service L_Account_Profile_Service_Auth_Service_0@-- Handle Credentials --> Auth_Service
+    Addon_Controller_Service L_Addon_Controller_Service_Account_Profile_Service_0@-- Requests Profile's<br>Installed Addon List from --> Account_Profile_Service
+    Account_Profile_Service L_Account_Profile_Service_PostgreSQL_0@-- Persists &amp; Retrieves Data via<br>UoW &amp; Repository --> PostgreSQL
+    Account_Profile_Service L_Account_Profile_Service_Redis_0@-- "Publishes Events<br>(e.g., AddonInstalledEvent)" --> Redis
+    Addon_Controller_Service L_Addon_Controller_Service_Redis_0@-- Subscribes to Events --> Redis
+    Addon_Controller_Service L_Addon_Controller_Service_Redis_2@-- Caches Manifests &amp;<br>Aggregated Content --> Redis
+    Streaming_Service L_Streaming_Service_TorrServer_Daemon_0@-- Controls Torrent Session<br>(start, stop, get stats) --> TorrServer_Daemon
+    Shared_Infrastructure --> Backend_Infrastructure
+     Frontend:::clientStyle
+     Desktop_Client:::clientStyle
+     MPV:::playerStyle
+     Account_Profile_Service:::dataServiceStyle
+     Addon_Controller_Service:::dataServiceStyle
+     Auth_Service:::dataServiceStyle
+     Streaming_Service:::streamingStyle
+     TorrServer_Daemon:::streamingStyle
+     PostgreSQL:::dbStyle
+     Redis:::dbStyle
+     API_Gateway:::gatewayStyle
+    classDef clientStyle fill:#D6EAF8,stroke:#3498DB,stroke-width:2px,color:#000
+    classDef playerStyle fill:#FADBD8,stroke:#E74C3C,stroke-width:2px,color:#000
+    classDef gatewayStyle fill:#D5F5E3,stroke:#2ECC71,stroke-width:2px,color:#000
+    classDef dataServiceStyle fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px,color:#000
+    classDef streamingStyle fill:#EBDEF0,stroke:#8E44AD,stroke-width:2px,color:#000
+    classDef dbStyle fill:#E5E7E9,stroke:#839192,stroke-width:2px,color:#000
+    style Frontend color:#000000,fill:#7ED957
+    style Desktop_Client color:#000000,stroke:#000000,stroke-width:2px,fill:#7ED957
+    style MPV stroke:#000000,color:#000000,fill:#7ED957
+    style Account_Profile_Service fill:#FF914D,stroke:#000000
+    style Addon_Controller_Service color:#000000,fill:#FF914D,stroke:#000000
+    style Auth_Service color:#000000,fill:#FF914D,stroke:#000000
+    style Streaming_Service fill:#004AAD,color:#FFFFFF
+    style TorrServer_Daemon color:#FFFFFF,fill:#004AAD
+    style PostgreSQL fill:#545454,color:#FFFFFF
+    style Redis fill:#000000,stroke-width:2px,stroke:#FFFFFF,color:#D9D9D9
+    style API_Gateway color:#FFFFFF,fill:#000000,stroke:#FFFFFF,stroke-width:2px
+    style Core_Data_Services color:#000000,fill:#FFBD59,stroke-width:2px,stroke:#0097B2
+    style Streaming_Pipeline color:#000000,fill:#38B6FF
+    style Shared_Infrastructure fill:#A6A6A6,stroke:#000000,color:#000000
+    style Client_Environment fill:#00BF63,stroke:#000000,color:#000000,stroke-width:2px
+    style Backend_Infrastructure color:#000000,fill:#C1FF72
+    style Streamtario fill:#8C52FF
+    linkStyle 6 color:#000000,fill:none
+    L_Frontend_Desktop_Client_0@{ animation: slow } 
+    L_Desktop_Client_Frontend_0@{ animation: slow } 
+    L_Desktop_Client_MPV_0@{ animation: fast } 
+    L_Frontend_API_Gateway_0@{ animation: fast } 
+    L_Frontend_API_Gateway_2@{ animation: slow } 
+    L_API_Gateway_Account_Profile_Service_0@{ animation: slow } 
+    L_API_Gateway_Addon_Controller_Service_0@{ animation: fast } 
+    L_API_Gateway_Auth_Service_0@{ animation: slow } 
+    L_API_Gateway_Streaming_Service_0@{ animation: slow } 
+    L_Auth_Service_Account_Profile_Service_0@{ animation: slow } 
+    L_Account_Profile_Service_Auth_Service_0@{ animation: slow } 
+    L_Addon_Controller_Service_Account_Profile_Service_0@{ animation: slow } 
+    L_Account_Profile_Service_PostgreSQL_0@{ animation: slow } 
+    L_Account_Profile_Service_Redis_0@{ animation: fast } 
+    L_Addon_Controller_Service_Redis_0@{ animation: fast } 
+    L_Addon_Controller_Service_Redis_2@{ animation: fast } 
+    L_Streaming_Service_TorrServer_Daemon_0@{ animation: slow }
