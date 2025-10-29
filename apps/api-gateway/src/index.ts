@@ -27,17 +27,17 @@ const customDevFetcher = async (url: any, options: any) => {
   return fetch(url, { ...options, agent: localDevAgent });
 };
 
-class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
-  constructor(config: { url: string }) {
-    super(config);
-    this.fetcher = customDevFetcher;
-  }
-  willSendRequest({ request, context }: any) {
-    if (context.headers?.authorization) {
-      request.http.headers.set('authorization', context.headers.authorization);
-    }
-  }
-}
+// class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
+//   constructor(config: { url: string }) {
+//     super(config);
+//     this.fetcher = customDevFetcher;
+//   }
+//   willSendRequest({ request, context }: any) {
+//     if (context.headers?.authorization) {
+//       request.http.headers.set('authorization', context.headers.authorization);
+//     }
+//   }
+// }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,7 +80,6 @@ async function startGateway() {
     console.warn('Could not start HTTPS server, falling back to HTTP.');
     httpServer = http.createServer(app);
   }
-
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
       subgraphs: [
@@ -89,8 +88,24 @@ async function startGateway() {
       ],
       pollIntervalInMs: 5000,
     }),
-    buildService(service) {
-      return new UnsafeHttpsDataSource({ url: service.url ?? "" });
+    buildService({ url }) {
+      // If the URL is http, use a standard RemoteGraphQLDataSource
+      if (url && url.startsWith('http://')) {
+        return new RemoteGraphQLDataSource({ url });
+      }
+      // If the URL is https, but it's a localhost URL,
+      // you can use the custom fetcher to ignore SSL certificate validation.
+      // If it's a production URL, just use the default RemoteGraphQLDataSource.
+      if (url && url.startsWith('https://localhost')) {
+        return new RemoteGraphQLDataSource({
+          url,
+          // Override the fetcher for local development with HTTPS
+          fetcher: customDevFetcher,
+        });
+      }
+      // For all other cases, use the default RemoteGraphQLDataSource
+      // which will use the standard Node.js fetch
+      return new RemoteGraphQLDataSource({ url });
     },
   });
 
