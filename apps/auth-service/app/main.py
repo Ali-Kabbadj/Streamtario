@@ -80,3 +80,4 @@ container.wire(
 app.include_router(router)
 app.include_router(refresh_router.router)
 app.include_router(social_router.router)
+

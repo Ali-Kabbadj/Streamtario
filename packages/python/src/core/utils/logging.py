@@ -137,6 +137,8 @@ def setup_logging(app_name: str = "StreamtarioApp"):
         logger.handlers.clear()
 
     if is_prod:
+        log_dir = os.path.join(os.getcwd(), "logs")
+        os.makedirs(log_dir, exist_ok=True)
         file_handler = logging.handlers.RotatingFileHandler(
             f"logs/{app_name}.log", maxBytes=5 * 1024 * 1024, backupCount=3
         )

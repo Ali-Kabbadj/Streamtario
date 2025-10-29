@@ -50,3 +50,4 @@ def create_app(settings: BaseAppSettings) -> Application:
         return {"status": "ok", "service": settings.APP_NAME}
 
     return app
+
