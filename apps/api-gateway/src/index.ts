@@ -43,7 +43,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startGateway() {
-  const serviceMap = {
+  let serviceMap = {
     accounts: { url: 'https://localhost:8002/graphql' },
     addons: { url: 'https://localhost:8001/graphql' },
     auth: { url: 'https://localhost:8003' },
@@ -62,6 +62,13 @@ async function startGateway() {
     httpServer = https.createServer(httpsOptions, app);
   } catch (error) {
     console.warn('Could not start HTTPS server, falling back to HTTP.');
+    serviceMap = {
+      accounts: { url: 'http://localhost:8002/graphql' },
+      addons: { url: 'http://localhost:8001/graphql' },
+      auth: { url: 'http://localhost:8003' },
+      stream: { url: 'http://localhost:8004' },
+      addonController: { url: 'http://localhost:8001' }
+    };
     httpServer = http.createServer(app);
   }
 
