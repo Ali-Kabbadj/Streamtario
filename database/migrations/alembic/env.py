@@ -30,9 +30,14 @@ sys.path.insert(
     ),
 )
 
+# db_url = (
+#     f"postgresql+asyncpg://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}@"
+#     f"{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
+# )
+
 db_url = (
     f"postgresql+asyncpg://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}@"
-    f"{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
+    f"{os.environ['DB_HOST']}/{os.environ['DB_NAME']}"
 )
 
 

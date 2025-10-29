@@ -12,3 +12,4 @@ dev_resources
 build
 .venv
 package-lock.json
+**\.env
