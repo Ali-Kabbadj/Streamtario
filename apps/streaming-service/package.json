@@ -10,7 +10,7 @@
   "scripts": {
     "clean": "node -e \"const fs = require('fs'); const p = 'dist'; if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); console.log('🧹 Deleted', p); } catch (e) { console.warn('Could not delete', p, e); } }\"",
     "build": "npm run clean && tsc",
-    "start": "node dist/app.js",
+    "start": "node dist/index.js",
     "dev": "nodemon",
     "prepack": "npm run build"
   },
