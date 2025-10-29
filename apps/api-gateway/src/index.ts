@@ -27,39 +27,23 @@ const customDevFetcher = async (url: any, options: any) => {
   return fetch(url, { ...options, agent: localDevAgent });
 };
 
-// class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
-//   constructor(config: { url: string }) {
-//     super(config);
-//     this.fetcher = customDevFetcher;
-//   }
-//   willSendRequest({ request, context }: any) {
-//     if (context.headers?.authorization) {
-//       request.http.headers.set('authorization', context.headers.authorization);
-//     }
-//   }
-// }
+class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
+  constructor(config: { url: string }) {
+    super(config);
+    this.fetcher = customDevFetcher;
+  }
+  willSendRequest({ request, context }: any) {
+    if (context.headers?.authorization) {
+      request.http.headers.set('authorization', context.headers.authorization);
+    }
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startGateway() {
-  // let serviceMap = {
-  //   accounts: { url: 'https://localhost:8002/graphql' },
-  //   addons: { url: 'https://localhost:8001/graphql' },
-  //   auth: { url: 'https://localhost:8003' },
-  //   stream: { url: 'https://localhost:8004' },
-  //   addonController: { url: 'https://localhost:8001' }
-  // };
-
-  // let serviceMap = {
-  //   accounts: { url: 'https://streamtario-account-profile-service.onrender.com/graphql' },
-  //   addons: { url: 'https://streamtario-addon-controller-service.onrender.com/graphql' },
-  //   auth: { url: 'https://streamtario-auth-service.onrender.com' },
-  //   stream: { url: 'https://localhost:8004' },
-  //   addonController: { url: 'https://streamtario-addon-controller-service.onrender.com' }
-  // };
-
-  let serviceMap = {
+  const serviceMap = {
     accounts: { url: 'http://localhost:8002/graphql' },
     addons: { url: 'http://localhost:8001/graphql' },
     auth: { url: 'http://localhost:8003' },
@@ -78,8 +62,10 @@ async function startGateway() {
     httpServer = https.createServer(httpsOptions, app);
   } catch (error) {
     console.warn('Could not start HTTPS server, falling back to HTTP.');
+
     httpServer = http.createServer(app);
   }
+
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
       subgraphs: [
@@ -89,22 +75,20 @@ async function startGateway() {
       pollIntervalInMs: 5000,
     }),
     buildService({ url }) {
-      // If the URL is http, use a standard RemoteGraphQLDataSource
+      // Check if the URL uses the HTTP protocol
       if (url && url.startsWith('http://')) {
+        // Use the standard RemoteGraphQLDataSource for HTTP services
         return new RemoteGraphQLDataSource({ url });
       }
-      // If the URL is https, but it's a localhost URL,
-      // you can use the custom fetcher to ignore SSL certificate validation.
-      // If it's a production URL, just use the default RemoteGraphQLDataSource.
+
+      // Check if the URL uses the HTTPS protocol but is for local dev
       if (url && url.startsWith('https://localhost')) {
-        return new RemoteGraphQLDataSource({
-          url,
-          // Override the fetcher for local development with HTTPS
-          fetcher: customDevFetcher,
-        });
+        // Use the custom, unsafe HTTPS source for local dev
+        return new UnsafeHttpsDataSource({ url });
       }
-      // For all other cases, use the default RemoteGraphQLDataSource
-      // which will use the standard Node.js fetch
+
+      // For all other cases (e.g., production HTTPS), use the standard
+      // RemoteGraphQLDataSource which handles SSL properly.
       return new RemoteGraphQLDataSource({ url });
     },
   });
