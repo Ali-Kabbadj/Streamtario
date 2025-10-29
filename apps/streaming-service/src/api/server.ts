@@ -18,13 +18,12 @@ export function startServer(port: number) {
     app.use(express.json());
 
 
-    // const keyPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2-key.pem');
-    // const certPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2.pem');
-    // const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+    const keyPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2-key.pem');
+    const certPath = path.resolve(__dirname, '../../../../local_dev_deps/certs/localhost+2.pem');
+    const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
 
-    // const server = https.createServer(httpsOptions, app);
+    const server = https.createServer(httpsOptions, app);
 
-    const server = https.createServer(app);
     const wss = new WebSocketServer({ server });
 
     let daemonWs: WebSocket | null = null;

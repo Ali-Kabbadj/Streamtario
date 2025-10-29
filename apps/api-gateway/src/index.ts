@@ -51,12 +51,20 @@ async function startGateway() {
   //   addonController: { url: 'https://localhost:8001' }
   // };
 
+  // let serviceMap = {
+  //   accounts: { url: 'https://streamtario-account-profile-service.onrender.com/graphql' },
+  //   addons: { url: 'https://streamtario-addon-controller-service.onrender.com/graphql' },
+  //   auth: { url: 'https://streamtario-auth-service.onrender.com' },
+  //   stream: { url: 'https://localhost:8004' },
+  //   addonController: { url: 'https://streamtario-addon-controller-service.onrender.com' }
+  // };
+
   let serviceMap = {
-    accounts: { url: 'https://streamtario-account-profile-service.onrender.com/graphql' },
-    addons: { url: 'https://streamtario-addon-controller-service.onrender.com/graphql' },
-    auth: { url: 'https://streamtario-auth-service.onrender.com' },
+    accounts: { url: 'https://localhost:8002/graphql' },
+    addons: { url: 'https://localhost:8001/graphql' },
+    auth: { url: 'https://localhost:8003' },
     stream: { url: 'https://localhost:8004' },
-    addonController: { url: 'https://streamtario-addon-controller-service.onrender.com' }
+    addonController: { url: 'https://localhost:8001' }
   };
 
   const app = express();
