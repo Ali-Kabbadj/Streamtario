@@ -10,8 +10,8 @@ import { sendSuccess, sendError } from './ApiResponse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const TORRSERVER_ORIGIN = 'http://127.0.0.1:8090';
-const DAEMON_WS_URL = 'ws://127.0.0.1:8090/ws';
+const TORRSERVER_ORIGIN = 'http://0.0.0.0:8090';
+const DAEMON_WS_URL = 'ws://0.0.0.0:8090/ws';
 
 export function startServer(port: number) {
     const app = express();

@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { AppTorrent, TorrServerTorrent, FileStats } from '../types/types.js';
 
-const TORRSERVER_BASE_URL = 'http://127.0.0.1:8090';
+const TORRSERVER_BASE_URL = 'http://0.0.0.0:8090';
 
 class TorrServerClient {
     private apiClient: AxiosInstance;
