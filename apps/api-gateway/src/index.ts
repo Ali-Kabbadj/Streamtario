@@ -51,10 +51,10 @@ async function startGateway() {
 
   const serviceMap = {
     accounts: { url: 'http://streamtario-account-profile-service:8002/graphql' },
-    addons: { url: 'http://localhost:8001/graphql' },
-    auth: { url: 'http://localhost:8003' },
+    addons: { url: 'http://streamtario-addon-controller-service:8001/graphql' },
+    auth: { url: 'http://streamtario-auth-service:8003' },
     stream: { url: 'http://localhost:8004' },
-    addonController: { url: 'http://localhost:8001' }
+    addonController: { url: 'http://streamtario-addon-controller-service:8001' }
   };
 
   const app = express();
