@@ -19,19 +19,30 @@ import type { Socket } from 'net';
 import { Duplex } from 'stream';
 import fetch from 'node-fetch';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const localDevAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
+// ENV
+const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+const PORT = Number(process.env.PORT || 4000);
 
-const customDevFetcher = async (url: any, options: any) => {
-  return fetch(url, { ...options, agent: localDevAgent });
-};
+// Helper: use a fetcher that disables TLS verification ONLY in development
+function makeFetcher() {
+  if (APP_ENV === 'development') {
+    const localDevAgent = new https.Agent({ rejectUnauthorized: false });
+    return async (url: any, options: any) => fetch(url, { ...options, agent: localDevAgent });
+  }
+  // production: use default fetch (secure)
+  return async (url: any, options: any) => fetch(url, options);
+}
 
-class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
+class ConditionalHttpsDataSource extends RemoteGraphQLDataSource {
   constructor(config: { url: string }) {
     super(config);
-    this.fetcher = customDevFetcher;
+    // Only replace fetcher in dev (to accept mkcert / self-signed dev certs).
+    if (APP_ENV === 'development') {
+      this.fetcher = makeFetcher();
+    }
   }
   willSendRequest({ request, context }: any) {
     if (context.headers?.authorization) {
@@ -40,64 +51,87 @@ class UnsafeHttpsDataSource extends RemoteGraphQLDataSource {
   }
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 async function startGateway() {
+  // SERVICE URLS - expect real production URLs in env
   const serviceMap = {
-    accounts: {
-      url: `${process.env.ACCOUNT_PROFILE_SERVICE_URL}/graphql`
-    },
+    accounts: { url: `${process.env.ACCOUNT_PROFILE_SERVICE_URL}/graphql` },
     addons: { url: `${process.env.ADDON_CONTROLLER_URL}/graphql` },
-    auth: { url: process.env.AUTH_SERVICE_URL },
-    stream: { url: 'https://localhost:8004' },
+    auth: { url: process.env.AUTH_SERVICE_URL }, // full URL expected, e.g. https://auth.example.com
+    stream: { url: process.env.STREAM_SERVICE_URL || 'https://localhost:8004' },
     addonController: { url: process.env.ADDON_CONTROLLER_URL }
   };
 
   const app = express();
-  const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'development';
 
+  // Basic middleware
+  app.use(express.json({ limit: '10mb' }));
+
+  // Trust proxy so req.protocol and req.secure reflect client-facing proto (Render/Cloudflare)
   if (APP_ENV === 'production') {
-    // Render / many PaaS providers put a reverse proxy in front.
-    // Trust the proxy so req.secure and req.protocol reflect the public request.
     app.set('trust proxy', true);
-
-    // Force external HTTPS: if client used http -> redirect to https using X-Forwarded-Proto
-    app.use((req, res, next) => {
-      // keep websockets and health checks that might not need redirect:
-      const xfp = (req.headers['x-forwarded-proto'] || '').toString();
-      if (xfp && xfp !== 'https') {
-        // use host header (include port if present) and originalUrl to preserve path & query
-        return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
-      }
-      return next();
-    });
   }
-  // When setting cookies (sessions, auth), ensure secure flag in prod:
+
+  // Minimal logging for auth endpoints while debugging (remove when stable)
+  app.use((req, res, next) => {
+    if (req.originalUrl.includes('/auth') || req.originalUrl.includes('/login')) {
+      try {
+        console.log(`[REQ] ${req.method} ${req.originalUrl} host:${req.headers.host} xfp:${req.headers['x-forwarded-proto']}`);
+        console.log('[REQ BODY]', typeof req.body === 'object' ? JSON.stringify(req.body).slice(0, 2000) : String(req.body || ''));
+      } catch (e) {
+        console.log('[REQ LOG ERR]', e && e.message);
+      }
+    }
+    next();
+  });
+
+  // Health
+  app.get('/health', (_req, res) => res.status(200).json({ ok: true, env: APP_ENV, ts: new Date().toISOString() }));
+
+  // CORS: set production origins explicitly (replace with your frontends)
+  const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  app.use(cors({
+    origin: allowedOrigins.length ? allowedOrigins : true,
+    credentials: true,
+  }));
+
+  // Cookie options helper (for reference where you set cookies)
   const cookieOptions = {
     httpOnly: true,
-    secure: APP_ENV === 'production', // only secure in prod
-    sameSite: 'lax',
+    secure: APP_ENV === 'production',
+    sameSite: APP_ENV === 'production' ? 'none' : 'lax',
   };
 
-  app.use(cors<cors.CorsRequest>());
-
+  // SERVER: HTTPS in dev using local mkcert certs (if available), otherwise HTTP server.
   let httpServer: Server;
-
-  if (APP_ENV !== 'production') {
-    console.warn('Using HTTPS.');
-    const keyPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2-key.pem');
-    const certPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2.pem');
-    const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
-    httpServer = https.createServer(httpsOptions, app);
+  let protocol = 'http';
+  if (APP_ENV === 'development') {
+    // Try reading dev certs, but fall back to HTTP if missing (so dev still runs)
+    try {
+      const keyPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2-key.pem');
+      const certPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2.pem');
+      if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+        const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+        httpServer = https.createServer(httpsOptions, app);
+        protocol = 'https';
+        console.warn('Dev: running HTTPS using local dev certs.');
+      } else {
+        console.warn('Dev: certs not found, falling back to HTTP.');
+        httpServer = http.createServer(app);
+      }
+    } catch (e) {
+      console.warn('Dev: error loading certs, falling back to HTTP.', e && e.message);
+      httpServer = http.createServer(app);
+    }
   } else {
-    console.warn('Using HTTP.');
+    // production: we expect TLS at the edge (Render), so run plain HTTP on origin
     httpServer = http.createServer(app);
+    protocol = 'http';
   }
 
   httpServer.keepAliveTimeout = 120000;
   httpServer.headersTimeout = 120000;
 
+  // Apollo Gateway
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
       subgraphs: [
@@ -107,10 +141,11 @@ async function startGateway() {
       pollIntervalInMs: 5000,
     }),
     buildService(service) {
-      return new UnsafeHttpsDataSource({ url: service.url ?? "" });
+      return new ConditionalHttpsDataSource({ url: service.url ?? "" });
     },
   });
 
+  // Websocket + upgrade handling plugin
   const wsLifecyclePlugin = {
     async serverWillStart() {
       const gqlWsServer = new WebSocketServer({ noServer: true });
@@ -127,11 +162,14 @@ async function startGateway() {
           const { gateway, ...context } = args.contextValue as any;
           const operationAst = getOperationAST(args.document, args.operationName!);
           if (operationAst?.operation === 'subscription') {
+            // For dev allow insecure agent if needed; in prod use default secure client
+            const devAgent = APP_ENV === 'development' ? new https.Agent({ rejectUnauthorized: false }) : undefined;
             const forwardClient = createClient({
               url: serviceMap.addons.url,
               webSocketImpl: class extends WebSocket {
                 constructor(url: string | URL, protocols?: string | string[]) {
-                  super(url, protocols, { agent: localDevAgent });
+                  // pass dev agent only in development
+                  super(url, protocols, { agent: devAgent });
                 }
               },
               connectionParams: { Authorization: context.headers?.authorization },
@@ -146,22 +184,28 @@ async function startGateway() {
         }
       }, gqlWsServer);
 
+      // stream websocket proxy middleware (ws upgrade only)
       const streamWsProxy = createProxyMiddleware({
         target: serviceMap.stream.url,
         ws: true,
-        secure: false,
+        secure: APP_ENV !== 'development', // verify TLS in prod; allow self-signed in dev if needed
         changeOrigin: true,
       });
 
       httpServer.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
-        const { pathname } = new URL(req.url!, `https://${req.headers.host}`);
-        if (pathname === '/graphql') {
-          gqlWsServer.handleUpgrade(req, socket as Socket, head, (ws) => {
-            gqlWsServer.emit('connection', ws, req);
-          });
-        } else if (pathname === '/api/v1/stream') {
-          streamWsProxy.upgrade(req, socket as Socket, head);
-        } else {
+        try {
+          const base = `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
+          const { pathname } = new URL(req.url!, base);
+          if (pathname === '/graphql') {
+            gqlWsServer.handleUpgrade(req, socket as Socket, head, (ws) => {
+              gqlWsServer.emit('connection', ws, req);
+            });
+          } else if (pathname.startsWith('/api/v1/stream')) {
+            streamWsProxy.upgrade(req, socket as Socket, head);
+          } else {
+            socket.destroy();
+          }
+        } catch (e) {
           socket.destroy();
         }
       });
@@ -179,29 +223,57 @@ async function startGateway() {
     ],
   });
 
-
   await server.start();
 
-  const authProxy = createProxyMiddleware({ target: serviceMap.auth.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/auth': '' } });
+  // PROXIES: in prod we verify downstream TLS; in dev allow self-signed
+  const proxySecureFlag = APP_ENV !== 'development';
+
+  const authProxy = createProxyMiddleware({
+    target: serviceMap.auth.url,
+    secure: proxySecureFlag,
+    changeOrigin: true,
+    pathRewrite: { '^/api/v1/auth': '' },
+    // onProxyReq(proxyReq) {
+    //   // forward authorization header if present
+    //   // (if you need extra headers, add here)
+    // }
+  });
   app.use('/api/v1/auth', authProxy);
 
-  const streamHttpProxy = createProxyMiddleware({ target: serviceMap.stream.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/stream': '' } });
+  const streamHttpProxy = createProxyMiddleware({
+    target: serviceMap.stream.url,
+    secure: proxySecureFlag,
+    changeOrigin: true,
+    pathRewrite: { '^/api/v1/stream': '' },
+  });
   app.use('/api/v1/stream', streamHttpProxy);
 
-
-  const addonControllerProxy = createProxyMiddleware({ target: serviceMap.addonController.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/addon-controller': '' } });
+  const addonControllerProxy = createProxyMiddleware({
+    target: serviceMap.addonController.url,
+    secure: proxySecureFlag,
+    changeOrigin: true,
+    pathRewrite: { '^/api/v1/addon-controller': '' },
+  });
   app.use('/api/v1/addon-controller', addonControllerProxy);
 
-
+  // GraphQL endpoint
   app.use('/graphql', express.json({ limit: '10mb' }), expressMiddleware(server, {
     context: async ({ req }) => ({ headers: req.headers }),
   }));
 
-  const PORT = process.env.PORT || 4000;
-  httpServer.listen({ port: PORT }, () => {
-    const protocol = httpServer instanceof https.Server ? 'https' : 'http';
-    console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
+  // global error handler (convert crashes into JSON)
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error('[UNHANDLED ERROR]', err && err.stack ? err.stack : err);
+    res.status(500).json({ ok: false, message: 'internal server error' });
+  });
+
+  // LISTEN on port and 0.0.0.0 for Render
+  httpServer.listen({ port: PORT, host: '0.0.0.0' }, () => {
+    console.log(`🚀 API Gateway ready at ${protocol}://0.0.0.0:${PORT} (APP_ENV=${APP_ENV})`);
   });
 }
 
-startGateway().catch(console.error);
+startGateway().catch((err) => {
+  console.error('Failed to start gateway', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
