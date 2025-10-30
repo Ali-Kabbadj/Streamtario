@@ -110,7 +110,7 @@ async def google_login(
             "An unexpected error occurred during the Google login process."
         )
         raise ApiException(
-            ApiErrorCode.UNKNOWN,
+            ApiErrorCode.GOOGLE_LOGIN_FAILED,
             details={"reason": "An unexpected error occurred.", "error": str(e)},
         )
 
