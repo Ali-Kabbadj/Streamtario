@@ -50,7 +50,7 @@ async function startGateway() {
 
 
   const serviceMap = {
-    accounts: { url: 'http://localhost:8002/graphql' },
+    accounts: { url: 'http://streamtario-account-profile-service:8002/graphql' },
     addons: { url: 'http://localhost:8001/graphql' },
     auth: { url: 'http://localhost:8003' },
     stream: { url: 'http://localhost:8004' },
