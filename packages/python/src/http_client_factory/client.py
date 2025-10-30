@@ -14,16 +14,34 @@ class ApiClient:
         retries: int = 2,
     ):
         self.retries = retries
+
+        # Normalize verify_ssl into a value httpx accepts:
+        # - True -> use system CA bundle
+        # - False -> disable verification (not recommended)
+        # - "/path/to/ca.pem" -> use that CA bundle file
+        self._verify_value = True
+        if isinstance(verify_ssl, str):
+            v = verify_ssl.strip().lower()
+            if v in ("", "none", "null"):
+                self._verify_value = True
+            elif v in ("false", "0", "no"):
+                self._verify_value = False
+            else:
+                # assume it's a path to a CA bundle file
+                self._verify_value = verify_ssl
+        else:
+            self._verify_value = bool(verify_ssl)
+
         self._client_args = {
             "http2": True,
             "follow_redirects": True,
             "timeout": 15.0,
-            "verify": verify_ssl,
+            "verify": self._verify_value,
         }
         self._client = client
 
     async def _get_client(self) -> httpx.AsyncClient:
-        if not self._client or self._client.is_closed:
+        if not self._client or getattr(self._client, "is_closed", False):
             self._client = httpx.AsyncClient(**self._client_args)
         return self._client
 

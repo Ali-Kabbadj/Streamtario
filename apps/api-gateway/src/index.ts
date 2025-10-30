@@ -19,6 +19,7 @@ import type { Socket } from 'net';
 import { Duplex } from 'stream';
 import fetch from 'node-fetch';
 
+
 const localDevAgent = new https.Agent({
   rejectUnauthorized: false,
 });
@@ -54,6 +55,31 @@ async function startGateway() {
   };
 
   const app = express();
+  const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+
+  if (APP_ENV === 'production') {
+    // Render / many PaaS providers put a reverse proxy in front.
+    // Trust the proxy so req.secure and req.protocol reflect the public request.
+    app.set('trust proxy', true);
+
+    // Force external HTTPS: if client used http -> redirect to https using X-Forwarded-Proto
+    app.use((req, res, next) => {
+      // keep websockets and health checks that might not need redirect:
+      const xfp = (req.headers['x-forwarded-proto'] || '').toString();
+      if (xfp && xfp !== 'https') {
+        // use host header (include port if present) and originalUrl to preserve path & query
+        return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+      }
+      return next();
+    });
+  }
+  // When setting cookies (sessions, auth), ensure secure flag in prod:
+  const cookieOptions = {
+    httpOnly: true,
+    secure: APP_ENV === 'production', // only secure in prod
+    sameSite: 'lax',
+  };
+
   app.use(cors<cors.CorsRequest>());
 
   let httpServer: Server;
