@@ -49,6 +49,11 @@ class ApiErrorCode(Enum):
         "The Google ID token could not be verified.",
         "Google authentication failed. Please try again.",
     )
+    GOOGLE_UNKOWN_ERROR = ErrorCodeDetail(
+        status.HTTP_400_BAD_REQUEST,
+        "All exceptions for google auth failed",
+        "Google authentication failed. Please try again.",
+    )
     ACCOUNT_NOT_FOUND = ErrorCodeDetail(
         status.HTTP_404_NOT_FOUND,
         "The requested account could not be found.",
