@@ -243,21 +243,47 @@ async function startGateway() {
   // PROXIES: in prod we verify downstream TLS; in dev allow self-signed
   const proxySecureFlag = APP_ENV !== 'development';
 
+  // fast-safe: build the options and cast to any to satisfy TypeScript
   const authProxyOptions = {
     target: serviceMap.auth.url,
     secure: proxySecureFlag,
     changeOrigin: true,
     pathRewrite: { '^/api/v1/auth': '' },
-    onProxyReq: (proxyReq, req: IncomingMessage, res: ServerResponse) => {
-      // forward authorization header if present
-      // example: if (req.headers.authorization) proxyReq.setHeader('authorization', req.headers.authorization as string);
+    proxyTimeout: 30000,
+    timeout: 30000,
+    onProxyReq(proxyReq: any, req: any, res: any) {
+      if (req.headers && req.headers.authorization) {
+        proxyReq.setHeader('authorization', req.headers.authorization as string);
+      }
+      if (req.headers && req.headers.host) {
+        proxyReq.setHeader('x-forwarded-host', req.headers.host as string);
+      }
+    },
+    onProxyRes(proxyRes: any, req: any, res: any) {
+      try {
+        console.log(`[PROXY RES] ${req.method} ${req.originalUrl} -> ${serviceMap.auth.url} status:${proxyRes.statusCode}`);
+      } catch (e) {
+        console.log('[PROXY RES LOG ERR]', (e as any)?.message ?? String(e));
+      }
+    },
+    onError(err: any, req: any, res: any) {
+      console.error('[PROXY ERROR]', {
+        url: serviceMap.auth.url,
+        message: (err && (err as any).message) || String(err),
+        code: (err && (err as any).code) || undefined,
+        method: req.method,
+        path: req.originalUrl,
+      });
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+      }
+      res.end(JSON.stringify({ ok: false, error: 'proxy_error', details: (err && (err as any).message) || String(err) }));
     }
   } as any;
 
   const authProxy = createProxyMiddleware(authProxyOptions);
-
-
   app.use('/api/v1/auth', authProxy);
+
 
   const streamHttpProxy = createProxyMiddleware({
     target: serviceMap.stream.url,
