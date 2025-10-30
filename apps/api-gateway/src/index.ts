@@ -64,6 +64,7 @@ async function startGateway() {
     httpServer = https.createServer(httpsOptions, app);
   } catch (error) {
     console.warn('Could not start HTTPS server, falling back to HTTP.');
+    console.log("reason:", error);
 
     httpServer = http.createServer(app);
   }
@@ -124,7 +125,7 @@ async function startGateway() {
       });
 
       httpServer.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
-        const { pathname } = new URL(req.url!, `http://${req.headers.host}`);
+        const { pathname } = new URL(req.url!, `https://${req.headers.host}`);
         if (pathname === '/graphql') {
           gqlWsServer.handleUpgrade(req, socket as Socket, head, (ws) => {
             gqlWsServer.emit('connection', ws, req);
