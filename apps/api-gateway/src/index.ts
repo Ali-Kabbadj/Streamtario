@@ -50,11 +50,11 @@ async function startGateway() {
 
 
   const serviceMap = {
-    accounts: { url: 'http://0.0.0.0:8002/graphql' },
-    addons: { url: 'http://0.0.0.0:8001/graphql' },
-    auth: { url: 'http://0.0.0.0:8003' },
-    stream: { url: 'http://0.0.0.0:8004' },
-    addonController: { url: 'http://0.0.0.0:8001' }
+    accounts: { url: 'http://localhost:8002/graphql' },
+    addons: { url: 'http://localhost:8001/graphql' },
+    auth: { url: 'http://localhost:8003' },
+    stream: { url: 'http://localhost:8004' },
+    addonController: { url: 'http://localhost:8001' }
   };
 
   const app = express();
