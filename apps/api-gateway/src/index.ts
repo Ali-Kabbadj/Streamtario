@@ -43,18 +43,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startGateway() {
-
-  console.log('Verifying environment variable:', process.env.ACCOUNT_PROFILE_SERVICE_URL);
-  console.log('Verifying environment variable:', process.env.ADDON_CONTROLLER_URL);
-  console.log('Verifying environment variable:', process.env.AUTH_SERVICE_URL);
-
-
   const serviceMap = {
-    accounts: { url: 'http://streamtario-account-profile-service:8002/graphql' },
-    addons: { url: 'http://streamtario-addon-controller-service:8001/graphql' },
-    auth: { url: 'http://streamtario-auth-service:8003' },
-    stream: { url: 'http://localhost:8004' },
-    addonController: { url: 'http://streamtario-addon-controller-service:8001' }
+    accounts: {
+      url: `${process.env.ACCOUNT_PROFILE_SERVICE_URL}/graphql`
+    },
+    addons: { url: `${process.env.ADDON_CONTROLLER_URL}/graphql` },
+    auth: { url: process.env.AUTH_SERVICE_URL },
+    stream: { url: 'https://localhost:8004' },
+    addonController: { url: process.env.ADDON_CONTROLLER_URL }
   };
 
   const app = express();
@@ -80,22 +76,8 @@ async function startGateway() {
       ],
       pollIntervalInMs: 5000,
     }),
-    buildService({ url }) {
-      // Check if the URL uses the HTTP protocol
-      if (url && url.startsWith('http://')) {
-        // Use the standard RemoteGraphQLDataSource for HTTP services
-        return new RemoteGraphQLDataSource({ url });
-      }
-
-      // Check if the URL uses the HTTPS protocol but is for local dev
-      if (url && url.startsWith('https://localhost')) {
-        // Use the custom, unsafe HTTPS source for local dev
-        return new UnsafeHttpsDataSource({ url });
-      }
-
-      // For all other cases (e.g., production HTTPS), use the standard
-      // RemoteGraphQLDataSource which handles SSL properly.
-      return new RemoteGraphQLDataSource({ url });
+    buildService(service) {
+      return new UnsafeHttpsDataSource({ url: service.url ?? "" });
     },
   });
 
