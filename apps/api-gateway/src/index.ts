@@ -83,17 +83,20 @@ async function startGateway() {
   app.use(cors<cors.CorsRequest>());
 
   let httpServer: Server;
-  try {
+
+  if (APP_ENV !== 'production') {
+    console.warn('Using HTTPS.');
     const keyPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2-key.pem');
     const certPath = path.resolve(__dirname, '../../../local_dev_deps/certs/localhost+2.pem');
     const httpsOptions = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
     httpServer = https.createServer(httpsOptions, app);
-  } catch (error) {
-    console.warn('Could not start HTTPS server, falling back to HTTP.');
-    console.log("reason:", error);
-
+  } else {
+    console.warn('Using HTTP.');
     httpServer = http.createServer(app);
   }
+
+  httpServer.keepAliveTimeout = 120000;
+  httpServer.headersTimeout = 120000;
 
   const gateway = new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
@@ -176,6 +179,7 @@ async function startGateway() {
     ],
   });
 
+
   await server.start();
 
   const authProxy = createProxyMiddleware({ target: serviceMap.auth.url, secure: false, changeOrigin: true, pathRewrite: { '^/api/v1/auth': '' } });
@@ -193,7 +197,7 @@ async function startGateway() {
     context: async ({ req }) => ({ headers: req.headers }),
   }));
 
-  const PORT = 4000;
+  const PORT = process.env.PORT || 4000;
   httpServer.listen({ port: PORT }, () => {
     const protocol = httpServer instanceof https.Server ? 'https' : 'http';
     console.log(`🚀 API Gateway ready at ${protocol}://localhost:${PORT}`);
