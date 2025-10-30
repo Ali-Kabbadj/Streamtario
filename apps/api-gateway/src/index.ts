@@ -1,3 +1,5 @@
+import type { Options as ProxyOptions } from 'http-proxy-middleware';
+import type { ServerResponse } from 'http';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express5';
 import { ApolloGateway, IntrospectAndCompose, RemoteGraphQLDataSource } from '@apollo/gateway';
@@ -25,6 +27,19 @@ const __dirname = path.dirname(__filename);
 // ENV
 const APP_ENV = process.env.APP_ENV || process.env.NODE_ENV || 'development';
 const PORT = Number(process.env.PORT || 4000);
+
+function getErrorMessage(err: unknown): string {
+  if (!err) return String(err);
+  if (typeof err === 'string') return err;
+  if (typeof err === 'object') {
+    // common shapes: Error-like with message, or { message: string }
+    const maybe = err as { message?: unknown; stack?: unknown };
+    if (typeof maybe.message === 'string') return maybe.message;
+    if (typeof maybe.stack === 'string') return maybe.stack.split('\n')[0];
+  }
+  try { return String(err); } catch { return 'Unknown error'; }
+}
+
 
 // Helper: use a fetcher that disables TLS verification ONLY in development
 function makeFetcher() {
@@ -78,7 +93,7 @@ async function startGateway() {
         console.log(`[REQ] ${req.method} ${req.originalUrl} host:${req.headers.host} xfp:${req.headers['x-forwarded-proto']}`);
         console.log('[REQ BODY]', typeof req.body === 'object' ? JSON.stringify(req.body).slice(0, 2000) : String(req.body || ''));
       } catch (e) {
-        console.log('[REQ LOG ERR]', e && e.message);
+        console.log('[REQ LOG ERR]', getErrorMessage(e));
       }
     }
     next();
@@ -119,7 +134,7 @@ async function startGateway() {
         httpServer = http.createServer(app);
       }
     } catch (e) {
-      console.warn('Dev: error loading certs, falling back to HTTP.', e && e.message);
+      console.warn('Dev: error loading certs, falling back to HTTP.', getErrorMessage(e));
       httpServer = http.createServer(app);
     }
   } else {
@@ -228,16 +243,20 @@ async function startGateway() {
   // PROXIES: in prod we verify downstream TLS; in dev allow self-signed
   const proxySecureFlag = APP_ENV !== 'development';
 
-  const authProxy = createProxyMiddleware({
+  const authProxyOptions = {
     target: serviceMap.auth.url,
     secure: proxySecureFlag,
     changeOrigin: true,
     pathRewrite: { '^/api/v1/auth': '' },
-    // onProxyReq(proxyReq) {
-    //   // forward authorization header if present
-    //   // (if you need extra headers, add here)
-    // }
-  });
+    onProxyReq: (proxyReq, req: IncomingMessage, res: ServerResponse) => {
+      // forward authorization header if present
+      // example: if (req.headers.authorization) proxyReq.setHeader('authorization', req.headers.authorization as string);
+    }
+  } as any;
+
+  const authProxy = createProxyMiddleware(authProxyOptions);
+
+
   app.use('/api/v1/auth', authProxy);
 
   const streamHttpProxy = createProxyMiddleware({
@@ -262,10 +281,13 @@ async function startGateway() {
   }));
 
   // global error handler (convert crashes into JSON)
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    console.error('[UNHANDLED ERROR]', err && err.stack ? err.stack : err);
-    res.status(500).json({ ok: false, message: 'internal server error' });
+  app.use((err: unknown, _req: any, res: any, _next: any) => {
+    // normalize error for logging and avoid TS complaining about unknown.message
+    const errObj = (err && typeof err === 'object') ? err as { message?: string; stack?: string } : { message: String(err) };
+    console.error('[UNHANDLED ERROR]', errObj.stack ?? errObj.message ?? err);
+    res.status(500).json({ ok: false, message: errObj.message ?? 'internal server error' });
   });
+
 
   // LISTEN on port and 0.0.0.0 for Render
   httpServer.listen({ port: PORT, host: '0.0.0.0' }, () => {
@@ -273,7 +295,8 @@ async function startGateway() {
   });
 }
 
-startGateway().catch((err) => {
-  console.error('Failed to start gateway', err && err.stack ? err.stack : err);
+startGateway().catch((err: unknown) => {
+  const errObj = (err && typeof err === 'object') ? err as { message?: string; stack?: string } : { message: String(err) };
+  console.error('Failed to start gateway', errObj.stack ?? errObj.message ?? err);
   process.exit(1);
 });
