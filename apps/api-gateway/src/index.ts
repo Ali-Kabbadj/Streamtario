@@ -43,12 +43,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startGateway() {
+
+  console.log('Verifying environment variable:', process.env.ACCOUNT_PROFILE_SERVICE_URL);
+  console.log('Verifying environment variable:', process.env.ADDON_CONTROLLER_URL);
+  console.log('Verifying environment variable:', process.env.AUTH_SERVICE_URL);
+
+
   const serviceMap = {
-    accounts: { url: 'http://localhost:8002/graphql' },
-    addons: { url: 'http://localhost:8001/graphql' },
-    auth: { url: 'http://localhost:8003' },
-    stream: { url: 'http://localhost:8004' },
-    addonController: { url: 'http://localhost:8001' }
+    accounts: { url: 'http://0.0.0.0:8002/graphql' },
+    addons: { url: 'http://0.0.0.0:8001/graphql' },
+    auth: { url: 'http://0.0.0.0:8003' },
+    stream: { url: 'http://0.0.0.0:8004' },
+    addonController: { url: 'http://0.0.0.0:8001' }
   };
 
   const app = express();
