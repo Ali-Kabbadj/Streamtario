@@ -29,8 +29,10 @@ export async function fetchClient<T>(
     options: RequestInit = {},
     errorMessage = "An unknown error occurred.",
 ): Promise<T> {
-    const baseUrl = new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL).origin;
-    const response = await fetch(`${baseUrl}${endpoint}`, {
+    const isAbsoluteUrl = endpoint.startsWith('http');
+    const baseUrl = isAbsoluteUrl ? '' : new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL).origin;
+    const finalUrl = isAbsoluteUrl ? endpoint : `${baseUrl}${endpoint}`;
+    const response = await fetch(finalUrl, {
         ...options,
         headers: {
             "Content-Type": "application/json",

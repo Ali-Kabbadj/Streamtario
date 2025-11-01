@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 import { useView } from "@/providers/view-provider";
 import { usePlayer } from "@/providers/PlayerProvider";
-import type { GetContinueWatchingQuery } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import type {
+  GetContinueWatchingQuery,
+  MetaItemType,
+} from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { Info, Play } from "lucide-react";
 
 type ContinueWatchingItem = NonNullable<
@@ -15,6 +18,7 @@ type ContinueWatchingItem = NonNullable<
 
 interface ContinueWatchingCardProps {
   item: ContinueWatchingItem;
+  meta?: MetaItemType;
 }
 
 export const ContinueWatchingCard = ({ item }: ContinueWatchingCardProps) => {
@@ -75,7 +79,7 @@ export const ContinueWatchingCard = ({ item }: ContinueWatchingCardProps) => {
             <Info className="mr-2 h-4 w-4" /> Details
           </Button>
           <Button onClick={handleResumeClick} size="sm">
-            <Play className="mr-2 h-4 w-4" /> Resume{" "}
+            <Play className="mr-2 h-4 w-4" /> Resume
             {item.itemType != "movie" &&
               item.season &&
               item.episode &&

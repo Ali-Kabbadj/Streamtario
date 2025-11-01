@@ -105,17 +105,10 @@
           }
         }
       },
-      // {
-      //   "label": "CMake: Configure & Build",
-      //   "type": "shell",
-      //   "command": "cmake -S ${workspaceFolder:webview2-host} -B ${workspaceFolder:webview2-host}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ${workspaceFolder:webview2-host}/build --config Debug",
-      //   "group": { "kind": "build", "isDefault": true },
-      //   "problemMatcher": ["$msCompile"]
-      // },
       {
         "label": "CMake: Configure & Build",
         "type": "shell",
-        "command": "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=amd64 && cmake -S ${workspaceFolder:webview2-host} -B ${workspaceFolder:webview2-host}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ${workspaceFolder:webview2-host}/build --config Debug",
+        "command": "call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Insiders\\Common7\\Tools\\VsDevCmd.bat\" -arch=amd64 && cmake -S ${workspaceFolder:webview2-host} -B ${workspaceFolder:webview2-host}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=${workspaceFolder:webview2-host}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ${workspaceFolder:webview2-host}/build --config Debug",
         "options": {
           "shell": {
             "executable": "cmd.exe",
@@ -147,7 +140,7 @@
         "name": "📅 Create Database",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "program": "${workspaceFolder:scripts}/db_cli.py",
         "args": ["create"],
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 1 }
@@ -156,7 +149,7 @@
         "name": "📅 Apply Migrations",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "program": "${workspaceFolder:scripts}/db_cli.py",
         "args": ["upgrade", "head"],
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 1 }
@@ -165,7 +158,7 @@
         "name": "📅 Generate New Migration",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "program": "${workspaceFolder:scripts}/db_cli.py",
         "args": ["generate", "-m", "${input:migrationMessage}"],
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 2 }
@@ -174,7 +167,7 @@
         "name": "⚠️ Drop Database",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/db_cli.py",
+        "program": "${workspaceFolder:scripts}/db_cli.py",
         "args": ["drop"],
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 3 }
@@ -183,7 +176,7 @@
         "name": "➕ Addons Service",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/debug_runner.py",
+        "program": "${workspaceFolder:scripts}/debug_runner.py",
         "args": ["app.settings:settings"],
         "cwd": "${workspaceFolder:addon-controller-service}",
         "justMyCode": false,
@@ -192,10 +185,20 @@
         "presentation": { "hidden": false, "group": "services", "order": 3 }
       },
       {
+        "name": "TEST: Check Python Interpreter",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "-c",
+        "args": [
+          "import sys, struct; print(f'--- VSCODE DEBUGGER ---'); print(f'EXECUTABLE: {sys.executable}'); print(f'ARCHITECTURE: {struct.calcsize(\"P\") * 8}-bit')"
+        ],
+        "console": "integratedTerminal"
+      },
+      {
         "name": "➕ Auth Service",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/debug_runner.py",
+        "program": "${workspaceFolder:scripts}/debug_runner.py",
         "args": ["app.settings:settings"],
         "cwd": "${workspaceFolder:auth-service}",
         "justMyCode": false,
@@ -207,7 +210,7 @@
         "name": "➕ Accounts Service",
         "type": "debugpy",
         "request": "launch",
-        "program": "${workspaceFolder:build}/scripts/debug_runner.py",
+        "program": "${workspaceFolder:scripts}/debug_runner.py",
         "args": ["app.settings:settings"],
         "cwd": "${workspaceFolder:account-profile-service}",
         "justMyCode": false,
@@ -217,13 +220,20 @@
       },
       {
         "name": "➕ Streaming Service",
+        "stopOnEntry": false,
         "type": "node",
         "request": "launch",
         "runtimeExecutable": "node",
         "runtimeArgs": [
-          "--inspect-brk",
-          "${workspaceFolder:streaming-service}/dist/index.js"
+          "--inspect",
+          "-r",
+          "dotenv/config",
+          "--experimental-specifier-resolution=node"
         ],
+        "env": {
+          "DOTENV_CONFIG_PATH": "../../.env"
+        },
+        "program": "${workspaceFolder:streaming-service}/dist/index.js",
         "preLaunchTask": "tsc: build streaming api",
         "outFiles": ["${workspaceFolder:streaming-service}/dist/**/*.js"],
         "sourceMaps": true,
@@ -248,16 +258,19 @@
         "type": "node",
         "request": "launch",
         "runtimeExecutable": "node",
-        "runtimeArgs": [
-          "--inspect-brk",
-          "${workspaceFolder:api-gateway}/dist/index.js"
-        ],
+        "stopOnEntry": false,
+        "runtimeArgs": ["--inspect"],
+        "env": { "DOTENV_CONFIG_PATH": "../../.env" },
+        "program": "${workspaceFolder:api-gateway}/dist/index.js",
         "preLaunchTask": "tsc: build api-gateway",
         "outFiles": ["${workspaceFolder:api-gateway}/dist/**/*.js"],
-        "sourceMaps": true,
         "cwd": "${workspaceFolder:api-gateway}",
         "console": "internalConsole",
-        "skipFiles": ["<node_internals>/**"],
+        "skipFiles": [
+          "<node_internals>/**",
+          "**/node_modules/**",
+          "${workspaceFolder:api-gateway}/dist/index.js"
+        ],
         "outputCapture": "std",
         "localRoot": "${workspaceFolder:api-gateway}",
         "remoteRoot": "/app",
@@ -297,7 +310,7 @@
         "name": "WebView2",
         "type": "cppvsdbg",
         "request": "launch",
-        "program": "${workspaceFolder:webview2-host}/build/Debug/Streamtario.exe",
+        "program": "${workspaceFolder:webview2-host}/build/Streamtario.exe",
         "args": [],
         "cwd": "${workspaceFolder:webview2-host}",
         "console": "internalConsole",
@@ -338,6 +351,7 @@
       },
       {
         "name": "💯 Frontend",
+        // "configurations": ["WebView2", "DEBUG_FRONTEND"],
         "configurations": ["WebView2", "DEBUG_FRONTEND"],
         "presentation": { "hidden": false, "group": "compounds", "order": 2 },
         "stopAll": true
@@ -351,8 +365,8 @@
           "➕ Streaming Service",
           "➕ torrserver-daemon",
           "🚀 API Gateway",
-          "WebView2",
-          "DEBUG_FRONTEND"
+          "WebView2"
+          // "DEBUG_FRONTEND"
           // "REACT_DEVTOOLS"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
@@ -417,7 +431,7 @@
       "VCPKG_TARGET_TRIPLET": "x64-windows"
     },
     "terminal.integrated.env.windows": {
-      "VCPKG_VISUAL_STUDIO_PATH": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community"
+      "VCPKG_VISUAL_STUDIO_PATH": "C:\\Program Files\\Microsoft Visual Studio\\18\\Insiders"
     },
     "files.associations": {
       "*.erd": "json",

@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
-import type { Stream, FileStats } from "@/features/meta/types";
 import { fetchClient } from "@/api/api-client";
+import type { Stream } from "@/lib/stream-parser";
+import { APP_CONFIG } from "@/config/env";
+
+export interface FileStats {
+    hash: string;
+    size: number;
+}
 
 export interface ResolvedStreamData {
     contentId: string;
@@ -40,7 +46,7 @@ export const useStreamDataResolver = (
             if (!videoHash || !videoSize || !filename) {
                 try {
                     const stats = await fetchClient<FileStats>(
-                        `/api/v1/stream/file-stats/${infoHash}/${fileIndex}`,
+                        `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/file-stats/${infoHash}/${fileIndex}`,
                     );
                     videoHash ??= stats.hash;
                     videoSize ??= stats.size;

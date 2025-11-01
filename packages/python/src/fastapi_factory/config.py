@@ -10,11 +10,11 @@ ROOT_ENV = Path(__file__).parents[4] / ".env"
 
 class BaseAppSettings(BaseSettings):
     # --- Application
-    APP_ENV: str = "development"
-    APP_NAME: str = "StreamtarioService"
-    APP_HOST: str = "0.0.0.0"
-    APP_PORT: int = 8000
-    RELOAD: bool = True
+    APP_ENV: Optional[str] = None
+    APP_NAME: Optional[str] = None
+    APP_PORT: Optional[int] = None
+    APP_HOST: Optional[str] = None
+    RELOAD: Optional[bool] = None
 
     # --- SSL
     SSL_KEYFILE: Optional[str] = None
@@ -33,9 +33,14 @@ class BaseAppSettings(BaseSettings):
     REDIS_PORT: Optional[int] = None
 
     # --- Service‑to‑Service URLs
-    ADDON_CONTROLLER_URL: Optional[str] = None
+    ADDON_CONTROLLER_SERVICE_URL: Optional[str] = None
     ACCOUNT_PROFILE_SERVICE_URL: Optional[str] = None
     AUTH_SERVICE_URL: Optional[str] = None
+    TORRSERVER_BASE_URL: Optional[str] = None
+    FRONTEND_URL: Optional[str] = None
+    DAEMON_WS_URL: Optional[str] = None
+    NEXT_PUBLIC_API_GATEWAY_URL: Optional[str] = None
+    NEXT_PUBLIC_STREAMING_SERVICE_URL: Optional[str] = None
 
     # --- CORS
     ALLOWED_ORIGINS: Annotated[Sequence[str], NoDecode] = []
@@ -45,8 +50,13 @@ class BaseAppSettings(BaseSettings):
     JWT_ALGORITHM: Optional[str] = None
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Optional[int] = None
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: Optional[int] = None
+
+    # Google Auth
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRETS_FILE: Optional[str] = None
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: Optional[str] = None
+
+    # TMDB
     TMDB_API_KEY: Optional[str] = None
 
     model_config = SettingsConfigDict(

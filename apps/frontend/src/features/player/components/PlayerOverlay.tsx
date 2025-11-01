@@ -9,12 +9,14 @@ import { PlayerControls } from "./PlayerControls";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { useStreamingServerStats } from "../hooks/useStreamingServerStats";
 import { PreparingSplash, type AnimationState } from "./PreparingSplash";
+import { ServiceDownOverlay } from "./ServiceDownOverlay";
 
 export function PlayerOverlay() {
   const {
     status,
     activeStream,
     errorMessage,
+    rawStreamUrlOnError,
     actions,
     playerState,
     isPlaybackActive,
@@ -78,7 +80,9 @@ export function PlayerOverlay() {
     animationState = "initial";
   }
 
-  const shouldShowSplash = status === "playing" && animationState !== "playing";
+  const shouldShowSplash =
+    status === "preparing" ||
+    (status === "playing" && animationState !== "playing");
 
   return (
     <AnimatePresence>
@@ -89,17 +93,27 @@ export function PlayerOverlay() {
         className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-transparent text-white"
       >
         {status === "error" && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-black p-4 text-center">
-            <XCircle className="h-12 w-12 text-red-500" />
-            <h2 className="text-2xl font-bold">Playback Error</h2>
-            <p className="text-lg text-red-400">{errorMessage}</p>
-            <Button variant="destructive" onClick={actions.stop}>
-              Close
-            </Button>
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black p-4">
+            {rawStreamUrlOnError ? (
+              <ServiceDownOverlay
+                message={errorMessage ?? "An unknown error occurred."}
+                streamUrl={rawStreamUrlOnError}
+                onClose={actions.stop}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                <XCircle className="h-12 w-12 text-red-500" />
+                <h2 className="text-2xl font-bold">Playback Error</h2>
+                <p className="text-lg text-red-400">{errorMessage}</p>
+                <Button variant="destructive" onClick={actions.stop}>
+                  Close
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        {status === "playing" && (
+        {(status === "preparing" || status === "playing") && (
           <>
             <AnimatePresence>
               {shouldShowSplash && (
@@ -114,28 +128,32 @@ export function PlayerOverlay() {
                   <PreparingSplash
                     logoUrl={activeStream?.logo}
                     torrentStats={activeTorrentStats}
-                    animationState={animationState}
+                    animationState={
+                      status === "preparing" ? "initial" : animationState
+                    }
                   />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <AnimatePresence>
-              {isControlsVisible && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-30 flex h-full w-full flex-col justify-between"
-                >
-                  <PlayerHeader
-                    title={activeStream?.title ?? ""}
-                    onBack={actions.stop}
-                  />
-                  <PlayerControls />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {(status === "preparing" || status === "playing") && (
+              <AnimatePresence>
+                {isControlsVisible && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-30 flex h-full w-full flex-col justify-between"
+                  >
+                    <PlayerHeader
+                      title={activeStream?.title ?? ""}
+                      onBack={actions.stop}
+                    />
+                    <PlayerControls />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
           </>
         )}
       </motion.div>

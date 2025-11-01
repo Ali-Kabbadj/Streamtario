@@ -17,8 +17,6 @@ export const useContinueWatching = () => {
             const data = await graphqlClient.request(GetContinueWatchingDocument, {
                 profileId,
             });
-            // This is the fix: we access the nested array and provide a
-            // fallback of an empty array if it doesn't exist.
             return data.profile?.continueWatching ?? [];
         },
         enabled: !!profileId,

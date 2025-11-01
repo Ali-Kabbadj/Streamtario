@@ -62,7 +62,7 @@ class Container(containers.DeclarativeContainer):
     addon_provider: providers.Factory[IAddonProvider] = providers.Factory(
         AddonProvider,
         api_client=api_client,
-        addon_controller_url=settings.provided.ADDON_CONTROLLER_URL,
+        ADDON_CONTROLLER_SERVICE_URL=settings.provided.ADDON_CONTROLLER_SERVICE_URL,
     )
 
     uow: providers.Factory[IUnitOfWork] = providers.Factory(
@@ -214,7 +214,7 @@ class Container(containers.DeclarativeContainer):
         providers.Factory(
             GetMetaForIdUseCase,
             api_client=api_client,
-            addon_controller_url=settings.provided.ADDON_CONTROLLER_URL,
+            ADDON_CONTROLLER_SERVICE_URL=settings.provided.ADDON_CONTROLLER_SERVICE_URL,
         )
     )
 

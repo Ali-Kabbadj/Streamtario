@@ -5,40 +5,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   VideoType,
   GetPlaybackHistoryByImdbIdQuery,
+  MetaItemType, // --- 1. IMPORT MetaItemType ---
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { EpisodeCard } from "../components/EpisodeCard";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
-import { usePlayer } from "@/providers/PlayerProvider";
 
 type Video = VideoType;
 type GroupedVideos = Record<string, Video[]>;
-type PlaybackHistoryMap = Map<
-  string,
-  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0]
->;
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
+type PlaybackHistoryMap = Map<string, PlaybackHistoryItem>;
 
+// --- 2. UPDATE THE PROPS INTERFACE ---
 interface MetaEpisodesProps {
   videos: (Video | null)[] | null | undefined;
   onEpisodeClick: (episode: Video) => void;
+  // Add a function to handle resuming from the parent
+  onResumeEpisode: (
+    historyItem: PlaybackHistoryItem,
+    meta: MetaItemType,
+  ) => void;
   playbackHistoryMap: PlaybackHistoryMap;
-  metaName: string;
-  metaLogo?: string | null;
+  meta: MetaItemType; // Accept the full meta object
   initialSeason?: string;
 }
 
 export function MetaEpisodes({
   videos,
   onEpisodeClick,
+  onResumeEpisode, // Use the new resume handler
   playbackHistoryMap,
-  metaName,
-  metaLogo,
+  meta, // Use the full meta object
   initialSeason,
 }: MetaEpisodesProps) {
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
   const tabsListRef = useRef<HTMLDivElement | null>(null);
-  const { actions: playerActions } = usePlayer();
-  const initialSeasonSet = useRef(false); // <-- THE FIX: Part 1 - Create the flag
+  const initialSeasonSet = useRef(false);
 
   const seasons = useMemo(() => {
     if (!videos) return {};
@@ -64,17 +67,16 @@ export function MetaEpisodes({
   }, [seasons]);
 
   useEffect(() => {
-    // THE FIX: Part 2 - Check the flag before running
     if (initialSeasonSet.current) {
       return;
     }
 
     if (initialSeason && seasonKeys.includes(initialSeason)) {
       setSelectedSeason(initialSeason);
-      initialSeasonSet.current = true; // Set the flag so this doesn't run again
+      initialSeasonSet.current = true;
     } else if (seasonKeys.length > 0 && !selectedSeason) {
       setSelectedSeason(seasonKeys[0]);
-      initialSeasonSet.current = true; // Also set the flag here
+      initialSeasonSet.current = true;
     }
   }, [seasonKeys, initialSeason, selectedSeason]);
 
@@ -88,20 +90,8 @@ export function MetaEpisodes({
     }
   };
 
-  const handleResumeEpisode = (
-    episode: VideoType,
-    historyItem: GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0],
-  ) => {
-    const fullTitle = `${metaName} - S${episode.season} E${episode.episode}: ${episode.title}`;
-    const itemForPlayer = {
-      ...historyItem,
-      meta: {
-        name: fullTitle,
-        logo: metaLogo,
-      },
-    };
-    playerActions.resumeStream(itemForPlayer);
-  };
+  // --- 3. REMOVE THE OLD handleResumeEpisode function ---
+  // This logic is now handled in MetaView.tsx, which has the correct context.
 
   if (!videos || videos.length === 0 || seasonKeys.length === 0) {
     return null;
@@ -164,9 +154,7 @@ export function MetaEpisodes({
                     episode={episode}
                     isReleased={isReleased}
                     onShowSources={() => onEpisodeClick(episode)}
-                    onResume={() =>
-                      history && handleResumeEpisode(episode, history)
-                    }
+                    onResume={() => history && onResumeEpisode(history, meta)}
                     playbackHistory={history}
                   />
                 );

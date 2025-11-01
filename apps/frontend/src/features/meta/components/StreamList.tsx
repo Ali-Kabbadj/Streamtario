@@ -1,10 +1,17 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Stream } from "../types";
 import { StreamItem } from "./StreamItem";
-import type { ParsedStreamDetails } from "@/lib/stream-parser";
+import type { ParsedStreamDetails, Stream } from "@/lib/stream-parser";
 import { Button } from "@/components/ui/button";
+import type {
+  GetPlaybackHistoryByImdbIdQuery,
+  MetaItemType,
+} from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+import { useMemo } from "react";
+
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 
 interface StreamListProps {
   streams: ParsedStreamDetails[] | undefined;
@@ -12,14 +19,9 @@ interface StreamListProps {
   isLoading: boolean;
   clearFilters: () => void;
   mediaTitle: string;
-  logoUrl?: string | null;
   contentId: string;
-  metaId: string;
-  itemType: string;
-  imdbId: string;
-  lastStreamDetails?: Record<string, never> | null;
-  positionSeconds?: number;
-  durationSeconds?: number;
+  meta: MetaItemType;
+  playbackHistory?: PlaybackHistoryItem;
 }
 
 export function StreamList({
@@ -28,15 +30,25 @@ export function StreamList({
   isLoading,
   clearFilters,
   mediaTitle,
-  logoUrl,
   contentId,
-  metaId,
-  itemType,
-  imdbId,
-  lastStreamDetails,
-  positionSeconds,
-  durationSeconds,
+  meta,
+  playbackHistory,
 }: StreamListProps) {
+  const sortedStreams = useMemo(() => {
+    if (!streams || !rawStreams) return [];
+    const lastPlayedStreamId = playbackHistory?.lastStreamDetails?.infoHash;
+    if (!lastPlayedStreamId) {
+      return streams;
+    }
+    return [...streams].sort((a, b) => {
+      const streamA_Id = rawStreams[a.originalIndex]?.infoHash;
+      const streamB_Id = rawStreams[b.originalIndex]?.infoHash;
+      if (streamA_Id === lastPlayedStreamId) return -1;
+      if (streamB_Id === lastPlayedStreamId) return 1;
+      return 0;
+    });
+  }, [streams, rawStreams, playbackHistory]);
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -47,7 +59,7 @@ export function StreamList({
     );
   }
 
-  if (!streams || streams.length === 0) {
+  if (!sortedStreams || sortedStreams.length === 0) {
     return (
       <div className="flex h-40 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50 p-4">
         <p className="text-muted-foreground text-center">
@@ -60,35 +72,30 @@ export function StreamList({
     );
   }
 
+  const lastPlayedStreamId = playbackHistory?.lastStreamDetails?.infoHash;
+
   return (
     <div className="space-y-3">
-      {streams.map((parsed) => {
+      {sortedStreams.map((parsed) => {
         const rawStream = rawStreams?.[parsed.originalIndex];
         if (!rawStream) return null;
 
-        // Check if this is the last played stream
-        const isLastPlayed =
-          lastStreamDetails?.infoHash === rawStream.infoHash &&
-          lastStreamDetails?.fileIdx === rawStream.fileIdx;
+        const isLastPlayedStream =
+          !!lastPlayedStreamId && rawStream.infoHash === lastPlayedStreamId;
+
         return (
           <StreamItem
             key={parsed.originalIndex}
             stream={rawStream}
             parsed={parsed}
             mediaTitle={mediaTitle}
-            logoUrl={logoUrl}
             contentId={contentId}
-            metaId={metaId}
-            itemType={itemType}
-            imdbId={imdbId}
-            progress={
-              isLastPlayed && durationSeconds
-                ? {
-                    position: positionSeconds ?? 0,
-                    duration: durationSeconds,
-                  }
-                : undefined
-            }
+            meta={meta}
+            // --- THE FIX ---
+            // Pass the entire history object to ALL items
+            playbackHistory={playbackHistory}
+            // Pass a boolean to control the UI/logic for the specific last-played stream
+            isLastPlayedStream={isLastPlayedStream}
           />
         );
       })}

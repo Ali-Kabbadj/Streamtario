@@ -13,6 +13,7 @@ import type {
   VideoType,
   TrailerStreamType,
   GetPlaybackHistoryByImdbIdQuery,
+  MetaItemType, // --- IMPORT MetaItemType ---
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { StreamPanel } from "@/features/meta/components/StreamPanel";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -45,7 +46,7 @@ type PlaybackHistoryMap = Map<string, PlaybackHistoryItem>;
 
 export function MetaView({ itemType, itemId }: MetaViewProps) {
   const { selectedProfile } = useProfileContext();
-  const { status: playerStatus } = usePlayer();
+  const { actions: playerActions, status: playerStatus } = usePlayer(); // --- ADDED playerActions ---
   const [streamPanelContent, setStreamPanelContent] =
     useState<StreamPanelContent | null>(null);
   const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
@@ -151,6 +152,14 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     });
   };
 
+  // --- ADDED: Pass meta to resumeStream for full context ---
+  const handleResumeEpisode = (
+    historyItem: PlaybackHistoryItem,
+    metaItem: MetaItemType,
+  ) => {
+    playerActions.resumeStream(historyItem, metaItem);
+  };
+
   const handleMovieStreamsClick = () => {
     if (!meta) return;
     setStreamPanelContent({
@@ -176,19 +185,15 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
     mutationFn: (name: string) => fetchPersonDetails(name),
   });
 
-  // --- ADD THIS HANDLER FUNCTION ---
   const handleShowPersonDetails = (name: string) => {
-    // Reset previous data before fetching new data
     resetPersonDetails();
     getPersonDetails(name);
     setPersonModalOpen(true);
   };
 
-  // --- ADD THIS FUNCTION TO PASS TO THE MODAL ---
   const handleModalOpenChange = (isOpen: boolean) => {
     setPersonModalOpen(isOpen);
     if (!isOpen) {
-      // Clear data when modal is closed
       resetPersonDetails();
     }
   };
@@ -288,24 +293,21 @@ export function MetaView({ itemType, itemId }: MetaViewProps) {
             />
             {meta.type !== "movie" && (
               <MetaEpisodes
+                meta={meta}
                 videos={meta.videos}
                 onEpisodeClick={handleEpisodeClick}
+                onResumeEpisode={handleResumeEpisode}
                 playbackHistoryMap={playbackHistoryMap}
-                metaName={meta.name}
-                metaLogo={meta.logo}
                 initialSeason={initialSeason}
               />
             )}
-            {/* <MetaLinks links={meta.links} /> */}
           </div>
         </motion.div>
 
         <StreamPanel
           content={streamPanelContent}
           onClose={() => setStreamPanelContent(null)}
-          logoUrl={meta.logo}
-          itemType={itemType}
-          imdbId={meta.imdbId}
+          meta={meta}
           playbackHistory={activeContentHistory}
         />
 

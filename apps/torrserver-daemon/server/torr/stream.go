@@ -9,13 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/gin-gonic/gin"
 )
 
 func Stream(c *gin.Context) {
-
 	infoHashHex := c.Param("hash")
 	idStr := c.Param("id")
 	fileIdx, err := strconv.Atoi(idStr)
@@ -26,15 +24,10 @@ func Stream(c *gin.Context) {
 
 	infoHash := metainfo.NewHashFromHex(infoHashHex)
 
-	spec := &torrent.TorrentSpec{
-		InfoHash:                 infoHash,
-		DisableInitialPieceCheck: true,
-	}
-
-	torr, err := AddTorrent(spec, "", fileIdx)
-	if err != nil {
-		log.Printf("Failed to prepare torrent %s (file %d): %v", infoHashHex, fileIdx, err)
-		c.String(http.StatusInternalServerError, "Failed to prepare torrent for streaming")
+	torr := GetTorrent(infoHash)
+	if torr == nil {
+		log.Printf("Stream request for non-existent torrent %s. It must be set up first.", infoHashHex)
+		c.String(http.StatusNotFound, "Stream not found. Please set up the stream before accessing it.")
 		return
 	}
 
@@ -58,11 +51,21 @@ func Stream(c *gin.Context) {
 	if torr.FileName == "" {
 		torr.FileName = filepath.Base(targetFile.Path())
 	}
-	torr.FileIdx = fileIdx
 	torr.muTorrent.Unlock()
 
 	reader := targetFile.NewReader()
 	reader.SetReadahead(settings.Get().CacheSize)
+
+	torr.muTorrent.Lock()
+	if !torr.hasBeenAccessed {
+		log.Printf("[PRIORITY_DEBUG] First access for %s. Reader is NOT responsive to protect initial priority.", torr.Hash().HexString())
+		torr.hasBeenAccessed = true
+	} else {
+		log.Printf("[PRIORITY_DEBUG] Subsequent access for %s. Enabling responsive reader for seeks.", torr.Hash().HexString())
+		reader.SetResponsive()
+	}
+	torr.muTorrent.Unlock()
+
 	defer reader.Close()
 
 	extension := filepath.Ext(torr.FileName)

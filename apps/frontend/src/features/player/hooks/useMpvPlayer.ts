@@ -1,7 +1,8 @@
 import { useEffect, useCallback, useReducer } from "react";
 import { type WebViewCommand } from "@/types/webview/commands";
 import { type MpvEvent } from "@/types/webview/events";
-import type { Stream } from "@/features/meta/types";
+import type { Stream } from "@/lib/stream-parser";
+import type { PlayerHook } from "../types";
 
 const isWebView = () =>
     typeof window !== "undefined" && !!window.chrome?.webview;
@@ -148,7 +149,7 @@ function playerReducer(state: State, action: Action): State {
     }
 }
 
-export function useMpvPlayer() {
+export function useMpvPlayer(): PlayerHook {
     const [state, dispatch] = useReducer(playerReducer, initialState);
 
     const sendCommand = useCallback((command: WebViewCommand) => {
@@ -185,10 +186,11 @@ export function useMpvPlayer() {
         };
     }, []);
 
-    const stopAction = useCallback(() => {
+    const stopAction = useCallback(async () => {
         sendCommand({ command: "stop" });
         dispatch({ type: "STOP_PLAYBACK" });
     }, [sendCommand]);
+
 
     const actions = {
         play: useCallback(
@@ -265,7 +267,6 @@ export function useMpvPlayer() {
     return {
         status: state.status,
         errorMessage: state.errorMessage,
-        activeStreamInfo: state.activeStreamInfo,
         playerState: state.playerState,
         actions,
         hasPlaybackStarted: state.hasPlaybackStarted,

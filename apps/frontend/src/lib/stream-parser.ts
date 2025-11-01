@@ -203,3 +203,18 @@ export function parseStream(
 
   return result;
 }
+
+
+export function constructMagnetUrl(
+  infoHash: string,
+  title: string,
+  trackers: readonly string[] | null | undefined,
+  fileIndex: number,
+): string {
+  const trackerParams = (trackers ?? [])
+    .map(tr => `&tr=${encodeURIComponent(tr)}`)
+    .join('');
+
+  // The 'so' parameter is 'select-only', which tells the client which file index to prioritize.
+  return `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}${trackerParams}&so=${fileIndex}`;
+}

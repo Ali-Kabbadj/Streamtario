@@ -1,0 +1,7 @@
+# Debugging
+debugpy                    
+
+# Testing
+pytest
+pytest-asyncio
+httpx[http2]               

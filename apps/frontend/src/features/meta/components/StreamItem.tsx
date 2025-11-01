@@ -14,36 +14,39 @@ import {
   Tv,
   Play,
 } from "lucide-react";
-import type { ParsedStreamDetails } from "@/lib/stream-parser";
+import type { ParsedStreamDetails, Stream } from "@/lib/stream-parser";
 import type { JSX } from "react";
 import { usePlayer } from "@/providers/PlayerProvider";
-import type { Stream } from "../types";
+import type {
+  GetPlaybackHistoryByImdbIdQuery,
+  MetaItemType,
+} from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
+
+type PlaybackHistoryItem =
+  GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 
 interface StreamItemProps {
   stream: Stream;
   parsed: ParsedStreamDetails;
   mediaTitle: string;
-  logoUrl?: string | null;
-  contentId: string; // This is the specific video ID (e.g., with S/E)
-  metaId: string; // This is the parent meta ID (for subtitles)
-  imdbId: string;
-  itemType: string;
-  progress?: { position: number; duration: number };
+  contentId: string;
+  meta: MetaItemType | null;
+  playbackHistory?: PlaybackHistoryItem;
+  // --- THE FIX: Add a new prop to know if this is the *exact* stream ---
+  isLastPlayedStream: boolean;
 }
 
 const tagIcons: Record<string, JSX.Element> = {
-  // Quality
+  // Quality, Source, Video, Audio icons... (code unchanged)
   "4K": <Film className="mr-1.5 h-3.5 w-3.5" />,
   "2K": <Film className="mr-1.5 h-3.5 w-3.5" />,
   "1080p": <Film className="mr-1.5 h-3.5 w-3.5" />,
   "720p": <Film className="mr-1.5 h-3.5 w-3.5" />,
   SD: <Tv className="mr-1.5 h-3.5 w-3.5" />,
-  // Source
   Remux: <Sigma className="mr-1.5 h-3.5 w-3.5" />,
   BluRay: <Clapperboard className="mr-1.5 h-3.5 w-3.5" />,
   "WEB-DL": <Clapperboard className="mr-1.5 h-3.5 w-3.5" />,
   WEBRip: <Clapperboard className="mr-1.5 h-3.5 w-3.5" />,
-  // Video
   "Dolby Vision": <Sparkles className="mr-1.5 h-3.5 w-3.5" />,
   "HDR10+": <Sparkles className="mr-1.5 h-3.5 w-3.5" />,
   HDR: <Sparkles className="mr-1.5 h-3.5 w-3.5" />,
@@ -51,7 +54,6 @@ const tagIcons: Record<string, JSX.Element> = {
   "H.265": <Video className="mr-1.5 h-3.5 w-3.5" />,
   "H.264": <Video className="mr-1.5 h-3.5 w-3.5" />,
   "10bit": <Droplets className="mr-1.5 h-3.5 w-3.5" />,
-  // Audio
   "Dolby Atmos": <Volume2 className="mr-1.5 h-3.5 w-3.5" />,
   "Dolby TrueHD": <Volume2 className="mr-1.5 h-3.5 w-3.5" />,
   "DTS-HD MA": <Volume2 className="mr-1.5 h-3.5 w-3.5" />,
@@ -74,13 +76,22 @@ export function StreamItem({
   stream,
   parsed,
   mediaTitle,
-  logoUrl = null,
   contentId,
-  metaId,
-  imdbId,
-  itemType,
-  progress,
+  meta,
+  playbackHistory,
+  isLastPlayedStream,
 }: StreamItemProps) {
+  // Progress is now only calculated if this is the specific last played stream
+  const progress =
+    isLastPlayedStream &&
+    playbackHistory?.durationSeconds &&
+    playbackHistory.positionSeconds
+      ? {
+          position: playbackHistory.positionSeconds,
+          duration: playbackHistory.durationSeconds,
+        }
+      : undefined;
+
   const { actions } = usePlayer();
   const { tags } = parsed;
   const progressPercent = progress
@@ -95,15 +106,28 @@ export function StreamItem({
     ...tags.other,
   ].filter(Boolean) as string[];
 
+  // --- THE FIX: The logic here is now robust ---
   const handlePlayClick = () => {
+    if (!meta) return;
+
+    // This is the specific stream that was last played. Resume it exactly.
+    if (isLastPlayedStream && playbackHistory) {
+      actions.resumeStream(playbackHistory, meta);
+      return;
+    }
+
+    // For any other stream (or if there's no history), call playStream directly.
+    // Use the position from the history object if it exists, otherwise start from 0.
+    const startTime = playbackHistory?.positionSeconds ?? 0;
     actions.playStream(
       stream,
       mediaTitle,
-      logoUrl,
+      meta.logo ?? "",
       contentId,
-      itemType,
-      imdbId,
-      metaId,
+      meta.type,
+      meta.imdbId,
+      meta.id,
+      startTime,
     );
   };
 
@@ -115,7 +139,8 @@ export function StreamItem({
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-white">{parsed.addonName}</span>
-          {progress != undefined && progress.position > 0 && (
+          {/* The UI now correctly depends on the 'progress' object */}
+          {progress && progress.position > 0 && (
             <Badge variant="default" className="flex items-center gap-1">
               <Play className="h-3 w-3" /> Resume
             </Badge>
@@ -124,6 +149,7 @@ export function StreamItem({
             <Badge variant="outline">{parsed.releaseGroup}</Badge>
           )}
         </div>
+        {/* Remainder of JSX is unchanged */}
         <div className="flex items-center gap-3 text-xs text-slate-300">
           {parsed.sourceProvider && (
             <div className="flex items-center gap-1.5" title="Provider">

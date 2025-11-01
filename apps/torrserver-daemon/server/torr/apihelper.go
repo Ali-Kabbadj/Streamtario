@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/anacrolix/torrent"
@@ -17,7 +16,6 @@ import (
 )
 
 var bts *BTServer
-var torrentMu sync.Mutex
 
 func Init() {
 	bts = NewBTS()
@@ -41,7 +39,7 @@ func Close() {
 	}
 }
 
-func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int) (*Torrent, error) {
+func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int, startTime float64, duration float64) (*Torrent, error) {
 	spec.DisableInitialPieceCheck = true
 
 	bts.mu.Lock()
@@ -50,11 +48,14 @@ func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int) (*Torre
 
 	if ok && existingTorrent != nil {
 		log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
+		if existingTorrent.GotInfo() {
+			existingTorrent.UpdateReadAhead(startTime, duration)
+		}
 		existingTorrent.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
 		return existingTorrent, nil
 	}
 
-	torr, err := NewTorrent(spec, bts, filename, fileIdx)
+	torr, err := NewTorrent(spec, bts, filename, fileIdx, startTime, duration)
 	if err != nil {
 		log.TLogln("error creating new torrent:", err)
 		return nil, err

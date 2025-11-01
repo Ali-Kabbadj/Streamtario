@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_CONFIG } from "@/config/env";
+import { useRuntime } from "@/providers/RuntimeProvider";
 
 export interface FileStat {
   index: number;
@@ -39,13 +40,11 @@ export interface TorrentStats {
   total_peers: number;
 }
 
-const wsUrl =
-  new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL).origin.replace(
-    "https",
-    "wss",
-  ) + "/api/v1/stream";
+const wsUrl = APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL.replace(
+  "https",
+  "wss",
+);
 
-// Define a new type for the hook's return value for clarity
 interface StreamingServerStatsHook {
   isConnected: boolean;
   stats: TorrentStats[];
@@ -56,6 +55,7 @@ interface StreamingServerStatsHook {
 }
 
 export function useStreamingServerStats(): StreamingServerStatsHook {
+  const { isWebView } = useRuntime();
   const [stats, setStats] = useState<TorrentStats[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
@@ -137,7 +137,6 @@ export function useStreamingServerStats(): StreamingServerStatsHook {
     (infoHash: string, callback: () => void) => {
       if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
         console.error("WebSocket not connected, cannot subscribe.");
-        // Optionally, queue this up to be sent on connect
         return () => {};
       }
       ws.current.send(
@@ -151,8 +150,6 @@ export function useStreamingServerStats(): StreamingServerStatsHook {
         readyCallbacks.current.set(infoHash, new Set());
       }
       readyCallbacks.current.get(infoHash)!.add(callback);
-
-      // Return an unsubscribe function
       return () => {
         readyCallbacks.current.get(infoHash)?.delete(callback);
         if (readyCallbacks.current.get(infoHash)?.size === 0) {
@@ -164,9 +161,14 @@ export function useStreamingServerStats(): StreamingServerStatsHook {
   );
 
   useEffect(() => {
+    if (!isWebView) {
+      setIsConnected(false);
+      return;
+    }
+
     connect();
     return () => disconnect();
-  }, [connect, disconnect]);
+  }, [connect, disconnect, isWebView]);
 
   return { isConnected, stats, subscribeToTorrentReady };
 }

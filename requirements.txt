@@ -1,33 +1,30 @@
-# FastAPI & Uvicorn
+# Core framework
 fastapi
-uvicorn[standard]
-pydantic
-pydantic-settings
-python-dotenv
-debugpy
+uvicorn[standard]          # you need the server in production unless you deploy under gunicorn or uvicorn workers
+pydantic                   # runtime dependency of FastAPI and Strawberry
+pydantic-settings           # required if you use it for environment/config loading
+python-dotenv              # if your settings rely on .env files in production (common)
 
-# HTTP Client
+# HTTP client / DI
 httpx
-httpx[http2]
-dependency-injector
+dependency-injector        # used at runtime for DI container
 
-
-# Database (PostgreSQL) & ORM
+# Database and migrations
 sqlalchemy[asyncio]
-asyncpg
-alembic
+asyncpg                    # PostgreSQL driver
+alembic                    # needed in prod *only* if you run migrations there (most do)
 
 # Cache
 redis[hiredis]
 
-# Encode
+# Encode / crypto
 bcrypt
 
-# Graphql
+# GraphQL
 strawberry-graphql[fastapi]
 
-# Security and login
+# Security & login
 python-jose
 google-auth
-requests
 google-auth-oauthlib
+requests                   # runtime for Google OAuth and other HTTP calls

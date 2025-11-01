@@ -18,7 +18,6 @@ import {
   Play,
 } from "lucide-react";
 
-// CORRECTED TYPE ALIAS
 type PlaybackHistoryItem =
   GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 
@@ -51,7 +50,7 @@ export function MetaHeader({
 
   const handleResumeClick = () => {
     if (meta.id && playbackHistory) {
-      actions.resumeStream(playbackHistory);
+      actions.resumeStream(playbackHistory, meta);
     }
   };
 

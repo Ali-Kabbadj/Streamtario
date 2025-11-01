@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "NodeNext",
+    "forceConsistentCasingInFileNames": true,
     "moduleResolution": "NodeNext",
     "rootDir": "src",
     "outDir": "dist",

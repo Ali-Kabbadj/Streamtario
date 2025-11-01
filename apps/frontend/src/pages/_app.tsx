@@ -1,6 +1,6 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
-import Head from "next/head"; // <-- 1. IMPORT THIS
+import Head from "next/head";
 import { GraphqlProvider } from "@/providers/graphql-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -11,6 +11,7 @@ import { ViewProvider } from "@/providers/view-provider";
 import { DiscoverProvider } from "@/providers/discover-provider";
 import { PlayerProvider } from "@/providers/PlayerProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { RuntimeProvider } from "@/providers/RuntimeProvider";
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -31,12 +32,14 @@ export default function App({ Component, pageProps }: AppProps) {
               <ProfileProvider>
                 <ViewProvider>
                   <DiscoverProvider>
-                    <PlayerProvider>
-                      <div id="app-root">
-                        <Component {...pageProps} />
-                        <Toaster />
-                      </div>
-                    </PlayerProvider>
+                    <RuntimeProvider>
+                      <PlayerProvider>
+                        <div id="app-root">
+                          <Component {...pageProps} />
+                          <Toaster />
+                        </div>
+                      </PlayerProvider>
+                    </RuntimeProvider>
                   </DiscoverProvider>
                 </ViewProvider>
               </ProfileProvider>

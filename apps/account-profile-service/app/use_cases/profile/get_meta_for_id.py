@@ -6,9 +6,9 @@ from urllib.parse import quote
 
 
 class GetMetaForIdUseCase:
-    def __init__(self, api_client: ApiClient, addon_controller_url: str):
+    def __init__(self, api_client: ApiClient, ADDON_CONTROLLER_SERVICE_URL: str):
         self.api_client = api_client
-        self.addon_controller_url = addon_controller_url
+        self.ADDON_CONTROLLER_SERVICE_URL = ADDON_CONTROLLER_SERVICE_URL
 
     async def execute(
         self, profile_id: str, content_id: str, item_type: str
@@ -18,7 +18,7 @@ class GetMetaForIdUseCase:
         encoded_content_id = quote(content_id)
 
         url = (
-            f"{self.addon_controller_url}/internal/v1/meta/"
+            f"{self.ADDON_CONTROLLER_SERVICE_URL}/internal/v1/meta/"
             f"{profile_id}/{item_type}/{encoded_content_id}"
         )
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   createContext,
   useContext,
@@ -6,25 +8,27 @@ import React, {
   useCallback,
   useRef,
   useState,
+  useMemo,
 } from "react";
 import type {
   GetContinueWatchingQuery,
   GetPlaybackHistoryByImdbIdQuery,
+  MetaItemType,
   SubtitleType,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
-import {
-  useMpvPlayer,
-  type PlayerState,
-} from "@/features/player/hooks/useMpvPlayer";
+import { useHybridPlayer } from "@/features/player/hooks/useHybridPlayer";
 import { useProfileContext } from "./profile-provider";
 import { graphqlClient } from "@/lib/graphql-client";
 import { UpdatePlaybackHistoryDocument } from "@/orchestrators/graphql-query-orchestrator/queries";
 import { APP_CONFIG } from "@/config/env";
-import type { Stream } from "@/features/meta/types";
 import { useSubtitles } from "@/features/player/hooks/useSubtitles";
 import { useStreamDataResolver } from "@/features/player/hooks/useStreamDataResolver";
 import { fetchClient } from "@/api/api-client";
+import { constructMagnetUrl, type Stream } from "@/lib/stream-parser";
+import { checkStreamingServiceHealth } from "@/features/player/services/streaming.service";
+import type { PlayerActions } from "@/features/player/types";
+import type { PlayerState } from "@/features/player/hooks/useMpvPlayer";
 
 type PlaybackHistoryItem =
   | NonNullable<
@@ -44,7 +48,7 @@ interface ActiveStream {
   imdbId: string;
 }
 
-interface PlayerActions {
+export interface HighLevelPlayerActions extends PlayerActions {
   playStream: (
     stream: Stream,
     title: string,
@@ -53,42 +57,38 @@ interface PlayerActions {
     itemType: string,
     imdbId: string,
     metaId: string,
+    startTime?: number,
+    durationSeconds?: number,
   ) => void;
-  resumeStream: (historyItem: PlaybackHistoryItem) => void;
+  resumeStream: (historyItem: PlaybackHistoryItem, meta?: MetaItemType) => void;
   stop: () => Promise<void>;
-  togglePause: () => void;
-  toggleFullscreen: () => void;
-  seek: (time: number) => void;
-  setVolume: (volume: number) => void;
-  toggleMute: () => void;
-  setAudioId: (id: number) => void;
-  setSubtitleId: (id: number) => void;
-  loadSubtitle: (url: string) => void;
 }
 
 interface PlayerContextType {
-  status: "idle" | "playing" | "error";
+  status: "idle" | "preparing" | "playing" | "error";
   errorMessage: string | null;
+  rawStreamUrlOnError: string | null;
   activeStream: ActiveStream | null;
   playerState: PlayerState;
-  actions: PlayerActions;
+  actions: HighLevelPlayerActions;
   isPlaybackActive: boolean;
   externalSubtitles?: SubtitleType[];
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
-const gatewayUrl = new URL(APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL);
-const streamingApiUrl = `${gatewayUrl.origin}/api/v1/stream`;
-
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const { actions: mpvActions, ...mpvState } = useMpvPlayer();
+  const player = useHybridPlayer();
   const { selectedProfile } = useProfileContext();
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [serviceDownError, setServiceDownError] = useState<string | null>(null);
+  const [rawStreamUrlOnError, setRawStreamUrlOnError] = useState<string | null>(
+    null,
+  );
   const [activeStream, setActiveStream] = useState<ActiveStream | null>(null);
   const isSavingRef = useRef(false);
 
   const resolvedStreamData = useStreamDataResolver(activeStream);
-
   const { data: externalSubtitles } = useSubtitles({
     contentId: resolvedStreamData?.contentId,
     itemType: resolvedStreamData?.itemType,
@@ -103,12 +103,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       infoHash: string,
       announce: readonly string[] | null | undefined,
       fileIndex: number,
+      startTime: number,
+      durationSeconds: number,
     ) => {
       try {
-        await fetchClient("/api/v1/stream/setup-stream", {
-          method: "POST",
-          body: JSON.stringify({ infoHash, announce, fileIndex }),
-        });
+        await fetchClient(
+          `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/setup-stream`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              infoHash,
+              announce,
+              fileIndex,
+              startTime,
+              durationSeconds,
+            }),
+          },
+        );
         return true;
       } catch (error) {
         console.error("[PlayerProvider] Error setting up stream:", error);
@@ -119,28 +130,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const cleanupStreamOnBackend = useCallback((infoHash: string) => {
-    fetchClient(`/api/v1/stream/cleanup/${infoHash}`, {
-      method: "POST",
-      keepalive: true,
-    }).catch((err) => {
+    fetchClient(
+      `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/cleanup/${infoHash}`,
+      { method: "POST", keepalive: true },
+    ).catch((err) => {
       console.error("Beacon cleanup failed:", err);
     });
   }, []);
 
   const saveProgress = useCallback(async () => {
     if (isSavingRef.current) return;
-    const { playerState } = mpvState;
+    const { playerState } = player;
     if (
       !activeStream ||
       !resolvedStreamData ||
       !selectedProfile?.id ||
       playerState.duration <= 0 ||
       !activeStream.imdbId
-    ) {
+    )
       return;
-    }
     const isFinished = playerState.time / playerState.duration >= 0.95;
-
     const finalStreamDetails = {
       ...activeStream.stream,
       behaviorHints: {
@@ -168,7 +177,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } finally {
       isSavingRef.current = false;
     }
-  }, [mpvState, activeStream, selectedProfile?.id, resolvedStreamData]);
+  }, [player, activeStream, selectedProfile?.id, resolvedStreamData]);
 
   const playStream = useCallback(
     (
@@ -180,22 +189,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       imdbId: string,
       metaId: string,
       startTime = 0,
+      durationSeconds = 0,
     ) => {
       const start = async () => {
-        const { infoHash, fileIdx } = stream;
-        if (!infoHash || fileIdx === null || typeof fileIdx === "undefined") {
-          return;
-        }
-
-        const setupOk = await setupStreamOnBackend(
-          infoHash,
-          stream.announce,
-          fileIdx,
-        );
-        if (!setupOk) {
-          return;
-        }
-
+        setIsPreparing(true);
+        setServiceDownError(null);
+        setRawStreamUrlOnError(null);
         setActiveStream({
           stream,
           title,
@@ -203,48 +202,73 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           contentId,
           itemType,
           imdbId,
-          infoHash,
-          fileIndex: fileIdx,
+          infoHash: stream.infoHash,
+          fileIndex: stream.fileIdx,
           metaId,
         });
 
-        const streamUrl = `${streamingApiUrl}/direct/${infoHash}/${fileIdx}`;
-        mpvActions.play(streamUrl, startTime, stream);
+        const isServiceUp = await checkStreamingServiceHealth();
+        if (!isServiceUp) {
+          const rawMagnetUrl = constructMagnetUrl(
+            stream.infoHash!,
+            title,
+            stream.announce,
+            stream.fileIdx!,
+          );
+          setServiceDownError(
+            "The local streaming service is not running. Please start it to play content.",
+          );
+          setRawStreamUrlOnError(rawMagnetUrl);
+          setIsPreparing(false);
+          return;
+        }
+
+        const { infoHash, fileIdx } = stream;
+        if (!infoHash || fileIdx === null || typeof fileIdx === "undefined") {
+          setIsPreparing(false);
+          return;
+        }
+        const setupOk = await setupStreamOnBackend(
+          infoHash,
+          stream.announce,
+          fileIdx,
+          startTime,
+          durationSeconds,
+        );
+        if (!setupOk) {
+          setServiceDownError(
+            "Failed to set up the stream with the local service.",
+          );
+          setIsPreparing(false);
+          return;
+        }
+
+        const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/direct/${infoHash}/${fileIdx}`;
+        player.actions.play(streamUrl, startTime, stream);
       };
       void start();
     },
-    [setupStreamOnBackend, mpvActions],
+    [setupStreamOnBackend, player.actions],
   );
 
   const resumeStream = useCallback(
-    (historyItem: PlaybackHistoryItem) => {
+    (historyItem: PlaybackHistoryItem, meta?: MetaItemType) => {
       const streamToPlay = historyItem?.lastStreamDetails as Stream | undefined;
-      if (!streamToPlay) {
-        return;
-      }
-      const title =
-        "meta" in historyItem && historyItem.meta
-          ? historyItem.meta.name
-          : "Untitled";
-      const logo =
-        "meta" in historyItem && historyItem.meta
-          ? historyItem.meta.logo
-          : null;
-
-      const metaId =
-        historyItem.itemType === "series"
-          ? historyItem.contentId.split(":").slice(0, -2).join(":")
-          : historyItem.contentId;
+      if (!streamToPlay) return;
+      const title = meta?.name ?? "Untitled";
+      const logo = meta?.logo ?? null;
+      const metaId = meta?.id ?? "unknown";
 
       playStream(
         streamToPlay,
         title,
-        logo ?? "",
+        logo,
         historyItem.contentId,
         historyItem.itemType,
         historyItem.imdbId,
         metaId,
         historyItem.positionSeconds ?? 0,
+        historyItem.durationSeconds ?? 0,
       );
     },
     [playStream],
@@ -255,9 +279,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (activeStream?.infoHash) {
       cleanupStreamOnBackend(activeStream.infoHash);
     }
-    mpvActions.stop();
+    await player.actions.stop();
     setActiveStream(null);
-  }, [saveProgress, activeStream, mpvActions, cleanupStreamOnBackend]);
+    setIsPreparing(false);
+    setServiceDownError(null);
+    setRawStreamUrlOnError(null);
+  }, [saveProgress, activeStream, cleanupStreamOnBackend, player.actions]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -266,7 +293,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       if (activeStream?.infoHash) {
@@ -276,37 +302,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [activeStream, cleanupStreamOnBackend]);
 
   useEffect(() => {
-    if (mpvState.status === "playing" || mpvState.status === "error") {
+    if (
+      isPreparing &&
+      (player.hasPlaybackStarted || player.status === "error")
+    ) {
+      setIsPreparing(false);
+    }
+  }, [isPreparing, player.hasPlaybackStarted, player.status]);
+
+  const finalStatus = useMemo(() => {
+    if (serviceDownError) return "error";
+    if (isPreparing) return "preparing";
+    return player.status;
+  }, [serviceDownError, isPreparing, player.status]);
+
+  const finalErrorMessage = serviceDownError ?? player.errorMessage;
+
+  useEffect(() => {
+    if (finalStatus !== "idle") {
       document.body.classList.add("player-active");
     } else {
       document.body.classList.remove("player-active");
     }
-  }, [mpvState.status]);
+  }, [finalStatus]);
 
   const isPlaybackActive =
-    mpvState.hasPlaybackStarted &&
-    !mpvState.playerState.isBuffering &&
-    !mpvState.playerState.isPaused;
+    player.hasPlaybackStarted &&
+    !player.playerState.isBuffering &&
+    !player.playerState.isPaused;
 
   const value: PlayerContextType = {
-    status: mpvState.status,
-    errorMessage: mpvState.errorMessage,
+    status: finalStatus,
+    errorMessage: finalErrorMessage,
+    rawStreamUrlOnError,
     activeStream,
-    playerState: mpvState.playerState,
+    playerState: player.playerState,
     isPlaybackActive,
     externalSubtitles,
     actions: {
+      ...player.actions,
       playStream,
       resumeStream,
       stop,
-      togglePause: mpvActions.togglePause,
-      toggleFullscreen: mpvActions.toggleFullscreen,
-      seek: mpvActions.seek,
-      setVolume: mpvActions.setVolume,
-      toggleMute: mpvActions.toggleMute,
-      setAudioId: mpvActions.setAudioId,
-      setSubtitleId: mpvActions.setSubtitleId,
-      loadSubtitle: mpvActions.loadSubtitle,
     },
   };
 
