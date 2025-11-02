@@ -54,18 +54,8 @@ func Stream(c *gin.Context) {
 	torr.muTorrent.Unlock()
 
 	reader := targetFile.NewReader()
+	reader.SetResponsive()
 	reader.SetReadahead(settings.Get().CacheSize)
-
-	torr.muTorrent.Lock()
-	if !torr.hasBeenAccessed {
-		log.Printf("[PRIORITY_DEBUG] First access for %s. Reader is NOT responsive to protect initial priority.", torr.Hash().HexString())
-		torr.hasBeenAccessed = true
-	} else {
-		log.Printf("[PRIORITY_DEBUG] Subsequent access for %s. Enabling responsive reader for seeks.", torr.Hash().HexString())
-		reader.SetResponsive()
-	}
-	torr.muTorrent.Unlock()
-
 	defer reader.Close()
 
 	extension := filepath.Ext(torr.FileName)

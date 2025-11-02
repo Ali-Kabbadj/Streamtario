@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_CONFIG } from "@/config/env";
-import { useRuntime } from "@/providers/RuntimeProvider";
 
 export interface FileStat {
   index: number;
@@ -55,7 +54,6 @@ interface StreamingServerStatsHook {
 }
 
 export function useStreamingServerStats(): StreamingServerStatsHook {
-  const { isWebView } = useRuntime();
   const [stats, setStats] = useState<TorrentStats[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
@@ -161,14 +159,9 @@ export function useStreamingServerStats(): StreamingServerStatsHook {
   );
 
   useEffect(() => {
-    if (!isWebView) {
-      setIsConnected(false);
-      return;
-    }
-
     connect();
     return () => disconnect();
-  }, [connect, disconnect, isWebView]);
+  }, [connect, disconnect]);
 
   return { isConnected, stats, subscribeToTorrentReady };
 }

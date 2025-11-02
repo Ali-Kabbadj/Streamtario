@@ -26,7 +26,7 @@ type BTServer struct {
 	Storage     torrent_storage.ClientImpl
 	torrents    map[metainfo.Hash]*Torrent
 	mu          sync.Mutex
-	stopJanitor chan struct{} // Channel to stop the janitor goroutine
+	stopJanitor chan struct{}
 }
 
 var privateIPBlocks []*net.IPNet
@@ -61,7 +61,6 @@ func (bt *BTServer) Connect() error {
 		return err
 	}
 	bt.torrents = make(map[metainfo.Hash]*Torrent)
-	// Start the torrent cleanup janitor
 	go bt.runTorrentJanitor()
 	return nil
 }
@@ -69,7 +68,6 @@ func (bt *BTServer) Connect() error {
 func (bt *BTServer) Disconnect() {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
-	// Stop the janitor
 	close(bt.stopJanitor)
 	if bt.client != nil {
 		bt.client.Close()
@@ -78,9 +76,8 @@ func (bt *BTServer) Disconnect() {
 	}
 }
 
-// runTorrentJanitor periodically checks for and removes expired torrents.
 func (bt *BTServer) runTorrentJanitor() {
-	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -90,7 +87,7 @@ func (bt *BTServer) runTorrentJanitor() {
 			for hash, torr := range bt.torrents {
 				if torr.expired() {
 					log.Println("Janitor: torrent expired, cleaning up:", hash.HexString())
-					torr.Close() // Ensure it's fully closed
+					torr.Close()
 					delete(bt.torrents, hash)
 				}
 			}
@@ -179,19 +176,6 @@ func (bt *BTServer) ListTorrents() map[metainfo.Hash]*Torrent {
 func (bt *BTServer) RemoveTorrent(hash torrent.InfoHash) bool {
 	if torr, ok := bt.torrents[hash]; ok {
 		return torr.Close()
-	}
-	return false
-}
-
-func isPrivateIP(ip net.IP) bool {
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return true
-	}
-
-	for _, block := range privateIPBlocks {
-		if block.Contains(ip) {
-			return true
-		}
 	}
 	return false
 }

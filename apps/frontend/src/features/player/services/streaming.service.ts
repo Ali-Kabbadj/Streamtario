@@ -6,9 +6,6 @@ import { APP_CONFIG } from "@/config/env";
  */
 export async function checkStreamingServiceHealth(): Promise<boolean> {
     const healthCheckUrl = `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/health`;
-
-    // We use an AbortController for a short timeout. If the server isn't running,
-    // we don't want the user waiting for a long network timeout.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
 

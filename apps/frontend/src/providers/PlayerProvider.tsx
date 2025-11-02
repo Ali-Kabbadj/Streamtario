@@ -1,3 +1,5 @@
+// src/providers/PlayerProvider.tsx
+
 "use client";
 
 import React, {
@@ -16,7 +18,6 @@ import type {
   MetaItemType,
   SubtitleType,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
-import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
 import { useHybridPlayer } from "@/features/player/hooks/useHybridPlayer";
 import { useProfileContext } from "./profile-provider";
 import { graphqlClient } from "@/lib/graphql-client";
@@ -28,7 +29,13 @@ import { fetchClient } from "@/api/api-client";
 import { constructMagnetUrl, type Stream } from "@/lib/stream-parser";
 import { checkStreamingServiceHealth } from "@/features/player/services/streaming.service";
 import type { PlayerActions } from "@/features/player/types";
-import type { PlayerState } from "@/features/player/hooks/useMpvPlayer";
+import {
+  isWebView,
+  type PlayerState,
+} from "@/features/player/hooks/useMpvPlayer";
+import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
+import { BrowserPlayer } from "@/features/player/components/BrowserPlayer";
+import { cn } from "@/lib/utils";
 
 type PlaybackHistoryItem =
   | NonNullable<
@@ -80,6 +87,7 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const player = useHybridPlayer();
   const { selectedProfile } = useProfileContext();
+  const [browserSrc, setBrowserSrc] = useState<string | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const [serviceDownError, setServiceDownError] = useState<string | null>(null);
   const [rawStreamUrlOnError, setRawStreamUrlOnError] = useState<string | null>(
@@ -244,11 +252,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/direct/${infoHash}/${fileIdx}`;
+        if (!player.isWebView) {
+          setBrowserSrc(streamUrl);
+        }
         player.actions.play(streamUrl, startTime, stream);
+
+        if (player.playerState.isPaused && !isWebView()) {
+          player.actions.togglePause();
+        }
       };
       void start();
     },
-    [setupStreamOnBackend, player.actions],
+    [setupStreamOnBackend, player],
   );
 
   const resumeStream = useCallback(
@@ -312,7 +327,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const finalStatus = useMemo(() => {
     if (serviceDownError) return "error";
-    if (isPreparing) return "preparing";
+    if (isPreparing && player.status !== "playing") return "preparing";
     return player.status;
   }, [serviceDownError, isPreparing, player.status]);
 
@@ -350,6 +365,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider value={value}>
       {children}
+
+      {!player.isWebView && (
+        <div
+          className={cn(
+            "fixed inset-0 z-[40] bg-black",
+            (finalStatus === "idle" || !activeStream) && "hidden",
+          )}
+        >
+          <BrowserPlayer ref={player.ref} src={browserSrc} />
+        </div>
+      )}
+
       <PlayerOverlay />
     </PlayerContext.Provider>
   );

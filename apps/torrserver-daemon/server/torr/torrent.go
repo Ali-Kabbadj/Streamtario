@@ -39,9 +39,8 @@ type Torrent struct {
 	UploadSpeed         float64
 	BytesReadUsefulData int64
 
-	closed          chan struct{}
-	progressTicker  *time.Ticker
-	hasBeenAccessed bool
+	closed         chan struct{}
+	progressTicker *time.Ticker
 }
 
 func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileIdx int, startTime float64, duration float64) (*Torrent, error) {
@@ -100,16 +99,15 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 	}
 
 	torr := &Torrent{
-		Torrent:         goTorrent,
-		TorrentSpec:     spec,
-		Stat:            state.TorrentAdded,
-		lastTimeSpeed:   time.Now(),
-		bt:              bt,
-		closed:          make(chan struct{}),
-		Timestamp:       time.Now().Unix(),
-		FileName:        filename,
-		FileIdx:         fileIdx,
-		hasBeenAccessed: false,
+		Torrent:       goTorrent,
+		TorrentSpec:   spec,
+		Stat:          state.TorrentAdded,
+		lastTimeSpeed: time.Now(),
+		bt:            bt,
+		closed:        make(chan struct{}),
+		Timestamp:     time.Now().Unix(),
+		FileName:      filename,
+		FileIdx:       fileIdx,
 	}
 
 	go torr.watchStats()
@@ -213,7 +211,7 @@ func (t *Torrent) UpdateReadAhead(startTime float64, duration float64) {
 		bufferPieces = 1
 	}
 
-	log.Printf("[PRIORITY_DEBUG] Setting initial priority. Offset: %d, Start Piece: %d", targetOffset, startPiece)
+	log.Printf("[PRIORITY_LOG] Setting initial priority. Offset: %d, Start Piece: %d", targetOffset, startPiece)
 
 	for i := 0; i < t.NumPieces(); i++ {
 		t.Piece(i).SetPriority(torrent.PiecePriorityNone)
@@ -233,7 +231,7 @@ func (t *Torrent) UpdateReadAhead(startTime float64, duration float64) {
 }
 
 func (t *Torrent) watchStats() {
-	t.progressTicker = time.NewTicker(time.Second)
+	t.progressTicker = time.NewTicker(2 * time.Second)
 	defer t.progressTicker.Stop()
 	for {
 		select {

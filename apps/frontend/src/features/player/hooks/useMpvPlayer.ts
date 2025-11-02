@@ -4,7 +4,7 @@ import { type MpvEvent } from "@/types/webview/events";
 import type { Stream } from "@/lib/stream-parser";
 import type { PlayerHook } from "../types";
 
-const isWebView = () =>
+export const isWebView = () =>
     typeof window !== "undefined" && !!window.chrome?.webview;
 
 export interface MpvTrack {
@@ -76,6 +76,10 @@ function playerReducer(state: State, action: Action): State {
             return {
                 ...initialState,
                 status: "playing",
+                playerState: {
+                    ...initialState.playerState,
+                    isPaused: false,
+                },
                 activeStreamInfo: {
                     infoHash: action.payload.infoHash,
                     fileIndex: action.payload.fileIndex,
@@ -179,7 +183,7 @@ export function useMpvPlayer(): PlayerHook {
             }
         };
 
-        window.chrome.webview.addEventListener("message", handleEvent);
+        window.chrome.webview?.addEventListener("message", handleEvent);
         return () => {
             if (window?.chrome?.webview)
                 window.chrome.webview.removeEventListener("message", handleEvent);
@@ -205,6 +209,10 @@ export function useMpvPlayer(): PlayerHook {
                     },
                 });
                 sendCommand({ command: "play", payload: { url, startTime } });
+                sendCommand({
+                    command: "set-property",
+                    payload: { property: "pause", value: "no" },
+                });
             },
             [sendCommand],
         ),

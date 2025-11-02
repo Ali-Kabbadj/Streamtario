@@ -90,10 +90,10 @@ export function PlayerOverlay() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-transparent text-white"
+        className="pointer-events-none fixed inset-0 z-[100] flex flex-col items-center justify-center text-white"
       >
         {status === "error" && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black p-4">
+          <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black p-4">
             {rawStreamUrlOnError ? (
               <ServiceDownOverlay
                 message={errorMessage ?? "An unknown error occurred."}
@@ -143,7 +143,7 @@ export function PlayerOverlay() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-30 flex h-full w-full flex-col justify-between"
+                    className="pointer-events-auto absolute inset-0 z-30 flex h-full w-full flex-col justify-between"
                   >
                     <PlayerHeader
                       title={activeStream?.title ?? ""}

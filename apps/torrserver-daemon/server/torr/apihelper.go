@@ -48,6 +48,7 @@ func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int, startTi
 
 	if ok && existingTorrent != nil {
 		log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
+
 		if existingTorrent.GotInfo() {
 			existingTorrent.UpdateReadAhead(startTime, duration)
 		}

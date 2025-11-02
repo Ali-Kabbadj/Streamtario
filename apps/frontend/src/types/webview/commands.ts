@@ -39,7 +39,7 @@ interface ToggleFullscreenCommand {
 interface SetPropertyCommand {
     command: "set-property";
     payload: {
-        property: "aid" | "sid";
+        property: "aid" | "sid" | "pause";
         value: string;
     };
 }

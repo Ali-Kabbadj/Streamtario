@@ -1,22 +1,20 @@
-// apps/frontend/src/features/player/hooks/useHybridPlayer.ts
+// src/features/player/hooks/useHybridPlayer.ts
 
 import { useRuntime } from "@/providers/RuntimeProvider";
-import { useBrowserPlayer } from "./useBrowserPlayer";
 import { useMpvPlayer } from "./useMpvPlayer";
-import type { PlayerHook } from "../types";
+import { useBrowserPlayerAdapter } from "./useBrowserPlayerAdapter";
+import { useRef } from "react";
+import type { MediaPlayerInstance } from "@vidstack/react";
 
-/**
- * A hybrid hook that adheres to the Rules of Hooks by calling both underlying
- * player hooks unconditionally. It then returns the active player's state and
- * actions based on the runtime environment (WebView2 or Browser).
- */
-export function useHybridPlayer(): PlayerHook {
+export function useHybridPlayer() {
     const { isWebView } = useRuntime();
+    const mpv = useMpvPlayer();
+    const browser = useBrowserPlayerAdapter();
+    const emptyRef = useRef<MediaPlayerInstance | null>(null);
 
-    // Call both hooks on every render to preserve order.
-    const mpvPlayer = useMpvPlayer();
-    const browserPlayer = useBrowserPlayer();
+    if (isWebView) {
+        return { isWebView: true as const, ...mpv, ref: emptyRef };
+    }
 
-    // Return the one that matches the current environment.
-    return isWebView ? mpvPlayer : browserPlayer;
+    return { isWebView: false as const, ...browser };
 }
