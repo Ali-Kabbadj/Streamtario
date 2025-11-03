@@ -8,6 +8,7 @@ python-dotenv              # if your settings rely on .env files in production (
 # HTTP client / DI
 httpx
 dependency-injector        # used at runtime for DI container
+httpx[http2]
 
 # Database and migrations
 sqlalchemy[asyncio]

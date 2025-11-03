@@ -28,6 +28,8 @@ export function PlayerOverlay() {
   const activeTorrentStats =
     stats?.find((t) => t.hash === activeStream?.infoHash) ?? null;
 
+  const isSpecialErrorCase = status === "error" && !!rawStreamUrlOnError;
+
   useEffect(() => {
     const handleActivity = () => {
       setIsControlsVisible(true);
@@ -40,11 +42,13 @@ export function PlayerOverlay() {
       }
     };
 
-    if (!isPlaybackActive) {
+    // Force controls to be visible during the special error case or when playback is paused/buffering.
+    if (isSpecialErrorCase || !isPlaybackActive) {
       setIsControlsVisible(true);
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
     }
 
+    // Only set up auto-hide behavior during active playback.
     if (status === "playing") {
       window.addEventListener("mousemove", handleActivity);
       window.addEventListener("click", handleActivity);
@@ -64,7 +68,7 @@ export function PlayerOverlay() {
           clearTimeout(activityTimeoutRef.current);
       };
     }
-  }, [status, isPlaybackActive, playerState.isPaused]);
+  }, [status, isPlaybackActive, playerState.isPaused, isSpecialErrorCase]);
 
   if (status === "idle") {
     return null;
@@ -84,6 +88,19 @@ export function PlayerOverlay() {
     status === "preparing" ||
     (status === "playing" && animationState !== "playing");
 
+  const getErrorTitle = () => {
+    if (rawStreamUrlOnError?.startsWith("magnet:")) {
+      return "Streaming Service Unavailable";
+    }
+    if (errorMessage?.includes("format")) {
+      return "Unsupported Video Format";
+    }
+    return "Playback Error";
+  };
+
+  const shouldShowPlayerUI =
+    status === "preparing" || status === "playing" || isSpecialErrorCase;
+
   return (
     <AnimatePresence>
       <motion.div
@@ -93,12 +110,12 @@ export function PlayerOverlay() {
         className="pointer-events-none fixed inset-0 z-[100] flex flex-col items-center justify-center text-white"
       >
         {status === "error" && (
-          <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black p-4">
+          <>
             {rawStreamUrlOnError ? (
               <ServiceDownOverlay
+                title={getErrorTitle()}
                 message={errorMessage ?? "An unknown error occurred."}
                 streamUrl={rawStreamUrlOnError}
-                onClose={actions.stop}
               />
             ) : (
               <div className="flex flex-col items-center justify-center gap-4 text-center">
@@ -110,13 +127,13 @@ export function PlayerOverlay() {
                 </Button>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {(status === "preparing" || status === "playing") && (
+        {shouldShowPlayerUI && (
           <>
             <AnimatePresence>
-              {shouldShowSplash && (
+              {shouldShowSplash && !isSpecialErrorCase && (
                 <motion.div
                   key="splash-screen"
                   initial={{ opacity: 1 }}
@@ -136,24 +153,22 @@ export function PlayerOverlay() {
               )}
             </AnimatePresence>
 
-            {(status === "preparing" || status === "playing") && (
-              <AnimatePresence>
-                {isControlsVisible && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="pointer-events-auto absolute inset-0 z-30 flex h-full w-full flex-col justify-between"
-                  >
-                    <PlayerHeader
-                      title={activeStream?.title ?? ""}
-                      onBack={actions.stop}
-                    />
-                    <PlayerControls />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            )}
+            <AnimatePresence>
+              {isControlsVisible && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="pointer-events-auto absolute inset-0 z-30 flex h-full w-full flex-col justify-between"
+                >
+                  <PlayerHeader
+                    title={activeStream?.title ?? ""}
+                    onBack={actions.stop}
+                  />
+                  <PlayerControls />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </motion.div>

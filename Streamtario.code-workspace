@@ -137,6 +137,97 @@
     ],
     "configurations": [
       {
+        "name": "Purge & Rebuild All (Docker Compose)",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose down --volumes --remove-orphans; docker rmi -f streamtario-account-profile-service:latest streamtario-addon-controller-service:latest streamtario-api-gateway:latest streamtario-auth-service:latest 2>$null; docker builder prune -af; docker system prune -af; docker-compose build --no-cache; docker-compose up -d"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker", "order": 1 }
+      },
+      {
+        "name": "Rebuild & Run: api-gateway",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose build --no-cache api-gateway; docker-compose up -d api-gateway"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker", "order": 1 }
+      },
+      {
+        "name": "Rebuild & Run: addon-controller-service",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose build --no-cache addon-controller-service; docker-compose up -d addon-controller-service"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker", "order": 1 }
+      },
+      {
+        "name": "Rebuild & Run: account-profile-service",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose build --no-cache account-profile-service; docker-compose up -d account-profile-service"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker", "order": 1 }
+      },
+      {
+        "name": "Rebuild & Run: auth-service",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose build --no-cache auth-service; docker-compose up -d auth-service"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker", "order": 1 }
+      },
+      {
+        "name": "Follow Logs (docker-compose)",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose logs --tail=200 --follow"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker", "order": 1 },
+        "internalConsoleOptions": "neverOpen"
+      },
+      {
         "name": "📅 Create Database",
         "type": "debugpy",
         "request": "launch",
@@ -146,6 +237,21 @@
         "presentation": { "hidden": false, "group": "db", "order": 1 }
       },
       {
+        "name": "📅 Create Database Docker",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose run --rm scripts python scripts/db_cli_Docker.py create"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker-DB", "order": 1 }
+      },
+      {
         "name": "📅 Apply Migrations",
         "type": "debugpy",
         "request": "launch",
@@ -153,6 +259,21 @@
         "args": ["upgrade", "head"],
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 1 }
+      },
+      {
+        "name": "📅 Apply Migrations Docker",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose run --rm scripts python scripts/db_cli_Docker.py upgrade head"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker-DB", "order": 1 }
       },
       {
         "name": "📅 Generate New Migration",
@@ -171,6 +292,21 @@
         "args": ["drop"],
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "db", "order": 3 }
+      },
+      {
+        "name": "⚠️ Drop Database Docker",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "docker-compose run --rm scripts python scripts/db_cli_Docker.py drop"
+        ],
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Docker-DB", "order": 3 }
       },
       {
         "name": "➕ Addons Service",
@@ -341,8 +477,8 @@
           "➕ Addons Service",
           "➕ Accounts Service",
           "➕ Auth Service",
-          "➕ Streaming Service",
-          "➕ torrserver-daemon",
+          // "➕ Streaming Service",
+          // "➕ torrserver-daemon",
           "🚀 API Gateway"
         ],
         "preLaunchTask": "Install Streamtario Python lib",

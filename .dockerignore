@@ -1,0 +1,69 @@
+# ./.dockerignore - Aggressive version to ensure a small build context
+
+# --- FORCE IGNORE THESE EVERYWHERE ---
+
+# The leading slash makes the pattern relative to the root of the context
+
+# These are the most likely culprits for a large build context
+
+/.venv
+/venv
+/node_modules
+/build
+/cache
+/vcpkg
+
+# Using the double-star glob pattern is a robust fallback
+
+**/.venv
+**/venv
+**/node_modules
+**/**pycache** \*_/_.pyc
+
+# --- Git and Editor Config ---
+
+.git
+.gitignore
+.gitattributes
+.vscode
+.idea
+Streamtario.code-workspace
+
+# --- Secrets ---
+
+.env
+.env.\*
+\*.env
+google_client_secret.json
+
+# --- Build Artifacts ---
+
+**/build
+**/dist
+\*.egg-info
+package-lock.json
+
+# --- Local Scripts & Config ---
+
+fly.toml
+update-secrets.ps1
+requirements-dev.txt
+
+# --- Exclude Non-Backend Apps ---
+
+/apps/frontend
+/apps/state-tracker-service
+/apps/torrserver-daemon
+/apps/streaming-service
+/apps/webview2-host
+
+# --- Other Local Dev Folders ---
+
+local_dev_deps/
+dev_resources/
+
+# --- Docs & Misc ---
+
+_.md
+LICENSE
+_.exe

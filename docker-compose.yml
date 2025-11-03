@@ -1,0 +1,112 @@
+services:
+  # DB cli
+  scripts:
+    build:
+      context: .
+      dockerfile: database/Dockerfile  
+    container_name: db-cli
+    env_file:
+      - ./.env.docker
+    # This command makes the container wait indefinitely for exec commands.
+    command: tail -f /dev/null 
+    # This volume mount allows the container to access the project files.
+    volumes:
+      - ./:/app
+    depends_on:
+      - postgres
+    networks:
+      - streamtario-net
+
+  # --- Backend Services ---
+  account-profile-service:
+    build:
+      context: .
+      dockerfile: apps/account-profile-service/Dockerfile
+    container_name: account-profile-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./.env.docker
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - streamtario-net
+
+  addon-controller-service:
+    build:
+      context: .
+      dockerfile: apps/addon-controller-service/Dockerfile
+    container_name: addon-controller-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./.env.docker
+    depends_on:
+      - account-profile-service
+    networks:
+      - streamtario-net
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: apps/auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./.env.docker
+    depends_on:
+      - account-profile-service
+    networks:
+      - streamtario-net
+
+  # --- API Gateway ---
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./.env.docker
+    environment:
+      APP_ENV: "local_production"
+      PROJECT_ROOT: "/app"
+    depends_on:
+      - account-profile-service
+      - addon-controller-service
+      - auth-service
+    networks:
+      - streamtario-net
+
+  # --- Infrastructure ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - streamtario-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - streamtario-net
+
+volumes:
+  postgres-data:
+
+networks:
+  streamtario-net:
+    driver: bridge

@@ -10,9 +10,7 @@ class Container(containers.DeclarativeContainer):
     )
 
     api_client: providers.Factory[ApiClient] = providers.Factory(
-        # Use the new CA file setting for verification
         ApiClient,
-        verify_ssl=settings.provided.SSL_CA_CERTFILE,
     )
 
     jwt_service: providers.Factory[IJwtService] = providers.Factory(

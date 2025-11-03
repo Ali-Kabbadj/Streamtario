@@ -24,32 +24,56 @@ def _clear_migrations_folder(versions_path: str):
 
 
 def run_psql_command(commands: list[str], check=True, connect_to_db=False):
-    """A helper function to run commands using the psql CLI."""
+    """Run psql commands directly in container (no docker exec needed)"""
     psql_cmd = [
         "psql",
         "-U",
         os.environ["DB_USER"],
+        # It uses the service name 'postgres' for robust networking.
         "-h",
-        os.environ["DB_HOST"],
+        "postgres",
         "-p",
-        os.environ["DB_PORT"],
+        "5432",
     ]
+
     if connect_to_db:
         psql_cmd.extend(["-d", os.environ["DB_NAME"]])
+
     for command in commands:
         psql_cmd.extend(["-c", command])
+
     env = os.environ.copy()
     env["PGPASSWORD"] = os.environ["DB_PASSWORD"]
-    subprocess.run(psql_cmd, env=env, check=check, capture_output=True)
+    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True)
+
+    if check and result.returncode != 0:
+        stderr = result.stderr.lower()
+        if "already exists" in stderr or "does not exist" in stderr:
+            pass  # Harmless error
+        else:
+            raise subprocess.CalledProcessError(
+                result.returncode, psql_cmd, result.stdout, result.stderr
+            )
+
+    return result
+
+
+def detect_docker_environment():
+    """Check if we're working with Docker Postgres"""
+    # This check is now less critical as the script is intended to be run inside the container.
+    return "DOCKER_ENV" in os.environ
 
 
 def main():
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    load_dotenv(os.path.join(project_root, ".env"))
+    # It loads from .env.docker, which is provided by docker-compose.
+    load_dotenv(os.path.join(project_root, ".env.docker"))
     sys.path.insert(0, os.path.join(project_root, "packages", "python", "src"))
     migrations_path = os.path.join(project_root, "database", "migrations")
     versions_path = os.path.join(migrations_path, "alembic", "versions")
+
     parser = argparse.ArgumentParser(description="Streamtario Database Management CLI")
+
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("create", help="Create the PostgreSQL database.")
@@ -80,8 +104,18 @@ def main():
     try:
         if args.command == "create":
             print(f"Attempting to create database '{os.environ['DB_NAME']}'...")
-            run_psql_command([f"CREATE DATABASE {os.environ['DB_NAME']}"])
-            print("Database created successfully (or already existed).")
+            result = run_psql_command(
+                [f"CREATE DATABASE {os.environ['DB_NAME']}"],
+                check=False,
+            )
+            if result.returncode == 0:
+                print("Database created successfully.")
+            else:
+                if "already exists" in result.stderr:
+                    print("Database already exists - continuing.")
+                else:
+                    print(f"Error creating database: {result.stderr}")
+                    sys.exit(1)
 
         elif args.command == "drop":
             print(
@@ -92,8 +126,18 @@ def main():
                 print("Confirmation failed. Aborting.")
                 return
             print("Confirmation successful. Dropping database...")
-            run_psql_command([f"DROP DATABASE {os.environ['DB_NAME']} WITH (FORCE)"])
-            print("Database dropped successfully.")
+            result = run_psql_command(
+                [f"DROP DATABASE {os.environ['DB_NAME']} WITH (FORCE)"],
+                check=False,
+            )
+            if result.returncode == 0:
+                print("Database dropped successfully.")
+            else:
+                if "does not exist" in result.stderr:
+                    print("Database does not exist - continuing.")
+                else:
+                    print(f"Error dropping database: {result.stderr}")
+                    sys.exit(1)
 
             _clear_migrations_folder(versions_path)
             print("Development migration history has been cleared.")
@@ -133,7 +177,7 @@ def main():
     except FileNotFoundError:
         print("\nFATAL ERROR: The 'psql' or 'alembic' command was not found.")
         print(
-            "Please ensure PostgreSQL client tools and alembic are installed in your venv and in your system's PATH."
+            "Please ensure these tools are installed in the Docker image for the 'scripts' service."
         )
         sys.exit(1)
 

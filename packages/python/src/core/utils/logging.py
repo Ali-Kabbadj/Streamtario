@@ -45,7 +45,6 @@ class CustomJsonFormatter(logging.Formatter):
         }
         if data := getattr(record, "data", None):
             try:
-                # THIS IS THE FIX: Check if the object is a Pydantic model
                 if isinstance(data, BaseModel):
                     log_obj["data"] = data.model_dump(mode="json")
                 elif isinstance(data, dict):
@@ -57,7 +56,7 @@ class CustomJsonFormatter(logging.Formatter):
                         for k, v in data.items()
                     }
                 else:
-                    json.dumps(data)  # Just to test serializability
+                    json.dumps(data)
                     log_obj["data"] = data
             except TypeError:
                 log_obj["data"] = f"Unserializable data: {str(data)}"
@@ -106,8 +105,8 @@ class VscodeDebugConsoleHandler(logging.Handler):
 
             print(log_string, file=sys.stdout)
 
-            if hasattr(record, "data") and record.data:
-                print_my_json(record.data)
+            if hasattr(record, "data") and record.data:  # type: ignore
+                print_my_json(record.data)  # type: ignore
 
         except Exception:
             self.handleError(record)

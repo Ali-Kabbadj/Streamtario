@@ -95,6 +95,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
   const [activeStream, setActiveStream] = useState<ActiveStream | null>(null);
   const isSavingRef = useRef(false);
+  const [unsupportedFormatError, setUnsupportedFormatError] = useState<
+    string | null
+  >(null);
 
   const resolvedStreamData = useStreamDataResolver(activeStream);
   const { data: externalSubtitles } = useSubtitles({
@@ -203,6 +206,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsPreparing(true);
         setServiceDownError(null);
         setRawStreamUrlOnError(null);
+        setUnsupportedFormatError(null);
         setActiveStream({
           stream,
           title,
@@ -299,6 +303,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPreparing(false);
     setServiceDownError(null);
     setRawStreamUrlOnError(null);
+    setUnsupportedFormatError(null);
   }, [saveProgress, activeStream, cleanupStreamOnBackend, player.actions]);
 
   useEffect(() => {
@@ -318,6 +323,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (
+      player.isWebView ||
+      player.status !== "error" ||
+      !activeStream ||
+      serviceDownError ||
+      unsupportedFormatError
+    ) {
+      return;
+    }
+
+    const error = player.errorMessage?.toLowerCase() ?? "";
+    const isMediaError =
+      error.includes("media_err_src_not_supported") ||
+      error.includes("media_err_decode") ||
+      error.includes("failed to load");
+
+    if (isMediaError) {
+      const { infoHash, fileIdx } = activeStream.stream;
+      const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/direct/${infoHash}/${fileIdx}`;
+
+      setRawStreamUrlOnError(streamUrl);
+      setUnsupportedFormatError(
+        "This video format may not be supported for direct browser playback.",
+      );
+      // THIS IS THE FIX: The line below, which caused the crash, has been removed.
+      // The player component will now remain mounted but hidden.
+      // setBrowserSrc(null);
+    }
+  }, [
+    player.status,
+    player.errorMessage,
+    activeStream,
+    player.isWebView,
+    serviceDownError,
+    unsupportedFormatError,
+  ]);
+
+  useEffect(() => {
+    if (
       isPreparing &&
       (player.hasPlaybackStarted || player.status === "error")
     ) {
@@ -326,12 +369,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [isPreparing, player.hasPlaybackStarted, player.status]);
 
   const finalStatus = useMemo(() => {
-    if (serviceDownError) return "error";
+    if (serviceDownError || unsupportedFormatError) return "error";
     if (isPreparing && player.status !== "playing") return "preparing";
     return player.status;
-  }, [serviceDownError, isPreparing, player.status]);
+  }, [serviceDownError, isPreparing, player.status, unsupportedFormatError]);
 
-  const finalErrorMessage = serviceDownError ?? player.errorMessage;
+  const finalErrorMessage =
+    unsupportedFormatError ?? serviceDownError ?? player.errorMessage;
 
   useEffect(() => {
     if (finalStatus !== "idle") {

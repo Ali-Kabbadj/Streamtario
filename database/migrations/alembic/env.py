@@ -17,6 +17,9 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+# This path correctly points to the root .env file for local development.
+# For Docker, docker-compose injects the variables from .env.docker.
 dotenv_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")
 load_dotenv(dotenv_path)
 
@@ -30,14 +33,11 @@ sys.path.insert(
     ),
 )
 
-# db_url = (
-#     f"postgresql+asyncpg://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}@"
-#     f"{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
-# )
 
+# The database URL now explicitly includes the port for clarity and correctness.
 db_url = (
     f"postgresql+asyncpg://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}@"
-    f"{os.environ['DB_HOST']}/{os.environ['DB_NAME']}"
+    f"{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
 )
 
 
@@ -70,6 +70,7 @@ async def run_migrations_online() -> None:
             "Alembic configuration section '[alembic]' not found in alembic.ini"
         )
 
+    # This sets the URL for Alembic to use when connecting to the database.
     alembic_config["sqlalchemy.url"] = db_url
 
     connectable = AsyncEngine(
