@@ -48,17 +48,11 @@ void LaunchProcess(const std::wstring &command,
 
 void LaunchChildProcesses(const std::wstring &app_dir)
 {
-    std::wstring data_api_path = app_dir + L"\\data-api.exe";
-    LaunchProcess(data_api_path, L"", app_dir, g_dataApiProcInfo);
+    std::wstring torrserver_path = app_dir + L"\\torrserver-daemon.exe";
+    LaunchProcess(torrserver_path, L"", app_dir, g_dataApiProcInfo);
 
-    SetEnvironmentVariableW(L"NODE_ENV", L"production");
-
-    std::wstring node_path = app_dir + L"\\node.exe";
-    std::wstring streaming_server_script = app_dir + L"\\streaming-server\\dist\\app.js";
-    std::wstring streaming_server_dir = app_dir + L"\\streaming-server";
-
-    LaunchProcess(node_path, L"\"" + streaming_server_script + L"\"", streaming_server_dir, g_streamingServerProcInfo);
-    SetEnvironmentVariableW(L"NODE_ENV", nullptr);
+    std::wstring streaming_service_path = app_dir + L"\\streaming-service.exe";
+    LaunchProcess(streaming_service_path, L"", app_dir, g_streamingServerProcInfo);
 }
 
 void CleanupChildProcesses()

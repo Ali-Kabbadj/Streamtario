@@ -4,25 +4,26 @@
   "description": "WebTorrent streaming server",
   "type": "module",
   "main": "dist/index.js",
+  "bin": "build/index.js",
   "files": [
     "dist/"
   ],
   "scripts": {
-    "clean": "node -e \"const fs = require('fs'); const p = 'dist'; if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); console.log('🧹 Deleted', p); } catch (e) { console.warn('Could not delete', p, e); } }\"",
-    "build": "npm run clean && tsc",
+    "clean": "node -e \"const fs = require('fs'); const paths = ['dist', 'build']; paths.forEach(p => { if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); console.log('🧹 Deleted', p); } catch (e) { console.warn('Could not delete', p, e); } } });\"",
+    "build": "tsc",
     "start": "dotenv -e ../../.env node dist/index.js",
     "dev": "dotenv -e ../../.env nodemon",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "package": "npm run clean && esbuild src/index.ts --bundle --platform=node --outfile=build/index.js && pkg . --targets node18-win-x64 --output ../../dist/win-x64/streaming-service.exe"
   },
   "dependencies": {
     "axios": "^1.7.2",
     "cors": "2.8.5",
-    "dotenv-cli": "^11.0.0",
     "express": "^5.1.0",
     "http-proxy-middleware": "3.0.5",
     "https": "^1.0.0",
     "ts-node": "^10.9.2",
-    "ws": "8.18.3"
+    "ws": "8.1.8"
   },
   "devDependencies": {
     "@types/cors": "2.8.19",
@@ -30,7 +31,10 @@
     "@types/node": "24.1.0",
     "@types/ws": "8.18.1",
     "dotenv": "^17.2.3",
+    "dotenv-cli": "^11.0.0",
+    "esbuild": "^0.23.0",
     "nodemon": "3.1.10",
+    "pkg": "^5.8.1",
     "typescript": "^5.9.2"
   }
 }

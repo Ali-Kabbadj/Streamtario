@@ -25,11 +25,40 @@
     { "name": "api-gateway", "path": "apps/api-gateway" },
     { "name": "auth-service", "path": "apps/auth-service" },
     { "name": "streaming-service", "path": "apps/streaming-service" },
-    { "name": "torrserver-daemon", "path": "apps/torrserver-daemon" }
+    { "name": "torrserver-daemon", "path": "apps/torrserver-daemon" },
+    { "name": "Output", "path": "dist" }
   ],
   "tasks": {
     "version": "2.0.0",
     "tasks": [
+      {
+        "label": "Build: torrserver-daemon",
+        "type": "shell",
+        "command": "go build -o ../../../dist/win-x64/torrserver-daemon.exe ./cmd",
+        "options": {
+          "cwd": "${workspaceFolder:torrserver-daemon}/server"
+        },
+        "group": "build",
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "echo": true
+        }
+      },
+      {
+        "label": "Build: streaming-service",
+        "type": "shell",
+        "command": "npm run package",
+        "options": {
+          "cwd": "${workspaceFolder:streaming-service}"
+        },
+        "group": "build",
+        "presentation": {
+          "reveal": "always",
+          "panel": "shared",
+          "echo": true
+        }
+      },
       {
         "label": "tsc: build streaming api",
         "type": "shell",
@@ -136,6 +165,26 @@
       }
     ],
     "configurations": [
+      {
+        "name": "Build: Go Daemon",
+        "type": "cppvsdbg",
+        "request": "launch",
+        "program": "cmd.exe",
+        "args": ["/C", "echo Build finished."],
+        "preLaunchTask": "Build: torrserver-daemon",
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Build Tasks", "order": 1 }
+      },
+      {
+        "name": "Build: Streaming Service",
+        "type": "cppvsdbg",
+        "request": "launch",
+        "program": "cmd.exe",
+        "args": ["/C", "echo Build finished."],
+        "preLaunchTask": "Build: streaming-service",
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Build Tasks", "order": 2 }
+      },
       {
         "name": "Purge & Rebuild All (Docker Compose)",
         "type": "node",
@@ -321,16 +370,6 @@
         "presentation": { "hidden": false, "group": "services", "order": 3 }
       },
       {
-        "name": "TEST: Check Python Interpreter",
-        "type": "debugpy",
-        "request": "launch",
-        "program": "-c",
-        "args": [
-          "import sys, struct; print(f'--- VSCODE DEBUGGER ---'); print(f'EXECUTABLE: {sys.executable}'); print(f'ARCHITECTURE: {struct.calcsize(\"P\") * 8}-bit')"
-        ],
-        "console": "integratedTerminal"
-      },
-      {
         "name": "➕ Auth Service",
         "type": "debugpy",
         "request": "launch",
@@ -512,6 +551,12 @@
     ]
   },
   "settings": {
+    "triggerTaskOnSave.tasks": {
+      "CMake: Configure & Build": [
+        "${workspaceFolder:webview2-host}/src/*.h",
+        "${workspaceFolder:webview2-host}/src/*.cpp"
+      ]
+    },
     "python.analysis.autoImportCompletions": true,
     "python.analysis.extraPaths": ["./packages/python/src"],
     // "terminal.integrated.env.windows": {

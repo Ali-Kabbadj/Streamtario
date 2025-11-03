@@ -39,11 +39,6 @@ export interface TorrentStats {
   total_peers: number;
 }
 
-const wsUrl = APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL.replace(
-  "https",
-  "wss",
-);
-
 interface StreamingServerStatsHook {
   isConnected: boolean;
   stats: TorrentStats[];
@@ -81,7 +76,9 @@ export function useStreamingServerStats(): StreamingServerStatsHook {
   const connect = useCallback(() => {
     if (ws.current && ws.current.readyState < 2) return;
 
-    ws.current = new WebSocket(wsUrl);
+    ws.current = new WebSocket(
+      APP_CONFIG.NEXT_PUBLIC_STREAMING_NEXT_PUBLIC_STREAMING_DAEMON_WS_URL,
+    );
     ws.current.onopen = () => {
       setIsConnected(true);
       if (reconnectInterval.current) {

@@ -10,10 +10,8 @@ import { fileURLToPath } from "url";
 import { sendSuccess, sendError } from "./ApiResponse.js";
 import type { Server } from "http";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const TORRSERVER_ORIGIN = process.env.TORRSERVER_BASE_URL || "";
-const DAEMON_WS_URL = process.env.DAEMON_WS_URL || "";
+const TORRSERVER_ORIGIN = process.env.TORRSERVER_BASE_URL || "http://localhost:8090";
+const NEXT_PUBLIC_STREAMING_DAEMON_WS_URL = process.env.NEXT_PUBLIC_STREAMING_DAEMON_WS_URL || "ws://localhost:8090/ws";
 
 export function startServer(port: number) {
     const app = express();
@@ -26,6 +24,8 @@ export function startServer(port: number) {
         }),
     );
     if (process.env.APP_ENV === "development") {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
         const keyPath = path.resolve(
             __dirname,
             "../../../../local_dev_deps/certs/localhost+2-key.pem",
@@ -51,7 +51,7 @@ export function startServer(port: number) {
 
     const connectToDaemon = () => {
         console.log("[DAEMON-WS] Attempting to connect to Go daemon...");
-        daemonWs = new WebSocket(DAEMON_WS_URL);
+        daemonWs = new WebSocket(NEXT_PUBLIC_STREAMING_DAEMON_WS_URL);
 
         daemonWs.on("open", () => {
             console.log("[DAEMON-WS] Connection established with Go daemon.");

@@ -38,7 +38,7 @@ class BaseAppSettings(BaseSettings):
     AUTH_SERVICE_URL: Optional[str] = None
     TORRSERVER_BASE_URL: Optional[str] = None
     FRONTEND_URL: Optional[str] = None
-    DAEMON_WS_URL: Optional[str] = None
+    NEXT_PUBLIC_STREAMING_DAEMON_WS_URL: Optional[str] = None
     NEXT_PUBLIC_API_GATEWAY_URL: Optional[str] = None
     NEXT_PUBLIC_STREAMING_SERVICE_URL: Optional[str] = None
 
