@@ -2,7 +2,7 @@ import type { CodegenConfig } from '@graphql-codegen/cli';
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema: 'https://streamtario-api-gateway.onrender.com/graphql/schema.json',
+  schema: 'https://unrehearsable-zoe-chromosomal.ngrok-free.dev/graphql/schema.json',
   documents: 'src/**/*.ts*',
   generates: {
     'src/orchestrators/graphql-query-orchestrator/gen/': {

@@ -14,3 +14,4 @@ build
 package-lock.json
 **/.env
 .env.docker
+.vercel
