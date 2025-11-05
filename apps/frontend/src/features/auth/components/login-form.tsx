@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { useLogin } from "../hooks/useLogin";
 import { useGoogleLogin } from "../hooks/useGoogleLogin";
 import { GoogleIcon } from "@/components/shared/google-icon";
+import { APP_CONFIG } from "@/config/env";
+import { isWebView } from "@/features/player/hooks/useMpvPlayer";
 
 type LoginFormInputs = {
   email: string;
@@ -29,13 +31,30 @@ export const LoginForm = () => {
 
   const googleLogin = useGoogleOAuthLogin({
     onSuccess: (codeResponse) => {
-      performGoogleLogin(codeResponse.code);
+      performGoogleLogin({ code: codeResponse.code });
     },
     onError: (error) => {
       console.error("Google OAuth failed:", error);
     },
     flow: "auth-code",
   });
+
+  const handleGoogleSignInClick = () => {
+    if (isWebView()) {
+      // DESKTOP FLOW
+      window.chrome.webview?.postMessage(
+        JSON.stringify({
+          command: "begin-google-auth",
+          payload: {
+            clientId: APP_CONFIG.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          },
+        }),
+      );
+    } else {
+      // WEB FLOW
+      googleLogin();
+    }
+  };
 
   const onSubmit = (data: LoginFormInputs) => {
     loginWithPassword(data);
@@ -93,7 +112,7 @@ export const LoginForm = () => {
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => googleLogin()}
+            onClick={handleGoogleSignInClick}
             disabled={isPending}
           >
             {isGoogleLoginPending ? (

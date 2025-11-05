@@ -1,4 +1,5 @@
 import { fetchClient, ClientError } from "@/api/api-client";
+import { isWebView } from "@/features/player/hooks/useMpvPlayer";
 
 type LoginCredentials = {
     email: string;
@@ -8,6 +9,11 @@ type LoginCredentials = {
 type TokenResponseType = {
     accessToken: string;
     refreshToken: string;
+};
+
+export type GoogleLoginPayload = {
+    code: string;
+    redirectUri?: string;
 };
 
 function persistTokens(tokens: TokenResponseType): void {
@@ -29,13 +35,21 @@ export async function loginWithCredentials(
     persistTokens(tokens);
 }
 
-export async function loginWithGoogle(code: string): Promise<void> {
+export async function loginWithGoogle(payload: GoogleLoginPayload): Promise<void> {
     try {
+        const endpoint = "/api/v1/auth/google/login";
+
+        const finalPayload: { code: string; redirect_uri?: string } = { code: payload.code };
+
+        if (isWebView() && payload.redirectUri) {
+            finalPayload.redirect_uri = payload.redirectUri;
+        }
+
         const tokens = await fetchClient<TokenResponseType>(
-            "/api/v1/auth/google/login",
+            endpoint,
             {
                 method: "POST",
-                body: JSON.stringify({ code }),
+                body: JSON.stringify(finalPayload),
             },
             "An unknown error occurred during Google login.",
         );
@@ -67,6 +81,6 @@ export async function refreshSession(): Promise<void> {
         persistTokens(tokens);
     } catch (error) {
         console.error("Failed to refresh session:", error);
-        throw new Error("Could not refresh session.");
+        throw error;
     }
 }

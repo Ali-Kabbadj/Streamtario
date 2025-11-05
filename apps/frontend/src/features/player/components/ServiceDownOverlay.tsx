@@ -25,7 +25,7 @@ export function ServiceDownOverlay({
 
   const isServiceDown = streamUrl?.startsWith("magnet:") ?? false;
   return (
-    <div className="pointer-events-auto absolute z-40 mx-auto flex max-w-lg flex-col items-center justify-center gap-4 rounded-lg bg-black/90 p-8 text-center">
+    <div className="pointer-events-auto absolute z-[99] mx-auto flex max-w-lg flex-col items-center justify-center gap-4 rounded-lg bg-black/90 p-8 text-center">
       <XCircle className="h-12 w-12 text-red-500" />
       <h2 className="text-2xl font-bold">{title}</h2>
       <p className="text-lg text-slate-300">{message}</p>

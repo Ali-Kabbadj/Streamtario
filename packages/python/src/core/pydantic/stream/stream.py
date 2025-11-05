@@ -17,7 +17,7 @@ class Stream(BaseModel):
     file_idx: Optional[int] = Field(None, alias="fileIdx")
     behavior_hints: Optional[Dict[str, Any]] = Field(None, alias="behaviorHints")
     addon_name: Optional[str] = None
-    announce: Optional[List[str]] = None
+    sources: Optional[List[str]] = None
     files: Optional[List[StreamFile]] = None
 
     class Config:

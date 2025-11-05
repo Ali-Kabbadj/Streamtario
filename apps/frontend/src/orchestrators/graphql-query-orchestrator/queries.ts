@@ -179,7 +179,7 @@ export const GetStreamsDocument = graphql(`
         fileIdx
         behaviorHints
         addonName
-        announce
+        sources
       }
     }
   }

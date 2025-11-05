@@ -1,6 +1,5 @@
 import type { PlayerState, MpvTrack } from "@/features/player/hooks/useMpvPlayer";
 
-// This represents the generic shape for most properties
 interface GenericPropertyChangeEvent {
     event: "property-change";
     payload: {
@@ -9,12 +8,11 @@ interface GenericPropertyChangeEvent {
     };
 }
 
-// This represents the specific shape for the track-list property
 interface TrackListChangeEvent {
     event: "property-change";
     payload: {
         property: "track-list";
-        value: MpvTrack[]; // Use the specific, strong type
+        value: MpvTrack[];
     };
 }
 
@@ -29,5 +27,4 @@ interface PlaybackErrorEvent {
     }
 }
 
-// MpvEvent is a union of all possible event shapes
 export type MpvEvent = GenericPropertyChangeEvent | TrackListChangeEvent | PlaybackEndedEvent | PlaybackErrorEvent;

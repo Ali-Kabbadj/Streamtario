@@ -11,7 +11,6 @@ from ..domain.providers.i_profile_addon_manifest_provider import (
 )
 from .find_and_get_meta import FindAndGetMetaUseCase
 
-
 class GetStreamsUseCase:
     def __init__(
         self,

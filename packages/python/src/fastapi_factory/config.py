@@ -10,8 +10,8 @@ ROOT_ENV = Path(__file__).parents[4] / ".env"
 
 class BaseAppSettings(BaseSettings):
     # --- Application
-    APP_ENV: str = None
-    APP_NAME: str = None
+    APP_ENV: str = ""
+    APP_NAME: str = ""
     APP_PORT: Optional[int] = None
     APP_HOST: Optional[str] = None
     RELOAD: Optional[bool] = None
@@ -53,7 +53,7 @@ class BaseAppSettings(BaseSettings):
 
     # Google Auth
     GOOGLE_CLIENT_ID: Optional[str] = None
-    GOOGLE_CLIENT_SECRETS_FILE: Optional[str] = None
+    GOOGLE_CLIENT_SECRETS_FILE: str = ""
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: Optional[str] = None
 
     # TMDB

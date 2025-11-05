@@ -34,7 +34,6 @@ export function HomeView() {
           ))}
         </div>
       </div>
-
       <div className="space-y-4">
         <Skeleton className="h-8 w-1/4" />
         <div className="flex space-x-4 overflow-x-auto pb-4">
@@ -45,7 +44,6 @@ export function HomeView() {
           ))}
         </div>
       </div>
-
       <div className="space-y-4">
         <Skeleton className="h-8 w-1/4" />
         <div className="flex space-x-4 overflow-x-auto pb-4">
@@ -66,16 +64,8 @@ export function HomeView() {
 
   return (
     <div className="space-y-8 pr-4">
-      {/* <div className="flex items-baseline justify-between">
-        <h1 className="pl-4 text-6xl font-bold tracking-tight sm:pr-6 md:pl-8">
-          Home
-        </h1>
-      </div> */}
-
       <ContinueWatchingSection />
-
       {(isLoading || isPending) && renderSkeletons()}
-
       {isSuccess && !hasContent && (
         <div className="flex h-40 w-[60vw] items-center justify-center self-baseline justify-self-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-800/50 p-10">
           <p className="text-muted-foreground">
@@ -83,7 +73,6 @@ export function HomeView() {
           </p>
         </div>
       )}
-
       {hasContent &&
         data.profile!.homeCatalogs.map((addonData) => (
           <AddonSection key={addonData.addonName} data={addonData} />

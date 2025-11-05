@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MetaCastProps {
   cast?: (CastType | null)[] | null;
-  onPersonClick: (name: string) => void; // <-- ADD PROP
+  onPersonClick: (name: string) => void;
 }
 
 export function MetaCast({ cast, onPersonClick }: MetaCastProps) {
@@ -49,7 +49,7 @@ export function MetaCast({ cast, onPersonClick }: MetaCastProps) {
               <CastMemberCard
                 key={`${member.name}-${index}`}
                 member={member}
-                onClick={() => onPersonClick(member.name!)} // <-- PASS HANDLER
+                onClick={() => onPersonClick(member.name!)}
               />
             ) : null,
           )}

@@ -16,3 +16,5 @@ package-lock.json
 .env.docker
 .vercel
 dist
+.next
+**/go.mod

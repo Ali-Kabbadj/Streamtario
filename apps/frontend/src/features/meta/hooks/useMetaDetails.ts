@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql-client';
 import { GetMetaDetailsDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
-import type { GetMetaDetailsQuery, GetMetaDetailsQueryVariables, MetaItemType } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
+import type { GetMetaDetailsQuery, GetMetaDetailsQueryVariables } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
 interface UseMetaDetailsProps {
-    profileId: string;
-    itemId: string;
-    itemType: string;
+  profileId: string;
+  itemId: string;
+  itemType: string;
 }
 
 export const useMetaDetails = ({

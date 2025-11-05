@@ -5,7 +5,7 @@ from core.pydantic.meta.person import PersonDetails, FilmographyItem, ExternalLi
 from core.utils.logging import log_error, log_info, log_cache, log_warn
 from app.services.tmdb_api_service import TmdbApiService
 
-PERSON_CACHE_KEY_PREFIX = "person_details_v5_tmdb_only:"  # Version bump
+PERSON_CACHE_KEY_PREFIX = "person_details_v5_tmdb_only:"
 PERSON_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
 
 

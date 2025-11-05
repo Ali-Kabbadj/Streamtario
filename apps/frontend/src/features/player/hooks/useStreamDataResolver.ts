@@ -45,9 +45,8 @@ export const useStreamDataResolver = (
 
             if (!videoHash || !videoSize || !filename) {
                 try {
-                    const stats = await fetchClient<FileStats>(
-                        `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/file-stats/${infoHash}/${fileIndex}`,
-                    );
+                    const statsUrl = `${APP_CONFIG.NEXT_PUBLIC_TORRSERVER_URL}/file-stats/${infoHash}/${fileIndex}`;
+                    const stats = await fetchClient<FileStats>(statsUrl);
                     videoHash ??= stats.hash;
                     videoSize ??= stats.size;
                     filename ??= stream.title ?? "video.mp4";

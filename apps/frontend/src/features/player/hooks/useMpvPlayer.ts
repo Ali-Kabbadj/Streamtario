@@ -122,7 +122,7 @@ function playerReducer(state: State, action: Action): State {
                 duration: "duration",
                 "paused-for-cache": "isBuffering",
                 buffering: "isBuffering",
-            }; // Add "buffering"
+            };
             const stateKey = keyMap[property];
 
             if (stateKey) {

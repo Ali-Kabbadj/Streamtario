@@ -9,10 +9,8 @@ from app.domain.cache.i_manifest_cache import IManifestCache
 import asyncio
 from typing import Dict
 
-# Request-scoped cache for manifest objects
 manifest_request_cache: Dict[str, AddonManifest] = {}
 manifest_request_lock = asyncio.Lock()
-
 
 class GetManifestUseCase:
     def __init__(

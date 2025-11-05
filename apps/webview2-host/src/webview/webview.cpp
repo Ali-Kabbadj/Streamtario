@@ -18,7 +18,9 @@ void InitMainWebView(HWND hWnd, const std::wstring &app_path)
       Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
           [hWnd, app_path](HRESULT result, ICoreWebView2Environment *env) -> HRESULT
           {
-            env->CreateCoreWebView2Controller(hWnd,
+            g_webviewEnv = env;
+
+            g_webviewEnv->CreateCoreWebView2Controller(hWnd,
                                               Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
                                                   [hWnd, app_path](HRESULT result, ICoreWebView2Controller *controller) -> HRESULT
                                                   {

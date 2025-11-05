@@ -111,14 +111,6 @@ export function AddonsView() {
   return (
     <div className="space-y-8 py-5">
       <div className="pr-4 pb-4">
-        {/* <div className="mb-8 flex items-center justify-between">
-          <div className="mb-8">
-            <h1 className="mb-4 text-6xl font-bold tracking-tight">
-              Add-on Management
-            </h1>
-          </div>
-        </div> */}
-
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as TabValue)}

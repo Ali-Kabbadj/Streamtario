@@ -9,21 +9,18 @@ import (
 	"github.com/anacrolix/torrent/storage"
 )
 
-// bitfieldPieceCompletion implements storage.PieceCompletion using a simple file.
 type bitfieldPieceCompletion struct {
 	file      *os.File
 	numPieces int
 	mu        sync.RWMutex
 }
 
-// newBitfieldPieceCompletion creates or opens a bitfield file for a torrent.
 func newBitfieldPieceCompletion(filePath string, numPieces int) (storage.PieceCompletion, error) {
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("could not open bitfield file: %w", err)
 	}
 
-	// Ensure the file is large enough to hold the bitfield for all pieces.
 	expectedSize := (numPieces + 7) / 8
 	stat, err := f.Stat()
 	if err != nil {

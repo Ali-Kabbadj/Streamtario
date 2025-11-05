@@ -5,7 +5,7 @@ import { ChevronLeft } from "lucide-react";
 
 interface PlayerHeaderProps {
   title: string;
-  onBack: () => void;
+  onBack: () => Promise<void>;
 }
 
 export function PlayerHeader({ title, onBack }: PlayerHeaderProps) {

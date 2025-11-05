@@ -5,6 +5,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   devIndicators: false,
+  output: "export",
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       config.watchOptions = {

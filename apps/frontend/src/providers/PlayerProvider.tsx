@@ -1,5 +1,3 @@
-// src/providers/PlayerProvider.tsx
-
 "use client";
 
 import React, {
@@ -29,13 +27,11 @@ import { fetchClient } from "@/api/api-client";
 import { constructMagnetUrl, type Stream } from "@/lib/stream-parser";
 import { checkStreamingServiceHealth } from "@/features/player/services/streaming.service";
 import type { PlayerActions } from "@/features/player/types";
-import {
-  isWebView,
-  type PlayerState,
-} from "@/features/player/hooks/useMpvPlayer";
+import { type PlayerState } from "@/features/player/hooks/useMpvPlayer";
 import { PlayerOverlay } from "@/features/player/components/PlayerOverlay";
 import { BrowserPlayer } from "@/features/player/components/BrowserPlayer";
 import { cn } from "@/lib/utils";
+import { useStreamingServerStats } from "@/features/player/hooks/useStreamingServerStats";
 
 type PlaybackHistoryItem =
   | NonNullable<
@@ -53,6 +49,7 @@ interface ActiveStream {
   metaId: string;
   itemType: string;
   imdbId: string;
+  startTime: number;
 }
 
 export interface HighLevelPlayerActions extends PlayerActions {
@@ -87,6 +84,7 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const player = useHybridPlayer();
   const { selectedProfile } = useProfileContext();
+  const { stats: streamingStats } = useStreamingServerStats();
   const [browserSrc, setBrowserSrc] = useState<string | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const [serviceDownError, setServiceDownError] = useState<string | null>(null);
@@ -112,25 +110,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setupStreamOnBackend = useCallback(
     async (
       infoHash: string,
-      announce: readonly string[] | null | undefined,
+      sources: readonly string[] | null | undefined,
       fileIndex: number,
       startTime: number,
       durationSeconds: number,
     ) => {
       try {
-        await fetchClient(
-          `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/setup-stream`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              infoHash,
-              announce,
-              fileIndex,
-              startTime,
-              durationSeconds,
-            }),
-          },
-        );
+        await fetchClient(`${APP_CONFIG.NEXT_PUBLIC_TORRSERVER_URL}/torrents`, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "add",
+            link: infoHash,
+            announce: sources,
+            file_idx: fileIndex,
+            start_time: startTime,
+            duration: durationSeconds,
+          }),
+        });
         return true;
       } catch (error) {
         console.error("[PlayerProvider] Error setting up stream:", error);
@@ -141,10 +137,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const cleanupStreamOnBackend = useCallback((infoHash: string) => {
-    fetchClient(
-      `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/cleanup/${infoHash}`,
-      { method: "POST", keepalive: true },
-    ).catch((err) => {
+    fetchClient(`${APP_CONFIG.NEXT_PUBLIC_TORRSERVER_URL}/torrents`, {
+      method: "POST",
+      body: JSON.stringify({ action: "cleanup", hash: infoHash }),
+      keepalive: true,
+    }).catch((err) => {
       console.error("Beacon cleanup failed:", err);
     });
   }, []);
@@ -184,11 +181,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (error) {
+      isSavingRef.current = false;
       console.error("[PlayerProvider] Failed to save progress:", error);
     } finally {
       isSavingRef.current = false;
     }
   }, [player, activeStream, selectedProfile?.id, resolvedStreamData]);
+
+  useEffect(() => {
+    if (!isPreparing || !activeStream?.infoHash) return;
+
+    const activeTorrentStats = streamingStats.find(
+      (t) => t.hash === activeStream.infoHash,
+    );
+
+    if (activeTorrentStats) {
+      const isHeaderReady =
+        activeTorrentStats.preloaded_bytes >= 2 * 1024 * 1024;
+
+      if (isHeaderReady) {
+        console.log(
+          "[PlayerProvider] Initial header/buffer is ready. Starting playback.",
+        );
+
+        const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_TORRSERVER_URL}/stream/${activeStream.infoHash}/${activeStream.fileIndex}`;
+
+        if (!player.isWebView) {
+          setBrowserSrc(streamUrl);
+        }
+
+        player.actions.play(
+          streamUrl,
+          activeStream.startTime,
+          activeStream.stream,
+        );
+        setIsPreparing(false);
+      }
+    }
+  }, [isPreparing, activeStream, streamingStats, player]);
 
   const playStream = useCallback(
     (
@@ -207,6 +237,44 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setServiceDownError(null);
         setRawStreamUrlOnError(null);
         setUnsupportedFormatError(null);
+        const isServiceUp = await checkStreamingServiceHealth();
+        if (!isServiceUp) {
+          const rawMagnetUrl = constructMagnetUrl(
+            stream.infoHash!,
+            title,
+            stream.sources,
+            stream.fileIdx!,
+          );
+          setServiceDownError(
+            "The local streaming daemon is not running. Please start it to play content.",
+          );
+          setRawStreamUrlOnError(rawMagnetUrl);
+          setIsPreparing(false);
+          return;
+        }
+
+        const { infoHash, fileIdx } = stream;
+        if (!infoHash || fileIdx === null || typeof fileIdx === "undefined") {
+          console.error("playStream called with invalid infoHash or fileIdx");
+          setIsPreparing(false);
+          return;
+        }
+
+        const setupOk = await setupStreamOnBackend(
+          infoHash,
+          stream.sources,
+          fileIdx,
+          startTime,
+          durationSeconds,
+        );
+
+        if (!setupOk) {
+          setServiceDownError(
+            "Failed to set up the stream with the local daemon.",
+          );
+          setIsPreparing(false);
+          return;
+        }
         setActiveStream({
           stream,
           title,
@@ -217,57 +285,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           infoHash: stream.infoHash,
           fileIndex: stream.fileIdx,
           metaId,
-        });
-
-        const isServiceUp = await checkStreamingServiceHealth();
-        if (!isServiceUp) {
-          const rawMagnetUrl = constructMagnetUrl(
-            stream.infoHash!,
-            title,
-            stream.announce,
-            stream.fileIdx!,
-          );
-          setServiceDownError(
-            "The local streaming service is not running. Please start it to play content.",
-          );
-          setRawStreamUrlOnError(rawMagnetUrl);
-          setIsPreparing(false);
-          return;
-        }
-
-        const { infoHash, fileIdx } = stream;
-        if (!infoHash || fileIdx === null || typeof fileIdx === "undefined") {
-          setIsPreparing(false);
-          return;
-        }
-        const setupOk = await setupStreamOnBackend(
-          infoHash,
-          stream.announce,
-          fileIdx,
           startTime,
-          durationSeconds,
-        );
-        if (!setupOk) {
-          setServiceDownError(
-            "Failed to set up the stream with the local service.",
-          );
-          setIsPreparing(false);
-          return;
-        }
-
-        const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/direct/${infoHash}/${fileIdx}`;
-        if (!player.isWebView) {
-          setBrowserSrc(streamUrl);
-        }
-        player.actions.play(streamUrl, startTime, stream);
-
-        if (player.playerState.isPaused && !isWebView()) {
-          player.actions.togglePause();
-        }
+        });
+        // ** FIX END **
       };
       void start();
     },
-    [setupStreamOnBackend, player],
+    [setupStreamOnBackend],
   );
 
   const resumeStream = useCallback(
@@ -304,6 +328,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setServiceDownError(null);
     setRawStreamUrlOnError(null);
     setUnsupportedFormatError(null);
+    setBrowserSrc(null);
   }, [saveProgress, activeStream, cleanupStreamOnBackend, player.actions]);
 
   useEffect(() => {
@@ -340,15 +365,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     if (isMediaError) {
       const { infoHash, fileIdx } = activeStream.stream;
-      const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_STREAMING_SERVICE_URL}/direct/${infoHash}/${fileIdx}`;
+      const streamUrl = `${APP_CONFIG.NEXT_PUBLIC_TORRSERVER_URL}/stream/${infoHash}/${fileIdx}`;
 
       setRawStreamUrlOnError(streamUrl);
       setUnsupportedFormatError(
         "This video format may not be supported for direct browser playback.",
       );
-      // THIS IS THE FIX: The line below, which caused the crash, has been removed.
-      // The player component will now remain mounted but hidden.
-      // setBrowserSrc(null);
     }
   }, [
     player.status,
@@ -359,20 +381,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     unsupportedFormatError,
   ]);
 
-  useEffect(() => {
-    if (
-      isPreparing &&
-      (player.hasPlaybackStarted || player.status === "error")
-    ) {
-      setIsPreparing(false);
-    }
-  }, [isPreparing, player.hasPlaybackStarted, player.status]);
-
   const finalStatus = useMemo(() => {
     if (serviceDownError || unsupportedFormatError) return "error";
-    if (isPreparing && player.status !== "playing") return "preparing";
+    if (
+      isPreparing ||
+      (player.status === "playing" && !player.hasPlaybackStarted)
+    )
+      return "preparing";
     return player.status;
-  }, [serviceDownError, isPreparing, player.status, unsupportedFormatError]);
+  }, [
+    serviceDownError,
+    isPreparing,
+    player.status,
+    player.hasPlaybackStarted,
+    unsupportedFormatError,
+  ]);
 
   const finalErrorMessage =
     unsupportedFormatError ?? serviceDownError ?? player.errorMessage;

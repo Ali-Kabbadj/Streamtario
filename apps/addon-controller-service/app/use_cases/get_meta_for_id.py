@@ -1,7 +1,6 @@
 import asyncio
 from typing import Optional
 from core.pydantic.meta.meta import MetaItem
-from core.pydantic.addons.manifest import AddonManifest
 from core.utils.logging import log_warn, log_info, log_error
 from ..domain.providers.i_profile_addon_manifest_provider import (
     IProfileAddonManifestProvider,
@@ -11,11 +10,6 @@ from .get_meta import GetMetaUseCase
 
 
 class GetMetaForIdUseCase:
-    """
-    Finds the specific addon manifest corresponding to a prefixed content ID
-    and fetches metadata from only that addon.
-    """
-
     def __init__(
         self,
         get_meta_use_case: GetMetaUseCase,

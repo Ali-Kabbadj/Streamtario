@@ -3,10 +3,8 @@ from sqlalchemy import String, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import TYPE_CHECKING
-
 from core.database.models.base import Base
 
-# This block is only evaluated by type checkers, not at runtime.
 if TYPE_CHECKING:
     from .account import ProfileOrm
 

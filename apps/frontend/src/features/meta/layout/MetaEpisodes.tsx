@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   VideoType,
   GetPlaybackHistoryByImdbIdQuery,
-  MetaItemType, // --- 1. IMPORT MetaItemType ---
+  MetaItemType,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { EpisodeCard } from "../components/EpisodeCard";
 import { Button } from "@/components/ui/button";
@@ -17,26 +17,24 @@ type PlaybackHistoryItem =
   GetPlaybackHistoryByImdbIdQuery["playbackHistoryByImdbId"][0];
 type PlaybackHistoryMap = Map<string, PlaybackHistoryItem>;
 
-// --- 2. UPDATE THE PROPS INTERFACE ---
 interface MetaEpisodesProps {
   videos: (Video | null)[] | null | undefined;
   onEpisodeClick: (episode: Video) => void;
-  // Add a function to handle resuming from the parent
   onResumeEpisode: (
     historyItem: PlaybackHistoryItem,
     meta: MetaItemType,
   ) => void;
   playbackHistoryMap: PlaybackHistoryMap;
-  meta: MetaItemType; // Accept the full meta object
+  meta: MetaItemType;
   initialSeason?: string;
 }
 
 export function MetaEpisodes({
   videos,
   onEpisodeClick,
-  onResumeEpisode, // Use the new resume handler
+  onResumeEpisode,
   playbackHistoryMap,
-  meta, // Use the full meta object
+  meta,
   initialSeason,
 }: MetaEpisodesProps) {
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
@@ -89,9 +87,6 @@ export function MetaEpisodes({
       ref.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
-
-  // --- 3. REMOVE THE OLD handleResumeEpisode function ---
-  // This logic is now handled in MetaView.tsx, which has the correct context.
 
   if (!videos || videos.length === 0 || seasonKeys.length === 0) {
     return null;

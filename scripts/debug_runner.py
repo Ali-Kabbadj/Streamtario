@@ -42,6 +42,7 @@ def main():
         ssl_keyfile = settings.SSL_KEYFILE if settings.SSL_KEYFILE else None
         ssl_certfile = settings.SSL_CERTFILE if settings.SSL_CERTFILE else None
 
+
         uvicorn_args = {
             "host": settings.APP_HOST,
             "port": settings.APP_PORT,

@@ -6,16 +6,18 @@ import (
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/gin-gonic/gin"
+
+	"server/log"
 )
 
 type torrReqJS struct {
-	Action   string   `json:"action"`
-	Hash     string   `json:"hash"`
-	Link     string   `json:"link"`
-	Announce []string `json:"announce"`
-	FileIdx  int      `json:"file_idx"`
-	StartTime float64 `json:"start_time"`
-	Duration float64 `json:"duration"`
+	Action    string   `json:"action"`
+	Hash      string   `json:"hash"`
+	Link      string   `json:"link"`
+	Announce  []string `json:"announce"`
+	FileIdx   int      `json:"file_idx"`
+	StartTime float64  `json:"start_time"`
+	Duration  float64  `json:"duration"`
 }
 
 func Torrents(c *gin.Context) {
@@ -28,6 +30,7 @@ func Torrents(c *gin.Context) {
 
 	switch req.Action {
 	case "add":
+		log.TLogln("[STREAM_LIFECYCLE] Received 'add' request for hash:", req.Link, ", fileIndex:", req.FileIdx)
 		spec := torrent.TorrentSpec{
 			InfoHash: metainfo.NewHashFromHex(req.Link),
 		}
@@ -35,11 +38,12 @@ func Torrents(c *gin.Context) {
 			spec.Trackers = append(spec.Trackers, req.Announce)
 		}
 		AddTorrent(&spec, "", req.FileIdx, req.StartTime, req.Duration)
-		c.Status(http.StatusOK)
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"message": "Stream setup initiated"}})
 	case "cleanup":
+		log.TLogln("[STREAM_LIFECYCLE] Received 'cleanup' request for hash:", req.Hash)
 		RemTorrent(req.Hash)
-		c.Status(http.StatusOK)
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"message": "Cleanup successful"}})
 	default:
-		c.Status(http.StatusOK)
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"message": "Action not specified or recognized"}})
 	}
 }

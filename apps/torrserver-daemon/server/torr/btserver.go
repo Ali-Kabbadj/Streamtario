@@ -3,12 +3,11 @@ package torr
 import (
 	"context"
 	"fmt"
-	"log"
 	"maps"
 	"net"
 	"sync"
-	"time"
 
+	"server/log"
 	"server/settings"
 	custom_storage "server/storage"
 	"server/torr/utils"
@@ -20,16 +19,15 @@ import (
 	torrent_storage "github.com/anacrolix/torrent/storage"
 )
 
-type BTServer struct {
-	config      *torrent.ClientConfig
-	client      *torrent.Client
-	Storage     torrent_storage.ClientImpl
-	torrents    map[metainfo.Hash]*Torrent
-	mu          sync.Mutex
-	stopJanitor chan struct{}
-}
-
 var privateIPBlocks []*net.IPNet
+
+type BTServer struct {
+	config   *torrent.ClientConfig
+	client   *torrent.Client
+	Storage  torrent_storage.ClientImpl
+	torrents map[metainfo.Hash]*Torrent
+	mu       sync.Mutex
+}
 
 func init() {
 	for _, cidr := range []string{
@@ -47,7 +45,6 @@ func init() {
 func NewBTS() *BTServer {
 	bts := new(BTServer)
 	bts.torrents = make(map[metainfo.Hash]*Torrent)
-	bts.stopJanitor = make(chan struct{})
 	return bts
 }
 
@@ -55,20 +52,18 @@ func (bt *BTServer) Connect() error {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
 	var err error
-	bt.configure(context.TODO())
+	configure(bt, context.TODO())
 	bt.client, err = torrent.NewClient(bt.config)
 	if err != nil {
 		return err
 	}
 	bt.torrents = make(map[metainfo.Hash]*Torrent)
-	go bt.runTorrentJanitor()
 	return nil
 }
 
 func (bt *BTServer) Disconnect() {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
-	close(bt.stopJanitor)
 	if bt.client != nil {
 		bt.client.Close()
 		bt.client = nil
@@ -76,45 +71,22 @@ func (bt *BTServer) Disconnect() {
 	}
 }
 
-func (bt *BTServer) runTorrentJanitor() {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			bt.mu.Lock()
-			for hash, torr := range bt.torrents {
-				if torr.expired() {
-					log.Println("Janitor: torrent expired, cleaning up:", hash.HexString())
-					torr.Close()
-					delete(bt.torrents, hash)
-				}
-			}
-			bt.mu.Unlock()
-		case <-bt.stopJanitor:
-			log.Println("Stopping torrent janitor.")
-			return
-		}
-	}
-}
-
-func (bt *BTServer) configure(ctx context.Context) {
+func configure(bt *BTServer, ctx context.Context) {
 	s := settings.Get()
 	blocklist, _ := utils.ReadBlockedIP()
 
 	bt.config = torrent.NewDefaultClientConfig()
 
 	if s.UseDisk && s.TorrentsSavePath != "" {
-		log.Println("Using custom file piece storage at:", s.TorrentsSavePath)
+		log.TLogln("Using custom file piece storage at:", s.TorrentsSavePath)
 		bt.Storage = custom_storage.NewFilePieceStorage(s.TorrentsSavePath)
 		bt.config.DefaultStorage = bt.Storage
 	} else {
-		log.Println("Using ephemeral in-memory cache.")
+		log.TLogln("Using ephemeral in-memory cache.")
 		bt.config.DefaultStorage = nil
 	}
 
-	userAgent := "qBittorrent/4.3.9"
+	userAgent := "qBittorrent/5.1.2"
 	peerID := "-qB4390-"
 	bt.config.PeerID = utils.PeerIDRandom(peerID)
 	bt.config.UpnpID = "TorrServer/" + version.Version
@@ -144,18 +116,18 @@ func (bt *BTServer) configure(ctx context.Context) {
 		bt.config.ListenPort = s.PeersListenPort
 	}
 
-	log.Println("Client config:", s)
+	log.TLogln("Client config:", s)
 
 	var err error
 	bt.config.PublicIp4, err = publicip.Get4(ctx)
 	if err != nil {
-		log.Printf("error getting public ipv4 address: %v", err)
+		log.TLogln("error getting public ipv4 address:", err)
 	}
 
 	if s.EnableIPv6 {
 		bt.config.PublicIp6, err = publicip.Get6(ctx)
 		if err != nil {
-			log.Printf("error getting public ipv6 address: %v", err)
+			log.TLogln("error getting public ipv6 address:", err)
 		}
 	}
 }

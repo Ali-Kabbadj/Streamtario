@@ -42,11 +42,11 @@ class CatalogItemType:
     type: str
     name: str
     poster: Optional[str] = None
-    imdb_id: Optional[str] = None  # <-- ADDED
-    description: Optional[str] = None  # <-- ADDED
-    release_info: Optional[str] = None  # <-- ADDED
-    genres: Optional[List[str]] = None  # <-- ADDED
-    imdbRating: Optional[str] = None  # <-- ADDED
+    imdb_id: Optional[str] = None  
+    description: Optional[str] = None  
+    release_info: Optional[str] = None  
+    genres: Optional[List[str]] = None  
+    imdbRating: Optional[str] = None  
 
     @classmethod
     def from_pydantic(cls, model: CatalogItem) -> "CatalogItemType":
@@ -55,11 +55,11 @@ class CatalogItemType:
             type=model.type,
             name=model.name or f"Untitled {model.type}",
             poster=model.poster,
-            imdb_id=model.imdb_id,  # <-- ADDED
-            description=model.description,  # <-- ADDED
-            release_info=model.release_info,  # <-- ADDED
-            genres=model.genres,  # <-- ADDED
-            imdbRating=model.imdbRating,  # <-- ADDED
+            imdb_id=model.imdb_id,  
+            description=model.description,  
+            release_info=model.release_info,  
+            genres=model.genres,  
+            imdbRating=model.imdbRating,  
         )
 
 
@@ -277,7 +277,7 @@ class StreamType:
     file_idx: Optional[int] = None
     behavior_hints: Optional[JSON] = None  # type: ignore
     addon_name: Optional[str] = None
-    announce: Optional[List[str]] = None
+    sources: Optional[List[str]] = None
     files: Optional[List["StreamFileType"]] = None
 
     @classmethod
@@ -291,7 +291,7 @@ class StreamType:
             file_idx=model.file_idx,
             behavior_hints=model.behavior_hints,
             addon_name=model.addon_name,
-            announce=model.announce,
+            sources=model.sources,
         )
 
 

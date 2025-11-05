@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useProfileContext } from "@/providers/profile-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useView } from "@/providers/view-provider";
-import Image from "next/image"; // <-- 1. IMPORT next/image
+import Image from "next/image";
 import { StreamingStatusIndicator } from "@/features/player/components/StreamingStatusIndicator";
 
 export function Header() {

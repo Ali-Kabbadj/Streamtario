@@ -11,11 +11,6 @@ from ..domain.providers.i_profile_addon_manifest_provider import (
 
 
 class AggregateCatalogUseCase:
-    """
-    Orchestrates fetching catalog data. It now precisely identifies the target
-    catalogs and dynamically constructs the correct URL format for each addon.
-    """
-
     def __init__(
         self,
         get_manifest_use_case: GetManifestUseCase,

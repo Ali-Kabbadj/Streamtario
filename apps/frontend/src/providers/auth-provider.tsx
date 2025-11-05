@@ -17,6 +17,7 @@ import { GlobalLoader } from "@/components/shared/GlobalLoader";
 import { print } from "graphql";
 import { jwtDecode } from "jwt-decode";
 import { refreshSession } from "@/features/auth/services/auth.service";
+import { isWebView } from "@/features/player/hooks/useMpvPlayer";
 
 type UserAccount = AccountQuery["account"];
 
@@ -45,7 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(refreshTimeoutRef.current);
     }
     queryClient.clear();
-    window.location.href = "/";
+
+    if (isWebView()) {
+      console.log("[Auth] WebView logout. Cache cleared.");
+    } else {
+      window.location.href = "/";
+    }
   }, [queryClient]);
 
   const hasToken = isClient && !!localStorage.getItem("refreshToken");

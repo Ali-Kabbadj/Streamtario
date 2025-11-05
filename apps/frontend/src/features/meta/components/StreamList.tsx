@@ -91,10 +91,7 @@ export function StreamList({
             mediaTitle={mediaTitle}
             contentId={contentId}
             meta={meta}
-            // --- THE FIX ---
-            // Pass the entire history object to ALL items
             playbackHistory={playbackHistory}
-            // Pass a boolean to control the UI/logic for the specific last-played stream
             isLastPlayedStream={isLastPlayedStream}
           />
         );

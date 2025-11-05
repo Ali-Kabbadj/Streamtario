@@ -10,12 +10,6 @@ from core.utils.logging import log_error, log_info
 
 
 class DiscoverCatalogsUseCase:
-    """
-    Takes a profile ID, fetches its manifest URLs, and transforms their catalog
-    listings into a UI-friendly format. This is the primary mechanism for
-    powering dynamic UI elements like genre or content-type dropdowns.
-    """
-
     def __init__(
         self,
         get_manifest_use_case: GetManifestUseCase,

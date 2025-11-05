@@ -48,10 +48,7 @@ void LaunchProcess(const std::wstring &command,
 
 void LaunchChildProcesses(const std::wstring &app_dir)
 {
-    std::wstring torrserver_path = app_dir + L"\\torrserver-daemon.exe";
-    LaunchProcess(torrserver_path, L"", app_dir, g_dataApiProcInfo);
-
-    std::wstring streaming_service_path = app_dir + L"\\streaming-service.exe";
+    std::wstring streaming_service_path = app_dir + L"\\streaming-server.exe";
     LaunchProcess(streaming_service_path, L"", app_dir, g_streamingServerProcInfo);
 }
 

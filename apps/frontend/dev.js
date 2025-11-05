@@ -1,33 +1,32 @@
 #!/usr/bin/env node
-import { spawn } from 'child_process';
+import { spawn } from "child_process";
 
-// clone the parent env and force color output
 const env = {
   ...process.env,
-  FORCE_COLOR: '1',
-  npm_config_color: 'always',
+  FORCE_COLOR: "1",
+  npm_config_color: "always",
 };
 
-const proc = spawn('npm', ['run', 'dev:raw'], {
+const proc = spawn("npm", ["run", "dev:raw"], {
   shell: true,
   env,
-  stdio: ['inherit', 'pipe', 'pipe'],
+  stdio: ["inherit", "pipe", "pipe"],
 });
 
-proc.stdout.on('data', (chunk) => {
+proc.stdout.on("data", (chunk) => {
   const line = chunk.toString();
   if (!/Watchpack Error/.test(line)) {
     process.stdout.write(chunk);
   }
 });
 
-proc.stderr.on('data', (chunk) => {
+proc.stderr.on("data", (chunk) => {
   const line = chunk.toString();
   if (!/Watchpack Error/.test(line)) {
     process.stderr.write(chunk);
   }
 });
 
-proc.on('exit', (code) => {
+proc.on("exit", (code) => {
   process.exit(code);
 });

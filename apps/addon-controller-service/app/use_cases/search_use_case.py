@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Dict, Any, AsyncGenerator
+from typing import  Dict, Any, AsyncGenerator
 from urllib.parse import quote
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import (
@@ -7,9 +7,7 @@ from core.pydantic.catalog.catalog import (
     AddonSearchResult,
 )
 from core.pydantic.api.error import ErrorResponse
-from domain_exceptions.exceptions import ApiException
-from api_contract.errors import ApiErrorCode
-from core.utils.logging import log_info, log_error, log_warn
+from core.utils.logging import log_info
 from .get_manifest import GetManifestUseCase
 from app.domain.cache.i_profile_manifest_cache import IProfileManifestCache
 

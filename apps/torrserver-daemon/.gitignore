@@ -33,3 +33,4 @@ go.work.sum
 config.db
 cache
 go.sum
+go.mod

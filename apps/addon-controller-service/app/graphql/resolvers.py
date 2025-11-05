@@ -5,7 +5,6 @@ from app.use_cases.discover_catalogs import DiscoverCatalogsUseCase
 from app.use_cases.aggregate_catalog import AggregateCatalogUseCase
 from app.use_cases.find_and_get_meta import FindAndGetMetaUseCase
 from app.use_cases.get_home_catalogs import GetHomeCatalogsUseCase
-from app.use_cases.get_meta import GetMetaUseCase
 from app.use_cases.get_streams import GetStreamsUseCase
 from app.use_cases.get_manifest import GetManifestUseCase
 from app.use_cases.get_subtitles import GetSubtitlesUseCase

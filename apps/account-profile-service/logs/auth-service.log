@@ -1,4 +1,0 @@
-{"timestamp": "2025-11-03T04:13:07.533Z", "emoji": "\ud83d\ude80", "app": "auth-service", "level": "INIT", "file": "app.py", "context": "init", "function": "startup_event", "message": "Service 'auth-service' starting up in 'production' mode"}
-{"timestamp": "2025-11-03T04:13:07.533Z", "emoji": "\u2705", "app": "auth-service", "level": "INFO", "file": "app.py", "context": "general", "function": "startup_event", "message": "Accessible at: 'https://localhost:8003'"}
-{"timestamp": "2025-11-03T04:18:16.406Z", "emoji": "\ud83d\ude80", "app": "auth-service", "level": "INIT", "file": "app.py", "context": "init", "function": "startup_event", "message": "Service 'auth-service' starting up in 'production' mode"}
-{"timestamp": "2025-11-03T04:18:16.406Z", "emoji": "\u2705", "app": "auth-service", "level": "INFO", "file": "app.py", "context": "general", "function": "startup_event", "message": "Accessible at: 'https://localhost:8003'"}

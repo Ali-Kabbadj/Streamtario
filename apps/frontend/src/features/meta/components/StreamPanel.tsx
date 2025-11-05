@@ -29,7 +29,7 @@ import {
 import { Label } from "@/components/ui/label";
 import type {
   GetPlaybackHistoryByImdbIdQuery,
-  MetaItemType, // --- IMPORT MetaItemType ---
+  MetaItemType,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 
 type PlaybackHistoryItem =
@@ -45,7 +45,6 @@ interface StreamPanelContent {
   imageUrl?: string | null;
 }
 
-// --- MODIFIED: Props are cleaner now ---
 interface StreamPanelProps {
   content: StreamPanelContent | null;
   onClose: () => void;
@@ -243,134 +242,132 @@ export function StreamPanel({
 
   return (
     <AnimatePresence>
-      {content &&
-        meta && ( // --- ENSURE meta exists ---
-          <motion.div
-            key={content.itemId}
-            initial={{ x: "100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "100%", opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="bg-card fixed top-16 right-0 z-20 flex h-[calc(100vh-4rem)] w-full flex-col rounded-tl-2xl shadow-2xl lg:w-1/3"
-          >
-            <div className="flex-shrink-0 p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-grow pr-4">
-                  <h2 className="text-2xl font-bold">{content.title}</h2>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className="flex-shrink-0"
-                >
-                  <X className="h-6 w-6" />
-                </Button>
+      {content && meta && (
+        <motion.div
+          key={content.itemId}
+          initial={{ x: "100%", opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: "100%", opacity: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="bg-card fixed top-16 right-0 z-20 flex h-[calc(100vh-4rem)] w-full flex-col rounded-tl-2xl shadow-2xl lg:w-1/3"
+        >
+          <div className="flex-shrink-0 p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-grow pr-4">
+                <h2 className="text-2xl font-bold">{content.title}</h2>
               </div>
-              {content.imageUrl && (
-                <div className="relative mt-4 h-40 w-full">
-                  <Image
-                    src={content.imageUrl}
-                    alt={content.title}
-                    layout="fill"
-                    objectFit="cover"
-                    className="rounded-lg"
-                    unoptimized
-                  />
-                </div>
-              )}
-              <div className="mt-4 flex items-center justify-between">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="capitalize">
-                      <ArrowUpDown className="mr-2 h-4 w-4" />
-                      Sort by {sortKey}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-secondary" align="start">
-                    <DropdownMenuItem onClick={() => setSortKey("best")}>
-                      Best Match
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortKey("seeders")}>
-                      Seeders
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortKey("size")}>
-                      Size
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline">
-                      <Filter className="mr-2 h-4 w-4" />
-                      Filter
-                      {activeFilterCount > 0 && (
-                        <span className="bg-primary ml-2 flex h-5 w-5 items-center justify-center rounded-full text-xs">
-                          {activeFilterCount}
-                        </span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="bg-secondary w-48 space-y-4"
-                    align="end"
-                  >
-                    <FilterSection
-                      title="Resolution"
-                      options={filterOptions.resolutions}
-                      selected={filters.resolution}
-                      onToggle={(opt) => handleFilterToggle("resolution", opt)}
-                    />
-                    <FilterSection
-                      title="Source"
-                      options={filterOptions.sources}
-                      selected={filters.source}
-                      onToggle={(opt) => handleFilterToggle("source", opt)}
-                    />
-                    <FilterSection
-                      title="HDR"
-                      options={filterOptions.hdrTypes}
-                      selected={filters.hdr}
-                      onToggle={(opt) => handleFilterToggle("hdr", opt)}
-                    />
-                    <FilterSection
-                      title="Language"
-                      options={filterOptions.languages}
-                      selected={filters.language}
-                      onToggle={(opt) => handleFilterToggle("language", opt)}
-                    />
-                    {activeFilterCount > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full"
-                        onClick={clearFilters}
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="flex-shrink-0"
+              >
+                <X className="h-6 w-6" />
+              </Button>
             </div>
-            <ScrollArea className="flex-1 overflow-y-auto overscroll-y-contain px-4">
-              <div className="pb-4">
-                {/* --- MODIFIED: Pass meta object down --- */}
-                <StreamList
-                  streams={processedStreams}
-                  rawStreams={rawStreams}
-                  isLoading={isLoadingStreams}
-                  clearFilters={clearFilters}
-                  mediaTitle={content.title}
-                  contentId={contentId}
-                  meta={meta}
-                  playbackHistory={playbackHistory}
+            {content.imageUrl && (
+              <div className="relative mt-4 h-40 w-full">
+                <Image
+                  src={content.imageUrl}
+                  alt={content.title}
+                  layout="fill"
+                  objectFit="cover"
+                  className="rounded-lg"
+                  unoptimized
                 />
               </div>
-            </ScrollArea>
-          </motion.div>
-        )}
+            )}
+            <div className="mt-4 flex items-center justify-between">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="capitalize">
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    Sort by {sortKey}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-secondary" align="start">
+                  <DropdownMenuItem onClick={() => setSortKey("best")}>
+                    Best Match
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortKey("seeders")}>
+                    Seeders
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortKey("size")}>
+                    Size
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filter
+                    {activeFilterCount > 0 && (
+                      <span className="bg-primary ml-2 flex h-5 w-5 items-center justify-center rounded-full text-xs">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="bg-secondary w-48 space-y-4"
+                  align="end"
+                >
+                  <FilterSection
+                    title="Resolution"
+                    options={filterOptions.resolutions}
+                    selected={filters.resolution}
+                    onToggle={(opt) => handleFilterToggle("resolution", opt)}
+                  />
+                  <FilterSection
+                    title="Source"
+                    options={filterOptions.sources}
+                    selected={filters.source}
+                    onToggle={(opt) => handleFilterToggle("source", opt)}
+                  />
+                  <FilterSection
+                    title="HDR"
+                    options={filterOptions.hdrTypes}
+                    selected={filters.hdr}
+                    onToggle={(opt) => handleFilterToggle("hdr", opt)}
+                  />
+                  <FilterSection
+                    title="Language"
+                    options={filterOptions.languages}
+                    selected={filters.language}
+                    onToggle={(opt) => handleFilterToggle("language", opt)}
+                  />
+                  {activeFilterCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={clearFilters}
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <ScrollArea className="flex-1 overflow-y-auto overscroll-y-contain px-4">
+            <div className="pb-4">
+              <StreamList
+                streams={processedStreams}
+                rawStreams={rawStreams}
+                isLoading={isLoadingStreams}
+                clearFilters={clearFilters}
+                mediaTitle={content.title}
+                contentId={contentId}
+                meta={meta}
+                playbackHistory={playbackHistory}
+              />
+            </div>
+          </ScrollArea>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }

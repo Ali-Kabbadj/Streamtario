@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/anacrolix/torrent/metainfo"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"server/log"
+	log "log"
 	"server/settings"
 	"server/storage"
 	"server/torr"
@@ -46,7 +47,7 @@ func Broadcast(status []*state.TorrentStatus) {
 
 	for conn := range clients {
 		if err := conn.WriteJSON(message); err != nil {
-			log.TLogln("ws write error:", err)
+			log.Printf("ws write error:", err)
 			conn.Close()
 			delete(clients, conn)
 		}
@@ -77,7 +78,7 @@ func StartStatsPusher() {
 func handleWebSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.TLogln("ws upgrade error:", err)
+		log.Printf("ws upgrade error:", err)
 		return
 	}
 	defer conn.Close()
@@ -85,7 +86,7 @@ func handleWebSocket(c *gin.Context) {
 	clientsMu.Lock()
 	clients[conn] = true
 	clientsMu.Unlock()
-	log.TLogln("WebSocket client connected")
+	log.Printf("WebSocket client connected")
 
 	var initial []*state.TorrentStatus
 	for _, t := range torr.ListTorrent() {
@@ -100,18 +101,23 @@ func handleWebSocket(c *gin.Context) {
 			clientsMu.Lock()
 			delete(clients, conn)
 			clientsMu.Unlock()
-			log.TLogln("WebSocket client disconnected")
+			log.Printf("WebSocket client disconnected")
 			break
 		}
 	}
 }
+
 
 func handleFileStats(c *gin.Context) {
 	infoHashHex := c.Param("hash")
 	idStr := c.Param("id")
 	fileIdx, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file index"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": gin.H{
+			"type":        "BAD_REQUEST",
+			"dev_message": "Invalid file index parameter",
+			"ui_message":  "An internal error occurred (invalid file index).",
+		}})
 		return
 	}
 
@@ -119,18 +125,42 @@ func handleFileStats(c *gin.Context) {
 	t := torr.GetTorrent(infoHash)
 
 	if t == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Torrent not in client"})
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": gin.H{
+			"type":        "TORRENT_NOT_FOUND",
+			"dev_message": "Torrent not found in client for hash: " + infoHashHex,
+			"ui_message":  "The requested stream could not be found.",
+		}})
 		return
 	}
 
 	if !t.GotInfo() {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Torrent info not ready"})
-		return
+		log.Printf("[FILE-STATS] Waiting for metadata for hash: %s...", infoHashHex)
+		if !t.WaitInfo() {
+			log.Printf("[FILE-STATS] Failed to get metadata for hash: %s", infoHashHex)
+			c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": gin.H{
+				"type":        "METADATA_TIMEOUT",
+				"dev_message": "Timed out waiting for torrent metadata.",
+				"ui_message":  "Could not retrieve stream details in time.",
+			}})
+			return
+		}
+		log.Printf("[FILE-STATS] Metadata is now ready for hash: %s. Proceeding.", infoHashHex)
 	}
 
 	storageClient, ok := torr.GetStorage().(*storage.FilePieceStorageClient)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server is not using file-based storage"})
+		files := t.Files()
+		if fileIdx >= 0 && fileIdx < len(files) {
+			targetFile := files[fileIdx]
+			log.Printf("[FILE-STATS] Non-file storage, returning size from metadata for %s/%d", infoHashHex, fileIdx)
+			c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"hash": nil, "size": targetFile.Length()}})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": gin.H{
+			"type":        "STORAGE_ERROR",
+			"dev_message": "Server is not using file-based storage and metadata is inconsistent.",
+			"ui_message":  "An internal server error occurred.",
+		}})
 		return
 	}
 
@@ -140,21 +170,30 @@ func handleFileStats(c *gin.Context) {
 		files := t.Files()
 		if fileIdx >= 0 && fileIdx < len(files) {
 			targetFile := files[fileIdx]
-			c.JSON(http.StatusOK, gin.H{"hash": nil, "size": targetFile.Length()})
+			log.Printf("[FILE-STATS] File not on disk, returning size from metadata for %s/%d", infoHashHex, fileIdx)
+			c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"hash": nil, "size": targetFile.Length()}})
 			return
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found and metadata unavailable"})
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": gin.H{
+			"type":        "FILE_NOT_FOUND",
+			"dev_message": "File not found on disk and metadata is unavailable for the given index.",
+			"ui_message":  "The requested video file could not be found.",
+		}})
 		return
 	}
 	defer file.Close()
 
 	hash, size, err := utils.OpenSubtitlesHash(file)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate hash"})
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": gin.H{
+			"type":        "HASHING_ERROR",
+			"dev_message": "Failed to calculate OpenSubtitles hash for the file.",
+			"ui_message":  "An internal error occurred while processing the video file.",
+		}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"hash": hash, "size": size})
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"hash": hash, "size": size}})
 }
 
 func Run() {
@@ -163,11 +202,21 @@ func Run() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"https://localhost:3000", "https://streamtario.app"},
+		AllowMethods:     []string{"GET", "POST", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	router.Use(func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
 		latency := time.Since(start)
-		log.TLogln(fmt.Sprintf("| %3d | %13v | %-7s | %s",
+		log.Printf(fmt.Sprintf("| %3d | %13v | %-7s | %s",
 			c.Writer.Status(),
 			latency,
 			c.Request.Method,
@@ -180,12 +229,17 @@ func Run() {
 	router.HEAD("/stream/:hash/:id", torr.Stream)
 	router.GET("/ws", handleWebSocket)
 	router.GET("/file-stats/:hash/:id", handleFileStats)
+
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"status": "ok"}})
+	})
+
 	router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "TorrServer Daemon: Core API is running")
 	})
 
 	port := settings.Get().Port
-	log.TLogln(fmt.Sprintf("Starting daemon API server on port %d", port))
+	log.Printf(fmt.Sprintf("Starting daemon API server on port %d", port))
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -194,21 +248,21 @@ func Run() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.TLogln(fmt.Sprintf("Listen error: %s", err))
+			log.Printf(fmt.Sprintf("Listen error: %s", err))
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.TLogln("Shutdown signal received, closing daemon...")
+	log.Printf("Shutdown signal received, closing daemon...")
 	torr.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.TLogln(fmt.Sprintf("Server Shutdown error: %s", err))
+		log.Printf(fmt.Sprintf("Server Shutdown error: %s", err))
 	}
 
-	log.TLogln("Server exiting.")
+	log.Printf("Server exiting.")
 }

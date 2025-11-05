@@ -6,10 +6,6 @@ import type {
     VerifyProfilePinMutationVariables,
 } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
-/**
- * A mutation hook for verifying a profile's PIN.
- * @throws An error with the backend's message on failure.
- */
 export const useVerifyPin = () => {
     return useMutation<
         VerifyProfilePinMutation,

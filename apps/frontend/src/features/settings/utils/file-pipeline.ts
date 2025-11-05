@@ -1,5 +1,3 @@
-// utils/file-pipeline.ts
-
 export interface FileUploadPayload {
     filename: string;
     mime: string;

@@ -4,7 +4,7 @@ import type { CastType } from "@/orchestrators/graphql-query-orchestrator/gen/gr
 
 interface CastMemberCardProps {
   member: CastType;
-  onClick: () => void; // <-- ADD PROP
+  onClick: () => void;
 }
 
 export function CastMemberCard({ member, onClick }: CastMemberCardProps) {

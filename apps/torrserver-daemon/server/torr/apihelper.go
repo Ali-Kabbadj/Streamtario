@@ -11,7 +11,6 @@ import (
 	"github.com/anacrolix/torrent/storage"
 
 	"server/log"
-	"server/settings"
 	sets "server/settings"
 )
 
@@ -43,19 +42,31 @@ func AddTorrent(spec *torrent.TorrentSpec, filename string, fileIdx int, startTi
 	spec.DisableInitialPieceCheck = true
 
 	bts.mu.Lock()
+	shouldDropAll := false
+	if len(bts.torrents) > 0 {
+		_, isAlreadyThere := bts.torrents[spec.InfoHash]
+		if !isAlreadyThere || len(bts.torrents) > 1 {
+			shouldDropAll = true
+		}
+	}
+	bts.mu.Unlock()
+
+	if shouldDropAll {
+		log.TLogln("[STREAM_LIFECYCLE] New stream request requires cleanup of old torrent(s). Dropping all.")
+		dropAllTorrent()
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	bts.mu.Lock()
 	existingTorrent, ok := bts.torrents[spec.InfoHash]
 	bts.mu.Unlock()
 
 	if ok && existingTorrent != nil {
-		log.TLogln("Returning existing torrent instance for:", spec.InfoHash.HexString())
-
-		if existingTorrent.GotInfo() {
-			existingTorrent.UpdateReadAhead(startTime, duration)
-		}
-		existingTorrent.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+		log.TLogln("[STREAM_LIFECYCLE] Re-using existing torrent instance for:", spec.InfoHash.HexString())
 		return existingTorrent, nil
 	}
 
+	log.TLogln("[STREAM_LIFECYCLE] Creating new torrent instance for:", spec.InfoHash.HexString())
 	torr, err := NewTorrent(spec, bts, filename, fileIdx, startTime, duration)
 	if err != nil {
 		log.TLogln("error creating new torrent:", err)

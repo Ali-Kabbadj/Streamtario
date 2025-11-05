@@ -7,7 +7,7 @@ import { APP_CONFIG } from '@/config/env';
 import { SearchDocument } from '@/orchestrators/graphql-query-orchestrator/queries';
 import type { CatalogItemType, SearchSubscription } from '@/orchestrators/graphql-query-orchestrator/gen/graphql';
 
-const wsUrl = APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('https', 'wss');
+const wsUrl = APP_CONFIG.NEXT_PUBLIC_API_GATEWAY_URL.replace('http', 'ws');
 
 export type SearchResultItem = CatalogItemType;
 

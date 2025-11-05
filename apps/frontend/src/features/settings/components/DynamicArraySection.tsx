@@ -28,7 +28,6 @@ export const DynamicArraySection: React.FC<DynamicArraySectionProps> = ({
   onAddItem,
 }) => {
   const { control } = useFormContext();
-  // useFieldArray is now correctly initialized here for the remove action
   const { fields, remove } = useFieldArray({
     control,
     name: path,

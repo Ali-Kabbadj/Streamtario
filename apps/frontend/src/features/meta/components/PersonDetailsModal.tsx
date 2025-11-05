@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, Baby, MapPin, HeartPulse } from "lucide-react"; // <-- Import new icons
+import { ExternalLink, Baby, MapPin, HeartPulse } from "lucide-react";
 import type { PersonDetails } from "../types";
 
 interface PersonDetailsModalProps {

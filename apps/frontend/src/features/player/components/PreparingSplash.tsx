@@ -13,7 +13,7 @@ interface PreparingSplashProps {
   animationState: AnimationState;
 }
 
-const INITIAL_BUFFER_GOAL_BYTES = 25 * 1024 * 1024; // 25 MB
+const INITIAL_BUFFER_GOAL_BYTES = 25 * 1024 * 1024;
 
 export function PreparingSplash({
   logoUrl,

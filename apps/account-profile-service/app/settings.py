@@ -1,8 +1,4 @@
-from typing import Sequence
 from fastapi_factory.config import BaseAppSettings
-from pydantic_settings import SettingsConfigDict
-from pydantic import model_validator
-
 
 class AccountProfileSettings(BaseAppSettings):
     """

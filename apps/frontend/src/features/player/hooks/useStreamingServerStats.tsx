@@ -7,6 +7,10 @@ export interface FileStat {
   bytes_read: number;
   bytes_wasted: number;
   length: number;
+
+  name: string;
+  progress: number;
+  status: "finished" | "downloading" | "paused" | "queued";
 }
 
 export interface TorrentStats {
@@ -76,9 +80,7 @@ export function useStreamingServerStats(): StreamingServerStatsHook {
   const connect = useCallback(() => {
     if (ws.current && ws.current.readyState < 2) return;
 
-    ws.current = new WebSocket(
-      APP_CONFIG.NEXT_PUBLIC_STREAMING_NEXT_PUBLIC_STREAMING_DAEMON_WS_URL,
-    );
+    ws.current = new WebSocket(APP_CONFIG.NEXT_PUBLIC_TORRSERVER_WS_URL);
     ws.current.onopen = () => {
       setIsConnected(true);
       if (reconnectInterval.current) {

@@ -13,6 +13,7 @@ import {
   Volume2,
   Tv,
   Play,
+  Wifi,
 } from "lucide-react";
 import type { ParsedStreamDetails, Stream } from "@/lib/stream-parser";
 import type { JSX } from "react";
@@ -32,12 +33,10 @@ interface StreamItemProps {
   contentId: string;
   meta: MetaItemType | null;
   playbackHistory?: PlaybackHistoryItem;
-  // --- THE FIX: Add a new prop to know if this is the *exact* stream ---
   isLastPlayedStream: boolean;
 }
 
 const tagIcons: Record<string, JSX.Element> = {
-  // Quality, Source, Video, Audio icons... (code unchanged)
   "4K": <Film className="mr-1.5 h-3.5 w-3.5" />,
   "2K": <Film className="mr-1.5 h-3.5 w-3.5" />,
   "1080p": <Film className="mr-1.5 h-3.5 w-3.5" />,
@@ -81,7 +80,6 @@ export function StreamItem({
   playbackHistory,
   isLastPlayedStream,
 }: StreamItemProps) {
-  // Progress is now only calculated if this is the specific last played stream
   const progress =
     isLastPlayedStream &&
     playbackHistory?.durationSeconds &&
@@ -105,19 +103,14 @@ export function StreamItem({
     ...tags.languages,
     ...tags.other,
   ].filter(Boolean) as string[];
-
-  // --- THE FIX: The logic here is now robust ---
   const handlePlayClick = () => {
     if (!meta) return;
 
-    // This is the specific stream that was last played. Resume it exactly.
     if (isLastPlayedStream && playbackHistory) {
       actions.resumeStream(playbackHistory, meta);
       return;
     }
 
-    // For any other stream (or if there's no history), call playStream directly.
-    // Use the position from the history object if it exists, otherwise start from 0.
     const startTime = playbackHistory?.positionSeconds ?? 0;
     actions.playStream(
       stream,
@@ -139,7 +132,6 @@ export function StreamItem({
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-white">{parsed.addonName}</span>
-          {/* The UI now correctly depends on the 'progress' object */}
           {progress && progress.position > 0 && (
             <Badge variant="default" className="flex items-center gap-1">
               <Play className="h-3 w-3" /> Resume
@@ -149,7 +141,6 @@ export function StreamItem({
             <Badge variant="outline">{parsed.releaseGroup}</Badge>
           )}
         </div>
-        {/* Remainder of JSX is unchanged */}
         <div className="flex items-center gap-3 text-xs text-slate-300">
           {parsed.sourceProvider && (
             <div className="flex items-center gap-1.5" title="Provider">
@@ -160,6 +151,12 @@ export function StreamItem({
             <div className="flex items-center gap-1.5" title="File Size">
               <HardDrive className="h-4 w-4 text-slate-400" />
               <span className="font-medium">{parsed.formattedSize}</span>
+            </div>
+          )}
+          {parsed.sources && (
+            <div className="flex items-center gap-1.5" title="File Size">
+              <Wifi className="h-4 w-4 text-slate-400" />
+              <span className="font-medium">{parsed.sources.length}</span>
             </div>
           )}
           {parsed.seeders !== null && (

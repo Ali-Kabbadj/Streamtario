@@ -42,7 +42,6 @@ export const FileUploadPanel: React.FC<Props> = ({
         accept={accept}
         className="hidden"
         aria-label={title}
-        // Reset the input value on change so selecting the same file again works
         onChange={(ev) => {
           const file = ev.target.files?.[0] ?? null;
           onChoose(file);

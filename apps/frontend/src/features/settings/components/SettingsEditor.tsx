@@ -75,7 +75,6 @@ export const SettingsEditor: React.FC<Props> = ({
 
   useEffect(() => {
     const subscription = watch((_value, { type }) => {
-      // Only save on actual user input, not on programmatic changes
       if (type && formState.isDirty) {
         debouncedSave(getValues());
       }

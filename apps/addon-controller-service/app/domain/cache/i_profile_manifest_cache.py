@@ -3,10 +3,6 @@ from typing import List
 
 
 class IProfileManifestCache(ABC):
-    """
-    Defines the interface for a cache that stores manifest URLs per profile.
-    """
-
     @abstractmethod
     async def get_manifests(self, profile_id: str) -> List[str]:
         """Retrieves all manifest URLs for a given profile ID."""

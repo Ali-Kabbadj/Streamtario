@@ -13,15 +13,12 @@ export const AutoSaveHandler: React.FC<AutoSaveHandlerProps> = ({ onSave }) => {
 
   useEffect(() => {
     const subscription = watch(() => {
-      // We only save if the form has actually been changed by the user
       if (formState.isDirty) {
         onSave(getValues());
       }
     });
     return () => subscription.unsubscribe();
-    // FIX: This stable dependency array ensures the hook runs only once on mount.
   }, [watch, formState, getValues, onSave]);
 
-  // This component renders nothing. It is purely for handling the side-effect.
   return null;
 };

@@ -23,7 +23,6 @@ func Stream(c *gin.Context) {
 	}
 
 	infoHash := metainfo.NewHashFromHex(infoHashHex)
-
 	torr := GetTorrent(infoHash)
 	if torr == nil {
 		log.Printf("Stream request for non-existent torrent %s. It must be set up first.", infoHashHex)
@@ -31,12 +30,12 @@ func Stream(c *gin.Context) {
 		return
 	}
 
-	torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+	log.Printf("[STREAM_LIFECYCLE] Player connected to stream URL for hash: %s, fileIndex: %d", infoHashHex, fileIdx)
 
-	if !torr.GotInfo() {
-		log.Printf("Torrent info not available for %s after waiting", infoHashHex)
-		c.String(http.StatusNotFound, "Torrent metadata could not be retrieved in time")
-		return
+	if torr.Info() == nil {
+		log.Printf("[STREAM] Player is waiting for metadata for hash: %s...", infoHashHex)
+		<-torr.Torrent.GotInfo()
+		log.Printf("[STREAM] Metadata is now ready for hash: %s. Proceeding.", infoHashHex)
 	}
 
 	files := torr.Files()
@@ -52,12 +51,10 @@ func Stream(c *gin.Context) {
 		torr.FileName = filepath.Base(targetFile.Path())
 	}
 	torr.muTorrent.Unlock()
-
 	reader := targetFile.NewReader()
-	reader.SetResponsive()
-	reader.SetReadahead(settings.Get().CacheSize)
 	defer reader.Close()
-
+	reader.SetReadahead(settings.Get().CacheSize)
+	reader.SetResponsive()
 	extension := filepath.Ext(torr.FileName)
 	mimeType := mime.TypeByExtension(extension)
 	if mimeType != "" {
@@ -66,7 +63,7 @@ func Stream(c *gin.Context) {
 		c.Header("Content-Type", "application/octet-stream")
 	}
 
-	log.Printf("Streaming file %s (index %d, size %d) from torrent %s", torr.FileName, fileIdx, targetFile.Length(), infoHashHex)
+	log.Printf("[STREAM_LIFECYCLE] Serving file '%s' (index %d, size %d) from torrent %s", torr.FileName, fileIdx, targetFile.Length(), infoHashHex)
 
 	http.ServeContent(c.Writer, c.Request, torr.FileName, time.Unix(torr.Timestamp, 0), reader)
 }

@@ -60,8 +60,6 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
               />
             );
           }
-
-          // Use a type guard to ensure it's a primitive FieldSchema
           if (
             fieldSchema.type === "string" ||
             fieldSchema.type === "number" ||
@@ -75,11 +73,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
               />
             );
           }
-
-          // Should not happen with current schema, but handle potential nested objects
           if (fieldSchema.type === "object") {
-            // If you need nested objects in static view, you'd recursively call SettingsSection here.
-            // For now, we assume SettingsSection only handles the top level objects and their fields.
             return null;
           }
 

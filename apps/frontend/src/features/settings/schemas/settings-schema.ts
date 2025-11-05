@@ -1,4 +1,3 @@
-// schemas/settings-schema.ts
 export type FieldSchemaString = { name: string; label: string; isCore?: boolean; description?: string; defaultValue: string; type: "string"; options?: { value: string; label: string }[]; };
 export type FieldSchemaNumber = { name: string; label: string; isCore?: boolean; description?: string; defaultValue: number; type: "number"; options?: { value: number; label: string }[]; };
 export type FieldSchemaBoolean = { name: string; label: string; isCore?: boolean; description?: string; defaultValue: boolean; type: "boolean"; };
@@ -16,7 +15,6 @@ export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
         isCore: true,
         description: "Configure MPv player commands, scripts, and file-based settings.",
         fields: [
-            // RESTORED: The file upload field for mpv.conf
             {
                 name: "mpv_conf_file",
                 label: "mpv.conf File",
@@ -36,7 +34,6 @@ export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
         isCore: true,
         description: "Theme, scale and visual preferences.",
         fields: [
-            // Dropdown options for theme
             { name: "theme", label: "Theme", type: "string", defaultValue: "dark", options: [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' },] },
             { name: "ui_scale", label: "UI Scale", type: "number", defaultValue: 1 },
         ],
@@ -48,12 +45,11 @@ export const DEFAULT_SETTINGS_SCHEMA: SettingsSchema[] = [
         isCore: true,
         description: "Streaming and cache-related settings.",
         fields: [
-            // Dropdown options for cache size
             { name: "cache_size_gb", label: "Cache Size (GB)", type: "number", defaultValue: 10, options: [{ value: 2, label: '2 GB' }, { value: 5, label: '5 GB' }, { value: 10, label: '10 GB' }, { value: 20, label: '20 GB' }, { value: 50, label: '50 GB' },] },
             { name: "stream_without_cache", label: "Stream without cache", type: "boolean", defaultValue: false },
         ],
     },
 ];
 
-export const generateDefaultData = (schema: SettingsSchema[]): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const s of schema) { if (s.type === "object") { out[s.name] = generateDefaultData(s.fields); } else if (s.type === "array") { out[s.name] = s.defaultValue ?? []; } else { out[s.name] = (s as FieldSchema).defaultValue; } } return out; };
+export const generateDefaultData = (schema: SettingsSchema[]): Record<string, unknown> => { const out: Record<string, unknown> = {}; for (const s of schema) { if (s.type === "object") { out[s.name] = generateDefaultData(s.fields); } else if (s.type === "array") { out[s.name] = s.defaultValue ?? []; } else { out[s.name] = (s).defaultValue; } } return out; };
 export const DEFAULT_SETTINGS_DATA = generateDefaultData(DEFAULT_SETTINGS_SCHEMA);

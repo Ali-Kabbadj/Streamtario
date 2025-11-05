@@ -6,7 +6,7 @@ import React from "react";
 
 interface MetaSynopsisProps {
   meta: MetaItemType;
-  onPersonClick: (name: string) => void; // <-- ADD PROP
+  onPersonClick: (name: string) => void;
 }
 
 export function MetaSynopsis({ meta, onPersonClick }: MetaSynopsisProps) {

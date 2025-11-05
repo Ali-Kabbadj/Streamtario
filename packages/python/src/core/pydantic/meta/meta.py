@@ -75,7 +75,7 @@ class MetaItem(BaseModel):
     logo: Optional[str] = None
     description: Optional[str] = None
     release_info: Optional[str] = Field(None, alias="releaseInfo")
-    imdb_id: Optional[str] = Field(None, alias="imdb_id")  #
+    imdb_id: str = Field(alias="imdb_id") 
     videos: Optional[List[Video]] = None
     country: Optional[str] = None
     director: Optional[List[str]] = None

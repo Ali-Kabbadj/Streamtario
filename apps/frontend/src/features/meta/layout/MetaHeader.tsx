@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import type {
   MetaItemType,
   TrailerStreamType,
-  GetPlaybackHistoryByImdbIdQuery, // CORRECTED IMPORT
+  GetPlaybackHistoryByImdbIdQuery,
 } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { usePlayer } from "@/providers/PlayerProvider";
 import {
@@ -27,7 +27,7 @@ interface MetaHeaderProps {
   isMovieReleased: boolean;
   onViewSources: () => void;
   onWatchTrailer: (trailer: TrailerStreamType) => void;
-  playbackHistory?: PlaybackHistoryItem; // CORRECTED PROP TYPE
+  playbackHistory?: PlaybackHistoryItem;
 }
 
 export function MetaHeader({

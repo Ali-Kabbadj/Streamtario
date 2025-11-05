@@ -3,12 +3,6 @@ from typing import List, Optional
 from core.pydantic.addons.manifest import AddonManifest, Resource
 from core.pydantic.meta.meta import (
     MetaItem,
-    MetaResponse,
-    Video,
-    Link,
-    Cast,
-    Trailer,
-    TrailerStream,
     AppExtras,
 )
 from domain_exceptions.exceptions import ApiException
@@ -24,11 +18,6 @@ AGGREGATION_TIMEOUT_SECONDS = 3.0
 
 
 class FindAndGetMetaUseCase:
-    """
-    Aggregates metadata for a given item ID from all installed addons
-    that support it. It operates in a fully parallel, two-wave process with timeouts.
-    """
-
     def __init__(
         self,
         get_manifest_use_case: GetManifestUseCase,

@@ -1,6 +1,0 @@
-{
-  "watch": ["dist"],
-  "exec": "node --inspect ./dist/index.js",
-  "ext": "js",
-  "delay": "1000"
-}

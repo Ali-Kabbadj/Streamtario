@@ -1,11 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { loginWithGoogle } from "../services/auth.service";
+import { loginWithGoogle, type GoogleLoginPayload } from "../services/auth.service";
 
 export const useGoogleLogin = () => {
-    return useMutation<void, Error, string>({
-        mutationFn: (code: string) => loginWithGoogle(code),
+    return useMutation<void, Error, GoogleLoginPayload>({
+        mutationFn: (payload: GoogleLoginPayload) => loginWithGoogle(payload),
         onSuccess: () => {
-            window.location.href = "/";
+            window.location.reload();
         },
     });
 };

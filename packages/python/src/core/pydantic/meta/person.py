@@ -6,7 +6,7 @@ class FilmographyItem(BaseModel):
     title: str
     year: Optional[str] = None
     role: str
-    type: str  # This will be determined by the credit category
+    type: str  
 
 
 class ExternalLink(BaseModel):
@@ -17,7 +17,7 @@ class ExternalLink(BaseModel):
 class PersonDetails(BaseModel):
     name: str
     birth_name: Optional[str] = Field(None, alias="birthName")
-    summary: Optional[str] = None  # We can generate this or use a part of the bio
+    summary: Optional[str] = None 
     biography: Optional[str] = None
     birth_date: Optional[str] = Field(None, alias="birthDate")
     birth_place: Optional[str] = Field(None, alias="birthPlace")

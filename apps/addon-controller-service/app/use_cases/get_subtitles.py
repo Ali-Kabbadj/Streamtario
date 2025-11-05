@@ -1,6 +1,6 @@
 import asyncio
 from typing import List
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.subtitles.subtitles import SubtitleResponse, SubtitleFile
 from core.utils.logging import log_info
@@ -8,7 +8,6 @@ from .get_manifest import GetManifestUseCase
 from ..domain.providers.i_profile_addon_manifest_provider import (
     IProfileAddonManifestProvider,
 )
-
 
 class GetSubtitlesUseCase:
     def __init__(

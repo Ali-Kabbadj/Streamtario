@@ -14,6 +14,17 @@ namespace WebViewProtocol
     // INCOMING COMMANDS (From Frontend -> C++)
     //================================================================
 
+    struct BeginGoogleAuthPayload
+    {
+        std::string clientId;
+    };
+
+    struct AuthResult {
+        std::string code;
+        std::string redirectUri;
+    };
+
+
     struct PlayPayload
     {
         std::string url;
@@ -50,7 +61,8 @@ namespace WebViewProtocol
     {
         std::string command_string;
     };
-
+    
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BeginGoogleAuthPayload, clientId)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PlayPayload, url, startTime)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SeekPayload, time)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SetVolumePayload, volume)

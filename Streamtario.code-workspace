@@ -13,7 +13,6 @@
       "path": "scripts"
     },
     { "name": "frontend", "path": "apps/frontend" },
-    { "name": "state-tracker-service", "path": "apps/state-tracker-service" },
     {
       "name": "account-profile-service",
       "path": "apps/account-profile-service"
@@ -24,7 +23,6 @@
     { "name": "dev resources", "path": "dev_resources" },
     { "name": "api-gateway", "path": "apps/api-gateway" },
     { "name": "auth-service", "path": "apps/auth-service" },
-    { "name": "streaming-service", "path": "apps/streaming-service" },
     { "name": "torrserver-daemon", "path": "apps/torrserver-daemon" },
     { "name": "Output", "path": "dist" }
   ],
@@ -34,7 +32,7 @@
       {
         "label": "Build: torrserver-daemon",
         "type": "shell",
-        "command": "go build -o ../../../dist/win-x64/torrserver-daemon.exe ./cmd",
+        "command": "go build -o ../../../dist/win-x64/streaming-server.exe ./cmd",
         "options": {
           "cwd": "${workspaceFolder:torrserver-daemon}/server"
         },
@@ -46,11 +44,20 @@
         }
       },
       {
-        "label": "Build: streaming-service",
+        "label": "Build: frontend",
         "type": "shell",
-        "command": "npm run package",
+        "command": "npm run build && robocopy .\\out ..\\..\\dist\\win-x64\\www /E /MOVE",
         "options": {
-          "cwd": "${workspaceFolder:streaming-service}"
+          "cwd": "${workspaceFolder:frontend}"
+        },
+        "windows": {
+          "command": "npm run build && robocopy .\\out ..\\..\\dist\\win-x64\\www /E /MOVE"
+        },
+        "linux": {
+          "command": "npm run build && mkdir -p ../../dist/win-x64/www && mv ./out/* ../../dist/win-x64/www/"
+        },
+        "osx": {
+          "command": "npm run build && mkdir -p ../../dist/win-x64/www && mv ./out/* ../../dist/win-x64/www/"
         },
         "group": "build",
         "presentation": {
@@ -60,13 +67,18 @@
         }
       },
       {
-        "label": "tsc: build streaming api",
+        "label": "Build: C++ Host",
         "type": "shell",
-        "command": "npm",
-        "args": ["run", "build"],
-        "options": { "cwd": "${workspaceFolder:streaming-service}" },
+        "command": "call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Insiders\\Common7\\Tools\\VsDevCmd.bat\" -arch=amd64 && cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build ./build --config Release && xcopy /Y .\\build\\Streamtario.exe ..\\..\\dist\\win-x64\\",
+        "options": {
+          "cwd": "${workspaceFolder:webview2-host}",
+          "shell": {
+            "executable": "cmd.exe",
+            "args": ["/d", "/c"]
+          }
+        },
         "group": "build",
-        "problemMatcher": ["$tsc"],
+        "problemMatcher": ["$msCompile"],
         "presentation": {
           "reveal": "always",
           "panel": "shared",
@@ -170,20 +182,33 @@
         "type": "cppvsdbg",
         "request": "launch",
         "program": "cmd.exe",
+        "cwd": "${workspaceRoot}",
         "args": ["/C", "echo Build finished."],
         "preLaunchTask": "Build: torrserver-daemon",
         "console": "integratedTerminal",
         "presentation": { "hidden": false, "group": "Build Tasks", "order": 1 }
       },
       {
-        "name": "Build: Streaming Service",
+        "name": "Build: Frontend",
         "type": "cppvsdbg",
+        "request": "launch",
+        "cwd": "${workspaceRoot}",
+        "program": "cmd.exe",
+        "args": ["/C", "echo Build finished."],
+        "preLaunchTask": "Build: frontend",
+        "console": "integratedTerminal",
+        "presentation": { "hidden": false, "group": "Build Tasks", "order": 3 }
+      },
+      {
+        "name": "Build: C++ Host",
+        "type": "cppvsdbg",
+        "cwd": "${workspaceRoot}",
         "request": "launch",
         "program": "cmd.exe",
         "args": ["/C", "echo Build finished."],
-        "preLaunchTask": "Build: streaming-service",
+        "preLaunchTask": "Build: C++ Host",
         "console": "integratedTerminal",
-        "presentation": { "hidden": false, "group": "Build Tasks", "order": 2 }
+        "presentation": { "hidden": false, "group": "Build Tasks", "order": 4 }
       },
       {
         "name": "Purge & Rebuild All (Docker Compose)",
@@ -394,33 +419,6 @@
         "presentation": { "hidden": false, "group": "services", "order": 2 }
       },
       {
-        "name": "➕ Streaming Service",
-        "stopOnEntry": false,
-        "type": "node",
-        "request": "launch",
-        "runtimeExecutable": "node",
-        "runtimeArgs": [
-          "--inspect",
-          "-r",
-          "dotenv/config",
-          "--experimental-specifier-resolution=node"
-        ],
-        "env": {
-          "DOTENV_CONFIG_PATH": "../../.env"
-        },
-        "program": "${workspaceFolder:streaming-service}/dist/index.js",
-        "preLaunchTask": "tsc: build streaming api",
-        "outFiles": ["${workspaceFolder:streaming-service}/dist/**/*.js"],
-        "sourceMaps": true,
-        "cwd": "${workspaceFolder:streaming-service}",
-        "console": "internalConsole",
-        "skipFiles": ["<node_internals>/**"],
-        "outputCapture": "std",
-        "localRoot": "${workspaceFolder:streaming-service}",
-        "remoteRoot": "${workspaceFolder:streaming-service}/app",
-        "presentation": { "hidden": false, "group": "services", "order": 4 }
-      },
-      {
         "name": "➕ torrserver-daemon",
         "type": "go",
         "request": "launch",
@@ -459,9 +457,6 @@
         "runtimeArgs": ["react-devtools", "--port", "8097"],
         "cwd": "${workspaceFolder:frontend}",
         "console": "integratedTerminal"
-        // "presentation": {
-        //   "hidden": true
-        // }
       },
       {
         "name": "DEBUG_FRONTEND",
@@ -516,20 +511,18 @@
           "➕ Addons Service",
           "➕ Accounts Service",
           "➕ Auth Service",
-          // "➕ Streaming Service",
-          // "➕ torrserver-daemon",
+          "➕ torrserver-daemon",
           "🚀 API Gateway"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
-        "stopAll": true,
+        "stopAll": false,
         "presentation": { "hidden": false, "group": "compounds", "order": 3 }
       },
       {
         "name": "💯 Frontend",
-        // "configurations": ["WebView2", "DEBUG_FRONTEND"],
         "configurations": ["WebView2", "DEBUG_FRONTEND"],
         "presentation": { "hidden": false, "group": "compounds", "order": 2 },
-        "stopAll": true
+        "stopAll": false
       },
       {
         "name": "💯 All",
@@ -537,12 +530,11 @@
           "➕ Addons Service",
           "➕ Accounts Service",
           "➕ Auth Service",
-          "➕ Streaming Service",
           "➕ torrserver-daemon",
           "🚀 API Gateway",
-          "WebView2"
-          // "DEBUG_FRONTEND"
-          // "REACT_DEVTOOLS"
+          "WebView2",
+          "DEBUG_FRONTEND",
+          "REACT_DEVTOOLS"
         ],
         "preLaunchTask": "Install Streamtario Python lib",
         "stopAll": true,
@@ -551,17 +543,8 @@
     ]
   },
   "settings": {
-    "triggerTaskOnSave.tasks": {
-      "CMake: Configure & Build": [
-        "${workspaceFolder:webview2-host}/src/*.h",
-        "${workspaceFolder:webview2-host}/src/*.cpp"
-      ]
-    },
     "python.analysis.autoImportCompletions": true,
     "python.analysis.extraPaths": ["./packages/python/src"],
-    // "terminal.integrated.env.windows": {
-    //   "PYTHONPATH": "${workspaceFolder}\\packages\\python\\src"
-    // },
     "terminal.integrated.env.linux": {
       "PYTHONPATH": "${workspaceFolder}/packages/python/src"
     },
@@ -595,16 +578,19 @@
       "**/WEBVIEW_APP/build/**": true,
       "**/WEBVIEW_APP/vcpkg/**": true,
       "**/vcpkg_installed/**": true,
-      "**/build/**": true
+      "**/build/**": true,
+      "**/pkg/mod/**": true
     },
     "search.exclude": {
       "**/build/**": true,
       "**/vcpkg/**": true,
-      "**/vcpkg_installed/**": true
+      "**/vcpkg_installed/**": true,
+      "**/pkg/mod": true
     },
     "C_Cpp.files.exclude": {
       "**/build/**/*": true,
-      "**/vcpkg_installed/**": true
+      "**/vcpkg_installed/**": true,
+      "**/pkg/mod": true
     },
     "cmake.configureSettings": {
       "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -731,6 +717,9 @@
       "xtr1common": "cpp",
       "xtree": "cpp",
       "xutility": "cpp"
+    },
+    "gopls": {
+      "directoryFilters": ["-**/pkg/mod"]
     }
   }
 }

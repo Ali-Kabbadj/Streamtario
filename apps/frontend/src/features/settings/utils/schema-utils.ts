@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// utils/schema-utils.ts
 import type { SettingsSchema, ObjectSchema } from "../schemas/settings-schema";
 import type { WritableDraft } from "immer";
 

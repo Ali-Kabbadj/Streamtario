@@ -72,13 +72,13 @@ class AddonManifest(BaseModel):
         if not isinstance(v, list):
             return []
         for res in v:
-            if isinstance(res, str):
-                processed_resources.append(Resource(name=res))
-            elif isinstance(res, dict):
-                resource_data = {
+            resource_data = {
                     "name": res.get("name"),
                     "types": res.get("types"),
                     "id_prefixes": res.get("idPrefixes") or res.get("id_prefixes"),
                 }
+            if isinstance(res, str):
+                processed_resources.append(Resource(name=res,types=["tobeadded"],idPrefixes=["tobeadded"]))
+            elif isinstance(res, dict):
                 processed_resources.append(Resource(**resource_data))
         return processed_resources

@@ -27,6 +27,7 @@ export interface ParsedStreamDetails {
     other: string[];
   };
   originalIndex: number;
+  sources: string[] | null | undefined;
 }
 
 export const TAG_LIBRARY = {
@@ -137,6 +138,7 @@ export function parseStream(
       other: [],
     },
     originalIndex,
+    sources: stream.sources
   };
 
   const seederMatch = /(?:👤|S:)\s*(\d+)/i.exec(title);
@@ -204,7 +206,6 @@ export function parseStream(
   return result;
 }
 
-
 export function constructMagnetUrl(
   infoHash: string,
   title: string,
@@ -214,7 +215,5 @@ export function constructMagnetUrl(
   const trackerParams = (trackers ?? [])
     .map(tr => `&tr=${encodeURIComponent(tr)}`)
     .join('');
-
-  // The 'so' parameter is 'select-only', which tells the client which file index to prioritize.
   return `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}${trackerParams}&so=${fileIndex}`;
 }

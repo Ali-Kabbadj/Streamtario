@@ -1,6 +1,5 @@
 import asyncio
 from typing import List, Dict, Tuple
-
 from pydantic import BaseModel
 from app.domain.providers.i_external_addon_provider import IExternalAddonProvider
 from core.pydantic.catalog.catalog import CatalogResponse, CatalogItem
@@ -10,16 +9,13 @@ from ..domain.providers.i_profile_addon_manifest_provider import (
     IProfileAddonManifestProvider,
 )
 
-
 class HomeContentRow(BaseModel):
     title: str
     items: List[CatalogItem]
 
-
 class HomeAddonSection(BaseModel):
     addon_name: str
     content: List[HomeContentRow]
-
 
 class GetHomeCatalogsUseCase:
     def __init__(

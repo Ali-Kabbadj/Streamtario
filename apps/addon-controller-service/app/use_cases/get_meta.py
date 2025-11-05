@@ -9,12 +9,6 @@ from core.utils.logging import log_info, log_warn, log_error
 
 
 class GetMetaUseCase:
-    """
-    A simple use case that fetches metadata for a specific item ID from a
-    single, known manifest URL. It does not perform any ID manipulation.
-    Returns the MetaResponse on success, or None on failure.
-    """
-
     def __init__(
         self,
         get_manifest_use_case: GetManifestUseCase,
@@ -37,7 +31,6 @@ class GetMetaUseCase:
 
             if item_type:
                 url = f"{base_url}/meta/{item_type}/{encoded_item_id}.json"
-                # This call is now valid because the timeout parameter is passed down
                 result = await self.addon_provider.get(
                     url, response_model=MetaResponse, timeout=timeout
                 )

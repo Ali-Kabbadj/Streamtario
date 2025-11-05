@@ -25,15 +25,11 @@ export function ContinueWatchingSection() {
   }
 
   if (!hasContent) {
-    // Render nothing if there's no history to show
     return null;
   }
 
   return (
     <div>
-      {/* <h2 className="mb-4 pr-4 text-3xl font-bold tracking-tight">
-        Continue Watching
-      </h2> */}
       <div className="flex space-x-4 overflow-x-auto py-4 pt-4 pr-4 pb-2 pl-2">
         {data.map((item) => (
           <div key={item.contentId} className="w-48 flex-shrink-0">

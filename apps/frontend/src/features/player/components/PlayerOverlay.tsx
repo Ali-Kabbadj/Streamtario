@@ -42,7 +42,6 @@ export function PlayerOverlay() {
       }
     };
 
-    // Force controls to be visible during the special error case or when playback is paused/buffering.
     if (isSpecialErrorCase || !isPlaybackActive) {
       setIsControlsVisible(true);
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
@@ -107,7 +106,7 @@ export function PlayerOverlay() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="pointer-events-none fixed inset-0 z-[100] flex flex-col items-center justify-center text-white"
+        className="pointer-events-none z-[100] flex flex-col items-center justify-center text-white"
       >
         {status === "error" && (
           <>

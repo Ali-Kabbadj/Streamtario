@@ -6,7 +6,7 @@ from core.pydantic.tmdb_api.tmdb_api import (
     TMDBPersonDetails,
     TMDBCreditsResponse,
 )
-from core.utils.logging import log_error, log_info
+from core.utils.logging import log_error
 
 
 class TmdbApiService:

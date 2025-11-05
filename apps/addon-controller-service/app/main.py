@@ -9,20 +9,15 @@ from fastapi_factory.app import create_app, Application
 from strawberry.fastapi import GraphQLRouter
 from .graphql.schema import schema
 
-
 app: Application = create_app(settings)
-
 container = Container(settings=settings)
 app.container = container
 
 
-# This context getter now lives in main.py and has direct access to the container
 async def get_context() -> Dict[str, Any]:
     return {"container": container}
 
-
 graphql_app = GraphQLRouter(schema, context_getter=get_context)
-
 
 container.wire(
     modules=[
@@ -32,7 +27,6 @@ container.wire(
         ".graphql.resolvers",
     ]
 )
-
 
 @app.on_event("startup")
 async def startup_event():

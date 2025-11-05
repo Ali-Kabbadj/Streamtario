@@ -29,3 +29,8 @@ python-jose
 google-auth
 google-auth-oauthlib
 requests                   # runtime for Google OAuth and other HTTP calls
+
+
+# Streaming server
+libtorrent
+libtorrent-windows-dll

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,15 +13,15 @@ import (
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
 
+	"server/log"
 	"server/settings"
 	"server/torr/state"
 	"server/torr/utils"
 )
 
 type Torrent struct {
-	expiredTime time.Time
-	FileName    string
-	FileIdx     int
+	FileName string
+	FileIdx  int
 
 	*torrent.TorrentSpec
 
@@ -72,11 +71,14 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 			infoBytes, bencodeErr := bencode.Marshal(&info)
 			if bencodeErr == nil {
 				spec.InfoBytes = infoBytes
-				log.Println("Loaded torrent metadata from cache for:", spec.InfoHash.HexString())
+				log.TLogln("Loaded torrent metadata from cache for:", spec.InfoHash.HexString())
 			}
 		}
 	}
 
+	spec.DisallowDataDownload = true
+
+	log.TLogln("[STREAM_LIFECYCLE] Adding torrent spec to client for hash:", spec.InfoHash.HexString())
 	goTorrent, _, err = bt.client.AddTorrentSpec(spec)
 	if err != nil {
 		return nil, fmt.Errorf("error adding torrent spec to client: %w", err)
@@ -86,15 +88,11 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 	defer bt.mu.Unlock()
 
 	if torr, ok := bt.torrents[spec.InfoHash]; ok {
-		log.Println("Re-using existing torrent instance for:", spec.InfoHash.HexString())
 		if torr.FileIdx != fileIdx && fileIdx != -1 {
 			torr.FileIdx = fileIdx
-		}
-		if torr.GotInfo() {
-			torr.UpdateReadAhead(startTime, duration)
+			torr.setFilePriorities()
 		}
 		torr.FileName = filename
-		torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
 		return torr, nil
 	}
 
@@ -110,16 +108,66 @@ func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileId
 		FileIdx:       fileIdx,
 	}
 
-	go torr.watchStats()
+	go func() {
+		log.TLogln("[INIT] Waiting for metadata for hash:", torr.Hash().HexString(), "...")
+		<-torr.Torrent.GotInfo()
+		log.TLogln("[INIT] ==> Metadata acquired for hash:", torr.Hash().HexString(), ".")
+		torr.saveMetadata()
 
-	if torr.GotInfo() {
-		torr.UpdateReadAhead(startTime, duration)
-	}
+		torr.setFilePriorities()
+
+		log.TLogln("[INIT] Priorities set. Allowing data download for", torr.Hash().HexString(), ".")
+		torr.Torrent.AllowDataDownload()
+
+		torr.muTorrent.Lock()
+		torr.Stat = state.TorrentWorking
+		torr.muTorrent.Unlock()
+	}()
+
+	go torr.worker()
 
 	bt.torrents[spec.InfoHash] = torr
-	log.Println("New torrent instance created and added for:", spec.InfoHash.HexString())
-	torr.AddExpiredTime(time.Second * time.Duration(settings.Get().TorrentDisconnectTimeout))
+	log.TLogln("New torrent instance created and added for:", spec.InfoHash.HexString())
 	return torr, nil
+}
+
+func (t *Torrent) setFilePriorities() {
+	if t.Info() == nil || t.FileIdx < 0 {
+		return
+	}
+
+	log.TLogln("[PRIORITY] Setting file priorities for hash", t.Hash().HexString(), ", focusing ONLY on fileIndex", t.FileIdx, ".")
+	for i, f := range t.Files() {
+		if i == t.FileIdx {
+			log.TLogln("[PRIORITY]   - Enabling download for target file:", f.Path())
+			f.Download()
+		} else {
+			log.TLogln("[PRIORITY]   - Disabling download for file:", f.Path())
+			f.SetPriority(torrent.PiecePriorityNone)
+		}
+	}
+}
+
+func (t *Torrent) worker() {
+	t.progressTicker = time.NewTicker(2 * time.Second)
+	defer t.progressTicker.Stop()
+
+	for {
+		select {
+		case <-t.progressTicker.C:
+			t.progressEvent()
+		case <-t.closed:
+			log.TLogln("[STREAM_LIFECYCLE] Worker shutting down for hash:", t.Hash().HexString())
+			return
+		}
+	}
+}
+
+func (t *Torrent) GotInfo() bool {
+	if t.Torrent == nil {
+		return false
+	}
+	return t.Info() != nil
 }
 
 func (t *Torrent) WaitInfo() bool {
@@ -130,40 +178,24 @@ func (t *Torrent) WaitInfo() bool {
 		t.saveMetadata()
 		return true
 	}
+	log.TLogln("[STREAM_LIFECYCLE] Waiting for metadata for hash:", t.Hash().HexString())
 	infoTimeout := time.Second * 30
 	timer := time.NewTimer(infoTimeout)
 	defer timer.Stop()
 
 	select {
 	case <-t.Torrent.GotInfo():
-		log.Println("Torrent info received from network for:", t.Hash().HexString())
+		log.TLogln("[STREAM_LIFECYCLE] ==> Metadata acquired for hash:", t.Hash().HexString())
 		t.saveMetadata()
 		return true
 	case <-t.closed:
-		log.Println("Torrent closed before info received:", t.Hash().HexString())
+		log.TLogln("[STREAM_LIFECYCLE] Torrent closed before info received for hash:", t.Hash().HexString())
 		return false
 	case <-timer.C:
-		log.Println("Timeout waiting for torrent info:", t.Hash().HexString())
+		log.TLogln("[STREAM_LIFECYCLE] ==> Metadata acquisition timed out for hash:", t.Hash().HexString())
 		t.Close()
 		return false
 	}
-}
-
-func (t *Torrent) GotInfo() bool {
-	t.muTorrent.Lock()
-	if t.Stat == state.TorrentClosed {
-		t.muTorrent.Unlock()
-		return false
-	}
-	t.Stat = state.TorrentGettingInfo
-	t.muTorrent.Unlock()
-	if t.WaitInfo() {
-		t.muTorrent.Lock()
-		t.Stat = state.TorrentWorking
-		t.muTorrent.Unlock()
-		return true
-	}
-	return false
 }
 
 func (t *Torrent) saveMetadata() {
@@ -178,14 +210,14 @@ func (t *Torrent) saveMetadata() {
 		if err == nil {
 			if err = os.MkdirAll(torrentDir, 0755); err == nil {
 				if err = os.WriteFile(metaFilePath, metaBytes, 0644); err == nil {
-					log.Println("Saved .metainfo.json for", t.Hash().HexString())
+					log.TLogln("[STREAM_LIFECYCLE] Metadata saved to cache for hash:", t.Hash().HexString())
 				}
 			}
 		}
 	}
 }
 
-func (t *Torrent) UpdateReadAhead(startTime float64, duration float64) {
+func (t *Torrent) UpdatePiecePriorityForOffset(fileOffset int64) {
 	if t.Torrent == nil || t.Info() == nil || t.FileIdx < 0 {
 		return
 	}
@@ -193,52 +225,47 @@ func (t *Torrent) UpdateReadAhead(startTime float64, duration float64) {
 	if t.FileIdx >= len(files) {
 		return
 	}
-	targetFile := files[t.FileIdx]
-	fileLength := targetFile.Length()
+	
 	pieceLength := t.Info().PieceLength
+	targetFile := files[t.FileIdx]
 
-	var targetOffset int64
-	if startTime > 0 && duration > 0 {
-		targetOffset = int64((startTime / duration) * float64(fileLength))
-	} else {
-		targetOffset = 0
-	}
+	log.TLogln("[PRIORITY] Updating piece priorities for hash", t.Hash().HexString(), ", focusing ONLY on fileIndex", t.FileIdx)
 
-	startPiece := (targetFile.Offset() + targetOffset) / pieceLength
-	endPiece := (targetFile.Offset() + fileLength - 1) / pieceLength
-	bufferPieces := int64((25 * 1024 * 1024) / pieceLength)
-	if bufferPieces == 0 {
-		bufferPieces = 1
-	}
-
-	log.Printf("[PRIORITY_LOG] Setting initial priority. Offset: %d, Start Piece: %d", targetOffset, startPiece)
-
-	for i := 0; i < t.NumPieces(); i++ {
-		t.Piece(i).SetPriority(torrent.PiecePriorityNone)
-	}
-
-	for i := startPiece; i < startPiece+bufferPieces && i <= endPiece; i++ {
-		t.Piece(int(i)).SetPriority(torrent.PiecePriorityHigh)
-	}
-
-	for i, f := range files {
-		if i == t.FileIdx {
-			f.SetPriority(torrent.PiecePriorityNormal)
-		} else {
-			f.SetPriority(torrent.PiecePriorityNone)
+	for i, file := range files {
+		if i != t.FileIdx {
+			fileStartPiece := file.Offset() / pieceLength
+			fileEndPiece := (file.Offset() + file.Length() - 1) / pieceLength
+			for p := fileStartPiece; p <= fileEndPiece; p++ {
+				t.Piece(int(p)).SetPriority(torrent.PiecePriorityNone)
+			}
 		}
 	}
-}
 
-func (t *Torrent) watchStats() {
-	t.progressTicker = time.NewTicker(2 * time.Second)
-	defer t.progressTicker.Stop()
-	for {
-		select {
-		case <-t.progressTicker.C:
-			t.progressEvent()
-		case <-t.closed:
-			return
+	targetFileStartPiece := targetFile.Offset() / pieceLength
+	targetFileEndPiece := (targetFile.Offset() + targetFile.Length() - 1) / pieceLength
+
+	headerSize := int64(2 * 1024 * 1024)
+	headerEndOffset := targetFile.Offset() + headerSize
+	headerEndPiece := headerEndOffset / pieceLength
+	
+	seekStartPiece := (targetFile.Offset() + fileOffset) / pieceLength
+	bufferBytes := int64(50 * 1024 * 1024)
+	bufferEndPiece := seekStartPiece + (bufferBytes / pieceLength)
+
+	log.TLogln("[PRIORITY] Target File '", targetFile.Path(), "' piece range:", targetFileStartPiece, "to", targetFileEndPiece)
+	log.TLogln("[PRIORITY]   - Header Range (High Priority): Pieces", targetFileStartPiece, "to", headerEndPiece)
+	log.TLogln("[PRIORITY]   - Seek Buffer Range (High Priority): Pieces", seekStartPiece, "to", bufferEndPiece)
+	log.TLogln("[PRIORITY]   - All other pieces in this file will be set to NONE.")
+
+	for p := targetFileStartPiece; p <= targetFileEndPiece; p++ {
+		pieceIndex := int(p)
+		isHeader := p <= headerEndPiece
+		isSeekBuffer := p >= seekStartPiece && p <= bufferEndPiece
+
+		if isHeader || isSeekBuffer {
+			t.Piece(pieceIndex).SetPriority(torrent.PiecePriorityHigh)
+		} else {
+			t.Piece(pieceIndex).SetPriority(torrent.PiecePriorityNone)
 		}
 	}
 }
@@ -260,6 +287,9 @@ func (t *Torrent) progressEvent() {
 	deltaTime := time.Since(t.lastTimeSpeed).Seconds()
 	if deltaTime > 0 {
 		t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
+	}
+	if t.DownloadSpeed > 0 || deltaDlBytes > 0 {
+		log.TLogln(fmt.Sprintf("[STATS] Hash: %s | ActivePeers: %d | Speed: %.2f KB/s", t.Hash().HexString(), st.ActivePeers, t.DownloadSpeed/1024))
 	}
 	t.BytesReadUsefulData = st.BytesReadData.Int64()
 	t.lastTimeSpeed = time.Now()
@@ -335,24 +365,9 @@ func (t *Torrent) Close() bool {
 	t.Stat = state.TorrentClosed
 	close(t.closed)
 	t.muTorrent.Unlock()
-	if t.progressTicker != nil {
-		t.progressTicker.Stop()
-	}
 	if t.Torrent != nil {
-		log.Println("Calling Torrent.Drop() for:", t.Hash().HexString())
+		log.TLogln("Calling Torrent.Drop() for:", t.Hash().HexString())
 		t.Torrent.Drop()
 	}
 	return true
-}
-
-func (t *Torrent) AddExpiredTime(duration time.Duration) {
-	t.muTorrent.Lock()
-	defer t.muTorrent.Unlock()
-	t.expiredTime = time.Now().Add(duration)
-}
-
-func (t *Torrent) expired() bool {
-	t.muTorrent.Lock()
-	defer t.muTorrent.Unlock()
-	return time.Now().After(t.expiredTime)
 }

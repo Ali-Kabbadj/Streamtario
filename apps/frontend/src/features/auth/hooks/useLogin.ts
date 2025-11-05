@@ -10,7 +10,7 @@ export const useLogin = () => {
     return useMutation<void, Error, LoginCredentials>({
         mutationFn: loginWithCredentials,
         onSuccess: () => {
-            window.location.href = "/";
+            window.location.reload();
         },
     });
 };
