@@ -202,7 +202,7 @@
       {
         "name": "Build: C++ Host",
         "type": "cppvsdbg",
-        "cwd": "${workspaceRoot}",
+        "cwd": "${workspaceFolder:webview2-host}",
         "request": "launch",
         "program": "cmd.exe",
         "args": ["/C", "echo Build finished."],

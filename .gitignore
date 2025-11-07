@@ -19,3 +19,4 @@ dist
 .next
 **/go.mod
 streamtario-backup.bundle
+StreamtarioInstaller.exe
