@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import List, Optional, Any, Union
+from typing import List, Optional, Any
 
 
 class BehaviorHints(BaseModel):
@@ -72,13 +72,13 @@ class AddonManifest(BaseModel):
         if not isinstance(v, list):
             return []
         for res in v:
-            resource_data = {
-                    "name": res.get("name"),
+            if isinstance(res, str):
+                processed_resources.append(Resource(name=res))
+            elif isinstance(res, dict):
+                resource_data = {
+                    "name": res.get("name") or "generic name",
                     "types": res.get("types"),
                     "id_prefixes": res.get("idPrefixes") or res.get("id_prefixes"),
                 }
-            if isinstance(res, str):
-                processed_resources.append(Resource(name=res,types=["tobeadded"],idPrefixes=["tobeadded"]))
-            elif isinstance(res, dict):
                 processed_resources.append(Resource(**resource_data))
         return processed_resources

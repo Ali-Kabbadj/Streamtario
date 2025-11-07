@@ -1,6 +1,7 @@
 package torr
 
 import (
+	"context" 
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,6 +41,8 @@ type Torrent struct {
 
 	closed         chan struct{}
 	progressTicker *time.Ticker
+	streamMu     sync.Mutex
+	streamCancel context.CancelFunc
 }
 
 func NewTorrent(spec *torrent.TorrentSpec, bt *BTServer, filename string, fileIdx int, startTime float64, duration float64) (*Torrent, error) {
@@ -288,9 +291,9 @@ func (t *Torrent) progressEvent() {
 	if deltaTime > 0 {
 		t.DownloadSpeed = float64(deltaDlBytes) / deltaTime
 	}
-	if t.DownloadSpeed > 0 || deltaDlBytes > 0 {
-		log.TLogln(fmt.Sprintf("[STATS] Hash: %s | ActivePeers: %d | Speed: %.2f KB/s", t.Hash().HexString(), st.ActivePeers, t.DownloadSpeed/1024))
-	}
+	// if t.DownloadSpeed > 0 || deltaDlBytes > 0 {
+	// 	log.TLogln(fmt.Sprintf("[STATS] Hash: %s | ActivePeers: %d | Speed: %.2f KB/s", t.Hash().HexString(), st.ActivePeers, t.DownloadSpeed/1024))
+	// }
 	t.BytesReadUsefulData = st.BytesReadData.Int64()
 	t.lastTimeSpeed = time.Now()
 }

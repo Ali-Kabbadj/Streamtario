@@ -436,7 +436,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       {!player.isWebView && (
         <div
           className={cn(
-            "fixed inset-0 z-[40] bg-black",
+            "fixed inset-0 bg-black",
             (finalStatus === "idle" || !activeStream) && "hidden",
           )}
         >

@@ -18,3 +18,4 @@ package-lock.json
 dist
 .next
 **/go.mod
+streamtario-backup.bundle

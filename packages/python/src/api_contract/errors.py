@@ -52,7 +52,7 @@ class ApiErrorCode(Enum):
     GOOGLE_UNKOWN_ERROR = ErrorCodeDetail(
         status.HTTP_400_BAD_REQUEST,
         "All exceptions for google auth failed",
-        "Google authentication failed. Please try again.",
+        "Google authentication failed. Please try again or contact devaloper.",
     )
     ACCOUNT_NOT_FOUND = ErrorCodeDetail(
         status.HTTP_404_NOT_FOUND,

@@ -6,7 +6,6 @@ from app.settings import AuthSettings
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import google_auth_oauthlib.flow
-from google.auth.exceptions import GoogleAuthError
 import json
 import os
 
@@ -74,7 +73,7 @@ async def google_login(
     account_response = await api_client.post(url=internal_url, json_payload=social_payload, response_model=Account)
 
     if not account_response.ok or not account_response.data:
-        raise ApiException(ApiErrorCode.AUTHENTICATION_REQUIRED, details="Failed to login or create account via account-service.")
+        raise ApiException(ApiErrorCode.GOOGLE_UNKOWN_ERROR, details="Failed to login or create account via account-service.")
 
     account = account_response.data
     token_payload = {"sub": account.id, "email": account.email}

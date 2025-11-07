@@ -3,7 +3,6 @@
 import { forwardRef } from "react";
 import { MediaPlayer, MediaProvider } from "@vidstack/react";
 import type { MediaPlayerInstance } from "@vidstack/react";
-import { PlayerOverlay } from "./PlayerOverlay";
 
 import "@vidstack/react/player/styles/default/theme.css";
 
@@ -25,8 +24,7 @@ export const BrowserPlayer = forwardRef<
       autoPlay
       playsInline
     >
-      <MediaProvider />
-      <PlayerOverlay />
+      <MediaProvider itemType="mp4" />
     </MediaPlayer>
   );
 });

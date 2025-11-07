@@ -195,16 +195,20 @@ class FindAndGetMetaUseCase:
             return initial_meta
 
         log_info(f"Universal IMDb ID is '{universal_imdb_id}'. Querying all providers.")
+        
+        addons_to_query = []
 
-        addons_to_query = [
-            m
-            for m in all_manifests
-            if m
-            and any(
-                r.name == "meta" and item_type in (r.types or m.types or [])
-                for r in m.resources
-            )
-        ]
+        for m in all_manifests:
+            if not m:
+                continue
+
+            for r in m.resources:
+                # safer access with fallback if missing
+                resource_types = getattr(r, "types", None) or getattr(m, "types", []) or []
+                if r.name in ("meta", "catalog") and item_type in resource_types:
+                    addons_to_query.append(m)
+                    break  # stop checking more resources for this manifest
+
 
         if initial_meta:
             addons_to_query = [m for m in addons_to_query if m.id != _routing_prefix]

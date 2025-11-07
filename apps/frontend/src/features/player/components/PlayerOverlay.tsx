@@ -47,7 +47,6 @@ export function PlayerOverlay() {
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
     }
 
-    // Only set up auto-hide behavior during active playback.
     if (status === "playing") {
       window.addEventListener("mousemove", handleActivity);
       window.addEventListener("click", handleActivity);

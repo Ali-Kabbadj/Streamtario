@@ -9,14 +9,18 @@ import {
   VolumeX,
   Maximize,
   Settings,
+  Copy,
 } from "lucide-react";
 import type { MpvTrack } from "../hooks/useMpvPlayer";
 import { StreamingStatusIndicator } from "./StreamingStatusIndicator";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlayer } from "@/providers/PlayerProvider";
 import { SettingsSheet, type TrackItem } from "./SettingsSheet";
 import type { SubtitleType } from "@/orchestrators/graphql-query-orchestrator/gen/graphql";
 import { getLanguageName } from "@/lib/language-utils";
+import { Input } from "@/components/ui/input";
+import { getEnv } from "@/config/env";
+import { toast } from "sonner";
 
 function formatTime(seconds: number): string {
   if (isNaN(seconds) || seconds < 0) return "00:00";
@@ -30,9 +34,10 @@ function formatTime(seconds: number): string {
 }
 
 export function PlayerControls() {
-  const { playerState, actions, externalSubtitles } = usePlayer();
+  const { playerState, actions, externalSubtitles, activeStream } = usePlayer();
   const { isPaused, time, duration, volume, isMuted, trackList } = playerState;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeStreamUrl, setActiveStreamUrl] = useState("");
 
   const { audioTracks, selectedAudioId } = useMemo(() => {
     const tracks: MpvTrack[] =
@@ -112,6 +117,24 @@ export function PlayerControls() {
     }
   };
 
+  useEffect(() => {
+    if (activeStream) {
+      setActiveStreamUrl(
+        `${getEnv().NEXT_PUBLIC_TORRSERVER_URL}/stream/${activeStream?.infoHash}/${activeStream?.fileIndex}`,
+      );
+    }
+  }, [activeStream]);
+
+  const handleCopy = () => {
+    if (activeStreamUrl) {
+      void navigator.clipboard.writeText(activeStreamUrl);
+      if (!playerState.isPaused) {
+        actions.togglePause();
+      }
+      toast.success("Stream URL copied to clipboard!");
+    }
+  };
+
   return (
     <>
       <div className="absolute right-0 bottom-0 left-0 flex flex-col gap-2 bg-gradient-to-t from-black/70 to-transparent p-4">
@@ -161,6 +184,18 @@ export function PlayerControls() {
             >
               <Settings className="h-6 w-6" />
             </Button>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                readOnly
+                value={activeStreamUrl}
+                className="border-slate-700 bg-slate-800 text-white"
+              />
+              <Button variant="outline" onClick={handleCopy} size="icon">
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+
             <Button
               variant="ghost"
               size="icon"

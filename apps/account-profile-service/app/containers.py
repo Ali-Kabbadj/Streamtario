@@ -55,8 +55,12 @@ class Container(containers.DeclarativeContainer):
     password_hasher: providers.Factory[IPasswordHasher] = providers.Factory(
         BcryptPasswordHasher
     )
+    # api_client: providers.Factory[ApiClient] = providers.Factory(
+    #     ApiClient, verify_ssl=settings.provided.SSL_CERTFILE
+    # )
+    
     api_client: providers.Factory[ApiClient] = providers.Factory(
-        ApiClient, verify_ssl=settings.provided.SSL_CERTFILE
+        ApiClient
     )
 
     addon_provider: providers.Factory[IAddonProvider] = providers.Factory(

@@ -14,7 +14,7 @@ export function useBrowserPlayerAdapter(): PlayerHook & { ref: React.RefObject<M
     const [hasPlayIntent, setHasPlayIntent] = useState(false);
 
     useEffect(() => {
-        if (ref.current && store.canPlay && seekOnPlay !== null) {
+        if (ref.current && seekOnPlay !== null) {
             remote.seek(seekOnPlay);
             setSeekOnPlay(null);
         }

@@ -39,9 +39,10 @@ def main():
         settings = getattr(settings_module, setting_variable_name)
 
         reload_enabled = settings.RELOAD and not is_debugging
-        ssl_keyfile = settings.SSL_KEYFILE if settings.SSL_KEYFILE else None
-        ssl_certfile = settings.SSL_CERTFILE if settings.SSL_CERTFILE else None
-
+        # ssl_keyfile = settings.SSL_KEYFILE if settings.SSL_KEYFILE else None
+        # ssl_certfile = settings.SSL_CERTFILE if settings.SSL_CERTFILE else None
+        # ssl_keyfile = None
+        # ssl_certfile = None
 
         uvicorn_args = {
             "host": settings.APP_HOST,
@@ -50,12 +51,12 @@ def main():
             "log_level": "info",
         }
 
-        if ssl_keyfile and ssl_certfile:
-            print("--- SSL DETECTED: Running in HTTPS mode. ---")
-            uvicorn_args["ssl_keyfile"] = ssl_keyfile
-            uvicorn_args["ssl_certfile"] = ssl_certfile
-        else:
-            print("--- NO SSL: Running in standard HTTP mode. ---")
+        # if ssl_keyfile and ssl_certfile:
+        #     print("--- SSL DETECTED: Running in HTTPS mode. ---")
+        #     uvicorn_args["ssl_keyfile"] = ssl_keyfile
+        #     uvicorn_args["ssl_certfile"] = ssl_certfile
+        # else:
+        #     print("--- NO SSL: Running in standard HTTP mode. ---")
 
         uvicorn.run("app.main:app", **uvicorn_args)
 

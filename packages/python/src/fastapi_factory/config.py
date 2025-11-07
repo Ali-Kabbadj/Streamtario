@@ -10,16 +10,11 @@ ROOT_ENV = Path(__file__).parents[4] / ".env"
 
 class BaseAppSettings(BaseSettings):
     # --- Application
-    APP_ENV: str = ""
     APP_NAME: str = ""
-    APP_PORT: Optional[int] = None
+    APP_PORT: int = None
+    APP_ENV: str = ""
     APP_HOST: Optional[str] = None
     RELOAD: Optional[bool] = None
-
-    # --- SSL
-    SSL_KEYFILE: Optional[str] = None
-    SSL_CERTFILE: Optional[str] = None
-    SSL_CA_CERTFILE: Optional[str] = None
 
     # --- Database
     DB_USER: Optional[str] = None
@@ -38,9 +33,6 @@ class BaseAppSettings(BaseSettings):
     AUTH_SERVICE_URL: Optional[str] = None
     TORRSERVER_BASE_URL: Optional[str] = None
     FRONTEND_URL: Optional[str] = None
-    NEXT_PUBLIC_STREAMING_DAEMON_WS_URL: Optional[str] = None
-    NEXT_PUBLIC_API_GATEWAY_URL: Optional[str] = None
-    NEXT_PUBLIC_STREAMING_SERVICE_URL: Optional[str] = None
 
     # --- CORS
     ALLOWED_ORIGINS: Annotated[Sequence[str], NoDecode] = []
@@ -54,7 +46,6 @@ class BaseAppSettings(BaseSettings):
     # Google Auth
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRETS_FILE: str = ""
-    NEXT_PUBLIC_GOOGLE_CLIENT_ID: Optional[str] = None
 
     # TMDB
     TMDB_API_KEY: Optional[str] = None

@@ -204,7 +204,7 @@ func Run() {
 	router.Use(gin.Recovery())
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://localhost:3000", "https://streamtario.app"},
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
